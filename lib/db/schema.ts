@@ -58,6 +58,26 @@ export interface WorkspaceMember {
   joined_at: string
 }
 
+// Workspace settings (key-value store for workspace-level configuration)
+export interface WorkspaceSetting {
+  id: string
+  workspace_id: string
+  setting_key: string
+  setting_value: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkspaceSettingInsert {
+  workspace_id: string
+  setting_key: string
+  setting_value?: string | null
+}
+
+export interface WorkspaceSettingUpdate {
+  setting_value?: string | null
+}
+
 export interface WorkspaceWithRole extends Workspace {
   role: 'owner' | 'admin' | 'member'
   member_count?: number

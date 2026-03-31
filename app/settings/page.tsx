@@ -8,7 +8,57 @@ import { useAgents } from '@/lib/query/hooks/useChat'
 import { Sidebar } from '@/components/layout/sidebar'
 import { NavigationProvider } from '@/lib/contexts/navigation-context'
 
-type SettingsTab = 'general' | 'chat' | 'workspace' | 'danger'
+type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'danger'
+
+// Default flow prompt template
+const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
+Your responsible status: {$currentStatusName}
+Status objective/description: {$currentStatusDescription}
+Status instructions override: {$statusInstructions}
+
+Task:
+{$ticketJson}
+
+Before starting, read latest comments:
+{$commentsJson}
+
+Available APIs:
+1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
+2) POST /api/tickets/{$ticketId}/comments
+   body example:
+   {
+     "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
+     "is_agent_completion_signal": false
+   }
+3) POST /api/tickets/{$ticketId}/finished
+   body example:
+   {
+     "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
+   }
+4) POST /api/tickets/{$ticketId}/failed
+   body example:
+   {
+     "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
+   }
+5) POST /api/tickets/{$ticketId}/pause
+   body example:
+   {
+     "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
+   }
+
+Execution policy:
+- Perform work for this status using your skills.
+- You MUST provide a concrete progress comment (what you changed, what you checked, what remains).
+- If user input is required, choose result=pause and explain exactly what answer is needed.
+- If success, choose result=finished.
+- If blocked/failure, choose result=failed with root cause.
+
+Respond in plain text (NOT JSON and no code block) using this exact format:
+RESULT: finished | failed | pause
+COMMENT: <normal sentence for timeline comment, what you did>
+SUMMARY: <short final summary and reason>
+
+Do not add JSON output unless explicitly requested.`
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -23,6 +73,11 @@ export default function SettingsPage() {
   const [idleTimeout, setIdleTimeout] = useState(settings?.idle_timeout_minutes ?? 2)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  
+  // Flow template state
+  const [flowPromptTemplate, setFlowPromptTemplate] = useState('')
+  const [flowTemplateLoading, setFlowTemplateLoading] = useState(true)
+  const [loadMessage, setLoadMessage] = useState('')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -39,6 +94,25 @@ export default function SettingsPage() {
       setIdleTimeout(settings.idle_timeout_minutes ?? 2)
     }
   }, [settings])
+  
+  // Fetch workspace flow template
+  useEffect(() => {
+    async function fetchWorkspaceSettings() {
+      try {
+        setFlowTemplateLoading(true)
+        const res = await fetch('/api/workspaces/settings')
+        if (res.ok) {
+          const data = await res.json()
+          setFlowPromptTemplate(data.flow_prompt_template || '')
+        }
+      } catch (error) {
+        console.error('Error fetching workspace settings:', error)
+      } finally {
+        setFlowTemplateLoading(false)
+      }
+    }
+    fetchWorkspaceSettings()
+  }, [])
 
   if (isLoading || !user) {
     return (
@@ -54,6 +128,7 @@ export default function SettingsPage() {
   const tabs: { key: SettingsTab; label: string; icon: string }[] = [
     { key: 'general', label: 'General', icon: '⚙️' },
     { key: 'chat', label: 'Chat', icon: '💬' },
+    { key: 'flow', label: 'Flow', icon: '🔄' },
     { key: 'workspace', label: 'Workspace', icon: '👥' },
     { key: 'danger', label: 'Danger Zone', icon: '⚠️' },
   ]
@@ -376,6 +451,188 @@ export default function SettingsPage() {
                     <li>5. Generated summaries update the chat title and description</li>
                   </ul>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'flow' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
+                    Flow Prompt Template
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    {/* Load Default Template Button */}
+                    <button
+                      className="px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
+                      disabled={flowTemplateLoading}
+                      onClick={() => {
+                        setFlowPromptTemplate(DEFAULT_FLOW_TEMPLATE)
+                        setLoadMessage('Default template loaded')
+                        setTimeout(() => setLoadMessage(''), 2000)
+                      }}
+                    >
+                      {loadMessage || 'Load Default Template'}
+                    </button>
+                    
+                    {/* Save Template Button */}
+                    <button
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isSaving || flowTemplateLoading}
+                      onClick={async () => {
+                        setIsSaving(true)
+                        setSaveMessage('Saving...')
+                        try {
+                          const res = await fetch('/api/workspaces/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ flow_prompt_template: flowPromptTemplate }),
+                          })
+                          if (res.ok) {
+                            setSaveMessage('Saved!')
+                            setTimeout(() => setSaveMessage(''), 2000)
+                          } else {
+                            const errorData = await res.json()
+                            throw new Error(errorData.message || 'Failed to save template')
+                          }
+                        } catch (error) {
+                          console.error('Error saving flow template:', error)
+                          setSaveMessage('Error saving')
+                          setTimeout(() => setSaveMessage(''), 2000)
+                        } finally {
+                          setIsSaving(false)
+                        }
+                      }}
+                    >
+                      {isSaving ? 'Saving...' : saveMessage || 'Save Template'}
+                    </button>
+                  </div>
+                </div>
+
+                {flowTemplateLoading ? (
+                  <div className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                    Loading template...
+                  </div>
+                ) : (
+                  <>
+                    {/* Template Editor */}
+                    <div className="space-y-2">
+                      <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
+                        Custom Prompt Template
+                      </label>
+                      <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                        Customize the prompt sent to agents during ticket flow execution. Leave empty to use the default template.
+                      </p>
+                      <textarea
+                        className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                          minHeight: '400px',
+                          fontFamily: 'monospace',
+                        }}
+                        value={flowPromptTemplate}
+                        onChange={(e) => setFlowPromptTemplate(e.target.value)}
+                        placeholder="Enter custom template or leave empty for default..."
+                      />
+                    </div>
+
+                    {/* Variable Reference */}
+                    <div
+                      className="p-4 rounded-lg border"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                      }}
+                    >
+                      <h4 className="font-semibold mb-3" style={{ color: 'rgb(var(--text-primary))' }}>
+                        Available Variables
+                      </h4>
+                      <p className="text-sm mb-3" style={{ color: 'rgb(var(--text-secondary))' }}>
+                        Use these variables in your template. They will be replaced with actual values when the agent is triggered.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$ticketId}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket ID</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$ticketNumber}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket number</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$ticketTitle}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket title</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$ticketDescription}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket description</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$currentStatusId}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Current status ID</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$currentStatusName}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Current status name</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$currentStatusDescription}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Status description</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$agentId}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Agent ID</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$statusInstructions}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Status instructions</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$commentsJson}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Comments JSON</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$ticketJson}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket JSON</span>
+                        </div>
+                        <div>
+                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+                            {'{$workspaceId}'}
+                          </code>
+                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Workspace ID</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

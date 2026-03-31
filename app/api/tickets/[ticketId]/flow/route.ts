@@ -11,6 +11,74 @@ interface RouteParams {
   params: Promise<{ ticketId: string }>
 }
 
+// Default flow prompt template
+const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
+Your responsible status: {$currentStatusName}
+Status objective/description: {$currentStatusDescription}
+Status instructions override: {$statusInstructions}
+
+Task:
+{$ticketJson}
+
+Before starting, read latest comments:
+{$commentsJson}
+
+Available APIs:
+1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
+2) POST /api/tickets/{$ticketId}/comments
+   body example:
+   {
+     "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
+     "is_agent_completion_signal": false
+   }
+3) POST /api/tickets/{$ticketId}/finished
+   body example:
+   {
+     "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
+   }
+4) POST /api/tickets/{$ticketId}/failed
+   body example:
+   {
+     "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
+   }
+5) POST /api/tickets/{$ticketId}/pause
+   body example:
+   {
+     "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
+   }
+
+Execution policy:
+- Perform work for this status using your skills.
+- You MUST provide a concrete progress comment (what you changed, what you checked, what remains).
+- If user input is required, choose result=pause and explain exactly what answer is needed.
+- If success, choose result=finished.
+- If blocked/failure, choose result=failed with root cause.
+
+Respond in plain text (NOT JSON and no code block) using this exact format:
+RESULT: finished | failed | pause
+COMMENT: <normal sentence for timeline comment, what you did>
+SUMMARY: <short final summary and reason>
+
+Do not add JSON output unless explicitly requested.`
+
+/**
+ * Replace template variables with actual values
+ * @param template - The template string with {$variableName} placeholders
+ * @param variables - Object mapping variable names to their values
+ * @returns Template with all variables replaced
+ */
+function replaceTemplateVariables(
+  template: string,
+  variables: Record<string, string>
+): string {
+  let result = template
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\$${key}\\}`, 'g')
+    result = result.replace(regex, value)
+  }
+  return result
+}
+
 function extractText(value: unknown, depth = 0): string {
   if (depth > 6 || value === null || value === undefined) return ''
   if (typeof value === 'string') return value
@@ -141,65 +209,45 @@ function buildFlowPrompt(params: {
   agentId: string
   statusInstructions: string | null
   recentComments: Array<{ id: string; content: string; created_at: string; email: string }>
+  workspaceId: string
 }): string {
-  const { ticket, currentStatus, agentId, statusInstructions, recentComments } = params
+  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId } = params
+  const db = getDatabase()
 
+  // Fetch custom template from workspace settings
+  const customTemplateSetting = db.prepare(
+    'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
+  ).get(workspaceId, 'flow_prompt_template') as { setting_value: string | null } | undefined
+
+  const template = customTemplateSetting?.setting_value || DEFAULT_FLOW_TEMPLATE
+
+  // Prepare variables for template replacement
   const commentsJson = JSON.stringify(recentComments, null, 2)
-  const ticketJson = JSON.stringify({...ticket,description:null,
+  const ticketJson = JSON.stringify({
+    ...ticket,
+    description: null,
     task_todo: ticket.description
   }, null, 2)
 
- const prompt=  `You are ${agentId}.
-Your responsible status: ${currentStatus.name}
-Status objective/description: ${currentStatus.description || 'No status description provided.'}
-Status instructions override: ${statusInstructions || 'No extra instructions provided.'}
+  const variables = {
+    ticketId: ticket.id,
+    ticketNumber: String(ticket.ticket_number),
+    ticketTitle: ticket.title,
+    ticketDescription: ticket.description || 'No description',
+    currentStatusId: currentStatus.id,
+    currentStatusName: currentStatus.name,
+    currentStatusDescription: currentStatus.description || 'No status description provided.',
+    agentId: agentId,
+    statusInstructions: statusInstructions || 'No extra instructions provided.',
+    commentsJson: commentsJson,
+    ticketJson: ticketJson,
+    workspaceId: workspaceId,
+  }
 
-Task:
-${ticketJson}
+  const prompt = replaceTemplateVariables(template, variables)
 
-Before starting, read latest comments:
-${commentsJson}
-
-Available APIs:
-1) GET /api/tickets/${ticket.id}/flow/view  -> get latest task + flow context
-2) POST /api/tickets/${ticket.id}/comments
-   body example:
-   {
-     "content": "[Agent ${agentId}] Status=${currentStatus.name} | I implemented X, validated Y, next step is Z.",
-     "is_agent_completion_signal": false
-   }
-3) POST /api/tickets/${ticket.id}/finished
-   body example:
-   {
-     "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
-   }
-4) POST /api/tickets/${ticket.id}/failed
-   body example:
-   {
-     "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
-   }
-5) POST /api/tickets/${ticket.id}/pause
-   body example:
-   {
-     "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
-   }
-
-Execution policy:
-- Perform work for this status using your skills.
-- You MUST provide a concrete progress comment (what you changed, what you checked, what remains).
-- If user input is required, choose result=pause and explain exactly what answer is needed.
-- If success, choose result=finished.
-- If blocked/failure, choose result=failed with root cause.
-
-Respond in plain text (NOT JSON and no code block) using this exact format:
-RESULT: finished | failed | pause
-COMMENT: <normal sentence for timeline comment, what you did>
-SUMMARY: <short final summary and reason>
-
-Do not add JSON output unless explicitly requested.`
-
-console.log("[Prompt of flow]:", prompt)
-return prompt
+  console.log("[Prompt of flow]:", prompt)
+  return prompt
 }
 
 async function triggerAgentForFlowStart(args: {
@@ -293,6 +341,7 @@ async function triggerAgentForFlowStart(args: {
     agentId: currentFlowConfig.agent_id,
     statusInstructions: currentFlowConfig.instructions_override || status.instructions_override,
     recentComments: recentComments.reverse(),
+    workspaceId: workspaceId,
   })
 
   try {
