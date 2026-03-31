@@ -1,0 +1,254 @@
+/**
+ * Session Status Tracker
+ * 
+ * Tracks real-time status of chat sessions based on OpenClaw lifecycle events.
+ * Status states: idle, thinking, calling_mcp, writing, stopped, failed
+ */
+
+import { getWebSocketManager } from '@/lib/websocket/manager'
+
+export type SessionStatusType = 'idle' | 'thinking' | 'calling_mcp' | 'writing' | 'stopped' | 'failed'
+
+export interface SessionStatus {
+  sessionId: string
+  sessionKey: string
+  status: SessionStatusType
+  runId?: string
+  lastActivity: number
+  toolName?: string
+}
+
+interface SessionStatusTrackerOptions {
+  timeoutMs?: number
+  cleanupIntervalMs?: number
+}
+
+class SessionStatusTracker {
+  private status: Map<string, SessionStatus> = new Map()
+  private readonly TIMEOUT_MS: number
+  private readonly CLEANUP_INTERVAL_MS: number
+  private cleanupTimer: NodeJS.Timeout | null = null
+  private started = false
+
+  constructor(options: SessionStatusTrackerOptions = {}) {
+    this.TIMEOUT_MS = options.timeoutMs ?? 3600000 // 1 hour default
+    this.CLEANUP_INTERVAL_MS = options.cleanupIntervalMs ?? 60000 // 1 minute
+  }
+
+  /**
+   * Start the tracker and begin periodic cleanup
+   */
+  start() {
+    if (this.started) {
+      return
+    }
+
+    this.started = true
+    console.log('[SessionStatusTracker] Starting session status tracker...')
+
+    // Start cleanup timer
+    this.cleanupTimer = setInterval(() => {
+      this.cleanupExpiredSessions()
+    }, this.CLEANUP_INTERVAL_MS)
+
+    console.log('[SessionStatusTracker] Session status tracker started')
+  }
+
+  /**
+   * Stop the tracker and cleanup timers
+   */
+  stop() {
+    if (!this.started) {
+      return
+    }
+
+    this.started = false
+
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
+
+    console.log('[SessionStatusTracker] Session status tracker stopped')
+  }
+
+  /**
+   * Update or create a session status
+   */
+  updateStatus(sessionId: string, updates: Partial<Omit<SessionStatus, 'sessionId'>>) {
+    const existing = this.status.get(sessionId)
+    const previousStatus = existing?.status
+
+    const newStatus: SessionStatus = {
+      sessionId,
+      sessionKey: updates.sessionKey ?? existing?.sessionKey ?? '',
+      status: updates.status ?? 'idle',
+      runId: updates.runId,
+      lastActivity: updates.lastActivity ?? Date.now(),
+      toolName: updates.toolName,
+    }
+
+    this.status.set(sessionId, newStatus)
+
+    // Log status changes
+    if (previousStatus !== newStatus.status) {
+      console.log('[SessionStatusTracker] Status updated:', {
+        sessionId,
+        previous: previousStatus,
+        current: newStatus.status,
+        toolName: newStatus.toolName,
+      })
+    }
+
+    // Broadcast the update
+    this.broadcastStatus(sessionId, newStatus)
+  }
+
+  /**
+   * Get status for a specific session
+   */
+  getStatus(sessionId: string): SessionStatus | undefined {
+    return this.status.get(sessionId)
+  }
+
+  /**
+   * Get all tracked statuses
+   */
+  getAllStatuses(): SessionStatus[] {
+    return Array.from(this.status.values())
+  }
+
+  /**
+   * Get statuses filtered by type
+   */
+  getStatusesByType(statusType: SessionStatusType): SessionStatus[] {
+    return Array.from(this.status.values()).filter(s => s.status === statusType)
+  }
+
+  /**
+   * Get active sessions (not stopped or idle for too long)
+   */
+  getActiveSessions(): SessionStatus[] {
+    const now = Date.now()
+    return Array.from(this.status.values()).filter(s => {
+      if (s.status === 'stopped') return false
+      if (s.status === 'idle') {
+        // Consider idle sessions as active if they had recent activity
+        return now - s.lastActivity < this.TIMEOUT_MS
+      }
+      return true
+    })
+  }
+
+  /**
+   * Mark a session as stopped
+   */
+  markSessionStopped(sessionId: string) {
+    const existing = this.status.get(sessionId)
+    if (existing && existing.status !== 'stopped') {
+      this.updateStatus(sessionId, {
+        status: 'stopped',
+        lastActivity: Date.now(),
+      })
+    }
+  }
+
+  /**
+   * Remove a session from tracking
+   */
+  removeSession(sessionId: string) {
+    this.status.delete(sessionId)
+    console.log('[SessionStatusTracker] Session removed from tracking:', sessionId)
+  }
+
+  /**
+   * Cleanup sessions that have been inactive longer than timeout
+   */
+  private cleanupExpiredSessions() {
+    const now = Date.now()
+    let cleaned = 0
+
+    for (const [sessionId, status] of this.status.entries()) {
+      // Don't cleanup already stopped sessions
+      if (status.status === 'stopped') {
+        // Remove stopped sessions after 24 hours
+        if (now - status.lastActivity > 86400000) {
+          this.removeSession(sessionId)
+          cleaned++
+        }
+        continue
+      }
+
+      // Mark inactive sessions as stopped
+      if (now - status.lastActivity > this.TIMEOUT_MS && status.status === 'idle') {
+        this.markSessionStopped(sessionId)
+        cleaned++
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log('[SessionStatusTracker] Cleaned up', cleaned, 'expired sessions')
+    }
+  }
+
+  /**
+   * Broadcast status update to all connected WebSocket clients
+   */
+  private broadcastStatus(sessionId: string, status: SessionStatus) {
+    try {
+      const wsManager = getWebSocketManager()
+      
+      // Broadcast to 'sessions' channel - all clients listening to session updates
+      wsManager.broadcast('sessions', {
+        type: 'session.status',
+        data: status,
+      })
+
+      // Also broadcast to the specific session's channel
+      wsManager.broadcast(sessionId, {
+        type: 'session.status',
+        data: status,
+      })
+
+      console.log('[SessionStatusTracker] Broadcast status:', {
+        sessionId,
+        status: status.status,
+      })
+    } catch (error) {
+      console.error('[SessionStatusTracker] Failed to broadcast status:', error)
+    }
+  }
+
+  /**
+   * Get the count of active sessions
+   */
+  getActiveCount(): number {
+    return this.getActiveSessions().length
+  }
+
+  /**
+   * Check if the tracker is running
+   */
+  isRunning(): boolean {
+    return this.started
+  }
+}
+
+// Singleton instance
+let trackerInstance: SessionStatusTracker | null = null
+
+export function getSessionStatusTracker(): SessionStatusTracker {
+  if (!trackerInstance) {
+    trackerInstance = new SessionStatusTracker()
+    // Auto-start on first access
+    trackerInstance.start()
+  }
+  return trackerInstance
+}
+
+export function resetSessionStatusTrackerForTest() {
+  if (trackerInstance) {
+    trackerInstance.stop()
+    trackerInstance = null
+  }
+}

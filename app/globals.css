@@ -1,0 +1,283 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light Mode (Default) */
+:root,
+[data-theme="light"] {
+  --bg-primary: 255, 255, 255;
+  --bg-secondary: 249, 250, 251;
+  --bg-tertiary: 243, 244, 246;
+  --text-primary: 17, 24, 39;
+  --text-secondary: 75, 85, 99;
+  --text-tertiary: 156, 163, 175;
+  --border-color: 229, 231, 235;
+  --accent-primary: 59, 130, 246;
+  --accent-hover: 37, 99, 235;
+  --sidebar-bg: 255, 255, 255;
+  --sidebar-hover: 243, 244, 246;
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --bg-primary: 17, 24, 39;
+  --bg-secondary: 31, 41, 55;
+  --bg-tertiary: 55, 65, 81;
+  --text-primary: 243, 244, 246;
+  --text-secondary: 209, 213, 219;
+  --text-tertiary: 156, 163, 175;
+  --border-color: 55, 65, 81;
+  --accent-primary: 96, 165, 250;
+  --accent-hover: 59, 130, 246;
+  --sidebar-bg: 31, 41, 55;
+  --sidebar-hover: 55, 65, 81;
+}
+
+/* Blue Mode */
+[data-theme="blue"] {
+  --bg-primary: 239, 246, 255;
+  --bg-secondary: 219, 234, 254;
+  --bg-tertiary: 191, 219, 254;
+  --text-primary: 30, 58, 138;
+  --text-secondary: 30, 64, 175;
+  --text-tertiary: 59, 130, 246;
+  --border-color: 147, 197, 253;
+  --accent-primary: 37, 99, 235;
+  --accent-hover: 29, 78, 216;
+  --sidebar-bg: 219, 234, 254;
+  --sidebar-hover: 191, 219, 254;
+}
+
+/* Black Red Mode */
+[data-theme="black-red"] {
+  --bg-primary: 15, 15, 15;
+  --bg-secondary: 30, 30, 30;
+  --bg-tertiary: 45, 45, 45;
+  --text-primary: 255, 255, 255;
+  --text-secondary: 220, 220, 220;
+  --text-tertiary: 180, 180, 180;
+  --border-color: 60, 60, 60;
+  --accent-primary: 239, 68, 68;
+  --accent-hover: 220, 38, 38;
+  --sidebar-bg: 20, 20, 20;
+  --sidebar-hover: 40, 40, 40;
+}
+
+body {
+  background-color: rgb(var(--bg-primary));
+  color: rgb(var(--text-primary));
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Chat UI Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes progress-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+/* Apply animations */
+.chat-message-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.chat-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Typing indicator dots */
+.typing-dot {
+  animation: typing-dot 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Streaming cursor */
+.streaming-cursor {
+  animation: cursor-blink 1s infinite;
+}
+
+/* Activity status pulse */
+.activity-pulse {
+  animation: progress-pulse 2s infinite;
+}
+
+/* Tool card shimmer effect */
+.tool-shimmer {
+  background: linear-gradient(90deg,
+    rgb(var(--bg-secondary)) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgb(var(--bg-secondary)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Smooth scrollbar */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: rgb(var(--bg-secondary));
+  border-radius: 3px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-color));
+  border-radius: 3px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--text-tertiary));
+}
+
+/* Dashboard horizontal slider scrollbar */
+.dashboard-slider::-webkit-scrollbar {
+  height: 8px;
+}
+
+.dashboard-slider::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.dashboard-slider::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-color));
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.dashboard-slider::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--text-tertiary));
+}
+
+/* Message group styling */
+.chat-group {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Input focus effects */
+.chat-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Tab transitions */
+.tab-transition {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--bg-secondary)) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgb(var(--bg-secondary)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Activity status bar transitions */
+.activity-bar {
+  transition: all 0.3s ease;
+}
+
+/* Session card hover effects */
+.session-card {
+  transition: all 0.2s ease;
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Tool card expansion */
+.tool-card-expand {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chat-input {
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+  
+  .chat-message {
+    max-width: 90%;
+  }
+}
