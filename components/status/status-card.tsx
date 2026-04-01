@@ -8,15 +8,36 @@ interface StatusCardProps {
   onEdit: (status: Status) => void
   onDelete: (status: Status) => void
   canManage: boolean
+  draggable?: boolean
+  onDragStart?: () => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  isDragging?: boolean
 }
 
-export function StatusCard({ status, onEdit, onDelete, canManage }: StatusCardProps) {
+export function StatusCard({
+  status,
+  onEdit,
+  onDelete,
+  canManage,
+  draggable = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragging = false
+}: StatusCardProps) {
   return (
     <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       className="group relative rounded-lg border p-4 transition-all hover:shadow-md"
       style={{
         backgroundColor: `rgb(var(--bg-primary))`,
         borderColor: `rgb(var(--border-color))`,
+        opacity: isDragging ? 0.5 : 1,
+        cursor: draggable ? 'move' : 'default',
       }}
     >
       {/* Color indicator and name */}

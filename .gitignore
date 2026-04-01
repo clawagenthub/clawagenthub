@@ -39,3 +39,6 @@ data/
 *.swp
 *.swo
 *~
+
+# Skills directory
+skills/

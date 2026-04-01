@@ -38,7 +38,17 @@ export function StatusesPageContent({ user }: PageContentProps) {
     setEditingStatus(null)
   }
 
-  const handleSubmit = async (data: { name: string; color: string; description?: string; priority?: number; agent_id?: string | null }) => {
+  const handleSubmit = async (data: {
+    name: string;
+    color: string;
+    description?: string;
+    priority?: number;
+    agent_id?: string | null
+    is_flow_included?: boolean
+    on_failed_goto?: string | null
+    ask_approve_to_continue?: boolean
+    skill_ids?: string[]
+  }) => {
     console.log('[DEBUG] handleSubmit called with data:', data)
     setIsSubmitting(true)
     try {
@@ -68,6 +78,23 @@ export function StatusesPageContent({ user }: PageContentProps) {
       if (!response.ok) {
         const errorData = responseText ? JSON.parse(responseText) : { message: 'Unknown error' }
         throw new Error(errorData.message || `Failed to save status (${response.status})`)
+      }
+      
+      const resultData = responseText ? JSON.parse(responseText) : null
+      const statusId = editingStatus?.id || resultData?.id
+      
+      // Handle skills attachment
+      if (statusId && data.skill_ids && data.skill_ids.length > 0) {
+        try {
+          await fetch(`/api/statuses/${statusId}/skills`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ skill_ids: data.skill_ids }),
+          })
+        } catch (error) {
+          console.error('Error attaching skills to status:', error)
+          // Don't fail the whole operation if skills attachment fails
+        }
       }
       
       setShowModal(false)

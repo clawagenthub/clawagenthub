@@ -7,7 +7,7 @@ import { ChangePasswordForm } from '@/components/auth/change-password-form'
 import { BoardColumn } from '@/components/board/board-column'
 import { TicketModal, TicketViewModal } from '@/components/tickets'
 import { Button } from '@/components/ui/button'
-import { useUser, useStatuses, useReorderStatuses, useCreateTicket, useUpdateTicket, useUpdateTicketFlowConfig, useDeleteTicket, useTickets } from '@/lib/query/hooks'
+import { useUser, useStatuses, useCreateTicket, useUpdateTicket, useUpdateTicketFlowConfig, useTickets } from '@/lib/query/hooks'
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import type { PageContentProps } from './index'
 
@@ -44,25 +44,20 @@ export function DashboardPageContent({ user }: PageContentProps) {
   // Fetch statuses from the API (ordered by priority)
   const { data: statuses = [], isLoading, error, refetch: refetchStatuses } = useStatuses()
   
-  // Reorder mutation for persisting drag-drop changes
-  const reorderStatuses = useReorderStatuses()
-  
   // Ticket creation
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
   const [isTicketViewModalOpen, setIsTicketViewModalOpen] = useState(false)
   const [editingTicket, setEditingTicket] = useState<TicketWithRelations | null>(null)
   const [viewingTicket, setViewingTicket] = useState<TicketWithRelations | null>(null)
-  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null)
   const createMutation = useCreateTicket()
   const updateMutation = useUpdateTicket()
   const updateFlowConfigMutation = useUpdateTicketFlowConfig()
-  const deleteMutation = useDeleteTicket()
   
   // Show drafts toggle state
   const [showDrafts, setShowDrafts] = useState(false)
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
-  const [draggedStatusId, setDraggedStatusId] = useState<string | null>(null)
+  const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null)
 
   // Load show drafts preference on mount
   useEffect(() => {
@@ -95,53 +90,43 @@ export function DashboardPageContent({ user }: PageContentProps) {
     }
   }
 
-  const handleDragStart = (e: React.DragEvent, statusId: string) => {
-    setDraggedStatusId(statusId)
-    e.dataTransfer.effectAllowed = 'move'
+  // Ticket drag handlers - for moving tickets between statuses
+  const handleTicketDragStart = (ticketId: string) => {
+    setDraggedTicketId(ticketId)
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleTicketDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
   }
 
-  const handleDrop = async (e: React.DragEvent, targetStatusId: string) => {
+  const handleTicketDrop = async (e: React.DragEvent, targetStatusId: string) => {
     e.preventDefault()
     
-    if (!draggedStatusId || draggedStatusId === targetStatusId) {
-      setDraggedStatusId(null)
+    if (!draggedTicketId) {
       return
     }
 
-    const draggedIndex = statuses.findIndex((s) => s.id === draggedStatusId)
-    const targetIndex = statuses.findIndex((s) => s.id === targetStatusId)
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDraggedStatusId(null)
+    // Find the ticket being dragged
+    const ticket = tickets.find(t => t.id === draggedTicketId)
+    
+    if (!ticket || ticket.status_id === targetStatusId) {
+      setDraggedTicketId(null)
       return
     }
 
-    // Create new array with reordered statuses
-    const newStatuses = [...statuses]
-    const [draggedStatus] = newStatuses.splice(draggedIndex, 1)
-    newStatuses.splice(targetIndex, 0, draggedStatus)
-
-    // Calculate new priorities based on position
-    const reorderItems = newStatuses.map((status, index) => ({
-      id: status.id,
-      priority: index + 1, // Start priorities at 1
-    }))
-
-    // Persist the new priorities to the database
+    // Update the ticket's status
     try {
-      await reorderStatuses.mutateAsync(reorderItems)
+      await updateMutation.mutateAsync({
+        id: ticket.id,
+        status_id: targetStatusId,
+      })
     } catch (error) {
-      console.error('Failed to reorder statuses:', error)
-      // Refetch to restore correct order
-      refetchStatuses()
+      console.error('Failed to move ticket:', error)
+      alert(error instanceof Error ? error.message : 'Failed to move ticket')
     }
 
-    setDraggedStatusId(null)
+    setDraggedTicketId(null)
   }
 
   async function handleCreateTicket(data: any) {
@@ -216,25 +201,6 @@ export function DashboardPageContent({ user }: PageContentProps) {
     setIsTicketViewModalOpen(true)
   }
 
-  async function handleDeleteTicket(ticket: TicketWithRelations) {
-    const confirmed = window.confirm(
-      `Delete ticket #${ticket.ticket_number} "${ticket.title}"? This cannot be undone.`
-    )
-    if (!confirmed) return
-
-    try {
-      setDeletingTicketId(ticket.id)
-      await deleteMutation.mutateAsync(ticket.id)
-      if (editingTicket?.id === ticket.id) {
-        handleCloseTicketModal()
-      }
-    } catch (error) {
-      console.error('Failed to delete ticket:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete ticket')
-    } finally {
-      setDeletingTicketId(null)
-    }
-  }
 
   return (
     <>
@@ -386,14 +352,13 @@ export function DashboardPageContent({ user }: PageContentProps) {
                       id={status.id}
                       title={status.name}
                       color={status.color}
-                      onDragStart={handleDragStart}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
                       tickets={tickets.filter(t => t.status_id === status.id)}
                       showDrafts={showDrafts}
                       onTicketDoubleClick={handleTicketDoubleClick}
-                      onTicketDelete={handleDeleteTicket}
-                      deletingTicketId={deletingTicketId}
+                      onTicketDragStart={handleTicketDragStart}
+                      onTicketDragOver={handleTicketDragOver}
+                      onTicketDrop={handleTicketDrop}
+                      draggedTicketId={draggedTicketId}
                     />
                   </div>
                 ))}

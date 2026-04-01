@@ -17,6 +17,7 @@ interface StatusModalProps {
     is_flow_included?: boolean
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
+    skill_ids?: string[]
   }) => void
   status?: Status | null
   isSubmitting?: boolean
@@ -29,6 +30,8 @@ export function StatusModal({
   status,
   isSubmitting = false,
 }: StatusModalProps) {
+  // Note: initialSkillIds is handled by StatusForm internally via API call
+  // We don't pass it here since Status type doesn't have skill_ids field
   return (
     <Modal
       isOpen={isOpen}

@@ -381,6 +381,78 @@ export interface ChatMessage {
   created_at: string
 }
 
+// Skill source types
+export type SkillSource = 'custom' | 'skillsmp' | 'imported'
+
+// Skills table
+export interface Skill {
+  id: string
+  workspace_id: string
+  skill_name: string
+  skill_description: string | null
+  skill_data: string // Markdown content (SKILL.md format)
+  source: SkillSource
+  external_id: string | null
+  tags: string | null // JSON array
+  path: string | null // Relative path to local SKILL.md file
+  is_content_from_path: boolean // If true, read content from path; otherwise use skill_data
+  github_url: string | null // GitHub repository URL
+  skill_url: string | null // SkillsMP marketplace URL
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  created_by: string | null
+}
+
+export interface SkillInsert {
+  workspace_id: string
+  skill_name: string
+  skill_description?: string | null
+  skill_data: string
+  source?: SkillSource
+  external_id?: string | null
+  tags?: string | null
+  path?: string | null
+  is_content_from_path?: boolean
+  github_url?: string | null
+  skill_url?: string | null
+  is_active?: boolean
+  created_by?: string | null
+}
+
+export interface SkillUpdate {
+  skill_name?: string
+  skill_description?: string | null
+  skill_data?: string
+  tags?: string | null
+  is_active?: boolean
+}
+
+// Status-Skills junction table
+export interface StatusSkill {
+  id: string
+  status_id: string
+  skill_id: string
+  priority: number
+  created_at: string
+}
+
+export interface StatusSkillInsert {
+  status_id: string
+  skill_id: string
+  priority?: number
+}
+
+// Extended types for API responses
+export interface SkillWithMetadata extends Skill {
+  status_count?: number // Number of statuses using this skill
+  created_by_email?: string
+}
+
+export interface StatusWithSkills extends Status {
+  skills?: Skill[]
+}
+
 // Content block types for chat messages
 export interface ChatContentBlock {
   type: 'text' | 'thinking' | 'toolCall'

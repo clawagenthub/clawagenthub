@@ -53,6 +53,7 @@ interface TicketModalProps {
   }
   isSubmitting?: boolean
   onSwitchToView?: () => void
+  onDelete?: () => void
   // Deprecated - use hooks internally instead
   availableUsers?: Array<{ id: string; email: string }>
   availableAgents?: Array<{ id: string; name: string }>
@@ -107,6 +108,7 @@ export function TicketModal({
   initialData,
   isSubmitting = false,
   onSwitchToView,
+  onDelete,
   availableUsers = [],
   availableAgents = [],
 }: TicketModalProps) {
@@ -764,18 +766,34 @@ export function TicketModal({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => handleSubmit('active')}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
-                color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
-              }}
-              disabled={isSubmitting || !title.trim() || !statusId}
-            >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </button>
+            <>
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'rgb(239, 68, 68)',
+                    color: 'white',
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSubmit('active')}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
+                  color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
+                }}
+                disabled={isSubmitting || !title.trim() || !statusId}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
           )}
         </div>
         </form>

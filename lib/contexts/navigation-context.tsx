@@ -10,7 +10,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 
-export type AppRoute = 'dashboard' | 'chat' | 'gateways' | 'statuses' | 'profile' | 'settings'
+export type AppRoute = 'dashboard' | 'chat' | 'gateways' | 'statuses' | 'skills' | 'profile' | 'settings'
 
 interface NavigationContextValue {
   currentRoute: AppRoute
@@ -75,6 +75,7 @@ function getPathnameRoute(pathname: string): AppRoute {
   if (pathname.startsWith('/chat')) return 'chat'
   if (pathname.startsWith('/gateways')) return 'gateways'
   if (pathname.startsWith('/statuses')) return 'statuses'
+  if (pathname.startsWith('/skills')) return 'skills'
   if (pathname.startsWith('/profile')) return 'profile'
   if (pathname.startsWith('/settings') || pathname.includes('settings')) return 'settings'
   return 'dashboard'
@@ -90,6 +91,8 @@ function getRouteUrl(route: AppRoute): string {
       return '/gateways'
     case 'statuses':
       return '/statuses'
+    case 'skills':
+      return '/skills'
     case 'profile':
       return '/profile'
     case 'settings':

@@ -67,6 +67,9 @@ export function runMigrations(): void {
     '025_add_ticket_creation_status.sql',
     '026_add_ticket_flowing_status.sql',
     '027_add_ticket_flow_mode.sql',
+    '028_add_workspace_settings.sql',
+    '029_add_skills_tables.sql',
+    '030_add_skills_path_columns.sql',
   ]
 
   for (const file of migrationFiles) {

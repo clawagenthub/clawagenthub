@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAgents, useStatuses } from '@/lib/query/hooks'
 
 // Predefined color palette for status colors
@@ -29,7 +29,8 @@ interface StatusFormProps {
   initialOnFailedGoto?: string | null
   initialAskApproveToContinue?: boolean
   editingStatusId?: string // Exclude this status from on_failed_goto dropdown
-  onSubmit: (data: { 
+  initialSkillIds?: string[] // Initial skills attached to this status
+  onSubmit: (data: {
     name: string
     color: string
     description?: string
@@ -38,11 +39,20 @@ interface StatusFormProps {
     is_flow_included?: boolean
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
+    skill_ids?: string[] // Skills to attach to the status
   }) => void
   isEditing?: boolean
   onCancel: () => void
   isSubmitting?: boolean
   submitLabel?: string
+}
+
+interface Skill {
+  id: string
+  skill_name: string
+  skill_description: string | null
+  tags: string | null
+  source: string
 }
 
 export function StatusForm({
@@ -55,6 +65,7 @@ export function StatusForm({
   initialOnFailedGoto = null,
   initialAskApproveToContinue = false,
   editingStatusId,
+  initialSkillIds = [],
   onSubmit,
   onCancel,
   isSubmitting = false,
@@ -75,11 +86,68 @@ export function StatusForm({
   const [askApproveToContinue, setAskApproveToContinue] = useState(initialAskApproveToContinue)
   const [isFlowConfigExpanded, setIsFlowConfigExpanded] = useState(false)
   
+  // Skills state
+  const [selectedSkills, setSelectedSkills] = useState<Skill[]>([])
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([])
+  const [skillsSearchTerm, setSkillsSearchTerm] = useState('')
+  const [isSkillsExpanded, setIsSkillsExpanded] = useState(false)
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false)
+  const [skillsError, setSkillsError] = useState<string | null>(null)
+  
   // Fetch available agents from connected gateways
   const { data: agents = [], isLoading: isLoadingAgents } = useAgents()
   
   // Fetch statuses for on_failed_goto dropdown
   const { data: statuses = [] } = useStatuses()
+  
+  // Fetch available skills when component mounts or skills section expands
+  useEffect(() => {
+    if (isSkillsExpanded && availableSkills.length === 0) {
+      fetchSkills()
+    }
+  }, [isSkillsExpanded])
+  
+  // Fetch initial skills for editing
+  useEffect(() => {
+    if (isEditing && editingStatusId) {
+      fetchStatusSkills()
+    }
+  }, [isEditing, editingStatusId])
+  
+  const fetchSkills = async () => {
+    setIsLoadingSkills(true)
+    setSkillsError(null)
+    try {
+      const response = await fetch('/api/skills')
+      if (!response.ok) {
+        throw new Error('Failed to fetch skills')
+      }
+      const data = await response.json()
+      setAvailableSkills(data.skills || [])
+    } catch (error) {
+      console.error('Error fetching skills:', error)
+      setSkillsError('Failed to load skills')
+    } finally {
+      setIsLoadingSkills(false)
+    }
+  }
+  
+  const fetchStatusSkills = async () => {
+    if (!editingStatusId) return
+    try {
+      const response = await fetch(`/api/statuses/${editingStatusId}/skills`)
+      if (!response.ok) {
+        // If status is new or has no skills, that's fine
+        setSelectedSkills([])
+        return
+      }
+      const data = await response.json()
+      setSelectedSkills(data.skills || [])
+    } catch (error) {
+      console.error('Error fetching status skills:', error)
+      setSelectedSkills([])
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,7 +160,31 @@ export function StatusForm({
       is_flow_included: isFlowIncluded,
       on_failed_goto: onFailedGoto,
       ask_approve_to_continue: askApproveToContinue,
+      skill_ids: selectedSkills.map(s => s.id),
     })
+  }
+  
+  const handleAddSkill = (skill: Skill) => {
+    if (!selectedSkills.find(s => s.id === skill.id)) {
+      setSelectedSkills([...selectedSkills, skill])
+    }
+  }
+  
+  const handleRemoveSkill = (skillId: string) => {
+    setSelectedSkills(selectedSkills.filter(s => s.id !== skillId))
+  }
+  
+  const getFilteredSkills = () => {
+    if (!skillsSearchTerm.trim()) {
+      return availableSkills.filter(s => !selectedSkills.find(ss => ss.id === s.id))
+    }
+    const searchLower = skillsSearchTerm.toLowerCase()
+    return availableSkills.filter(s =>
+      !selectedSkills.find(ss => ss.id === s.id) &&
+      (s.skill_name.toLowerCase().includes(searchLower) ||
+       (s.skill_description && s.skill_description.toLowerCase().includes(searchLower)) ||
+       (s.tags && s.tags.toLowerCase().includes(searchLower)))
+    )
   }
 
   const isCustomColorInPalette = STATUS_COLORS.some((c) => c.value === customColor)
@@ -456,6 +548,297 @@ export function StatusForm({
         )}
       </div>
 
+      {/* Skills Section */}
+      <div
+        className="border rounded-lg overflow-hidden"
+        style={{ borderColor: `rgb(var(--border-color))` }}
+      >
+        <button
+          type="button"
+          onClick={() => setIsSkillsExpanded(!isSkillsExpanded)}
+          className="w-full px-4 py-3 flex items-center justify-between transition-colors"
+          style={{ backgroundColor: `rgb(var(--bg-secondary))` }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium" style={{ color: `rgb(var(--text-primary))` }}>
+              Skills
+            </span>
+            {selectedSkills.length > 0 && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
+                  color: 'white',
+                }}
+              >
+                {selectedSkills.length}
+              </span>
+            )}
+          </div>
+          <svg
+            className={`w-5 h-5 transition-transform ${isSkillsExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {isSkillsExpanded && (
+          <div className="p-4 space-y-4" style={{ backgroundColor: `rgb(var(--bg-primary))` }}>
+            {/* Selected Skills List */}
+            {selectedSkills.length > 0 && (
+              <div>
+                <label className="mb-2 block text-sm font-medium" style={{ color: `rgb(var(--text-primary))` }}>
+                  Attached Skills
+                </label>
+                <div className="space-y-2">
+                  {selectedSkills.map((skill, index) => (
+                    <div
+                      key={skill.id}
+                      className="flex items-start justify-between rounded-md border p-3"
+                      style={{
+                        backgroundColor: `rgb(var(--bg-secondary))`,
+                        borderColor: `rgb(var(--border-color))`,
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-xs font-medium px-1.5 py-0.5 rounded"
+                            style={{
+                              backgroundColor: `rgba(var(--accent-primary, 59 130 246), 0.1)`,
+                              color: `rgb(var(--accent-primary, 59 130 246))`,
+                            }}
+                          >
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-sm" style={{ color: `rgb(var(--text-primary))` }}>
+                            {skill.skill_name}
+                          </span>
+                          {skill.source === 'marketplace' && (
+                            <span
+                              className="text-xs px-1.5 py-0.5 rounded"
+                              style={{
+                                backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                color: 'rgb(168, 85, 247)',
+                              }}
+                            >
+                              Marketplace
+                            </span>
+                          )}
+                        </div>
+                        {skill.skill_description && (
+                          <p className="mt-1 text-xs line-clamp-2" style={{ color: `rgb(var(--text-secondary))` }}>
+                            {skill.skill_description}
+                          </p>
+                        )}
+                        {skill.tags && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {skill.tags.split(',').slice(0, 3).map((tag, i) => (
+                              <span
+                                key={i}
+                                className="text-xs px-1.5 py-0.5 rounded"
+                                style={{
+                                  backgroundColor: `rgb(var(--bg-tertiary))`,
+                                  color: `rgb(var(--text-tertiary))`,
+                                }}
+                              >
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSkill(skill.id)}
+                        className="ml-2 flex-shrink-0 p-1 rounded hover:bg-red-100 transition-colors"
+                        style={{ color: 'rgb(239, 68, 68)' }}
+                        title="Remove skill"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs" style={{ color: `rgb(var(--text-tertiary))` }}>
+                  Skills are injected into agent prompts in priority order during flow execution.
+                </p>
+              </div>
+            )}
+
+            {/* Add Skills */}
+            <div>
+              <label className="mb-2 block text-sm font-medium" style={{ color: `rgb(var(--text-primary))` }}>
+                Add Skills
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={skillsSearchTerm}
+                  onChange={(e) => setSkillsSearchTerm(e.target.value)}
+                  onFocus={() => {
+                    if (availableSkills.length === 0 && !isLoadingSkills) {
+                      fetchSkills()
+                    }
+                  }}
+                  placeholder="Search skills by name, description, or tags..."
+                  className="w-full rounded-md border px-3 py-2 pl-10 focus:outline-none focus:ring-2"
+                  style={{
+                    backgroundColor: `rgb(var(--bg-secondary))`,
+                    borderColor: `rgb(var(--border-color))`,
+                    color: `rgb(var(--text-primary))`,
+                    ringColor: 'rgb(var(--accent-primary, 59 130 246))',
+                  }}
+                />
+                <svg
+                  className="absolute left-3 top-2.5 w-5 h-5"
+                  style={{ color: `rgb(var(--text-tertiary))` }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              {/* Skills Dropdown */}
+              {skillsSearchTerm.trim() && (
+                <div
+                  className="mt-2 rounded-md border max-h-60 overflow-y-auto"
+                  style={{
+                    backgroundColor: `rgb(var(--bg-secondary))`,
+                    borderColor: `rgb(var(--border-color))`,
+                  }}
+                >
+                  {isLoadingSkills ? (
+                    <div className="p-4 text-center text-sm" style={{ color: `rgb(var(--text-secondary))` }}>
+                      Loading skills...
+                    </div>
+                  ) : skillsError ? (
+                    <div className="p-4 text-center text-sm text-red-500">
+                      {skillsError}
+                    </div>
+                  ) : getFilteredSkills().length === 0 ? (
+                    <div className="p-4 text-center text-sm" style={{ color: `rgb(var(--text-secondary))` }}>
+                      {availableSkills.length === 0
+                        ? 'No skills available. Create skills in the Skills tab.'
+                        : 'No matching skills found.'}
+                    </div>
+                  ) : (
+                    getFilteredSkills().slice(0, 10).map((skill) => (
+                      <button
+                        key={skill.id}
+                        type="button"
+                        onClick={() => {
+                          handleAddSkill(skill)
+                          setSkillsSearchTerm('')
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-opacity-50 transition-colors border-b last:border-b-0"
+                        style={{
+                          borderColor: `rgb(var(--border-color))`,
+                          backgroundColor: 'transparent',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = `rgb(var(--bg-tertiary))`
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm truncate" style={{ color: `rgb(var(--text-primary))` }}>
+                                {skill.skill_name}
+                              </span>
+                              {skill.source === 'marketplace' && (
+                                <span
+                                  className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                                  style={{
+                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                    color: 'rgb(168, 85, 247)',
+                                  }}
+                                >
+                                  MP
+                                </span>
+                              )}
+                            </div>
+                            {skill.skill_description && (
+                              <p className="text-xs truncate mt-0.5" style={{ color: `rgb(var(--text-secondary))` }}>
+                                {skill.skill_description}
+                              </p>
+                            )}
+                          </div>
+                          <svg
+                            className="w-5 h-5 flex-shrink-0 ml-2"
+                            style={{ color: `rgb(var(--accent-primary, 59 130 246))` }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Quick Add: All Skills (when no search) */}
+              {!skillsSearchTerm.trim() && availableSkills.length > 0 && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSkillsExpanded(false)}
+                    className="text-sm underline"
+                    style={{ color: `rgb(var(--accent-primary, 59 130 246))` }}
+                  >
+                    Go to Skills tab to create new skills
+                  </button>
+                  {getFilteredSkills().length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs" style={{ color: `rgb(var(--text-tertiary))` }}>
+                        Available skills ({getFilteredSkills().length}):
+                      </p>
+                      {getFilteredSkills().slice(0, 5).map((skill) => (
+                        <button
+                          key={skill.id}
+                          type="button"
+                          onClick={() => handleAddSkill(skill)}
+                          className="block w-full text-left px-2 py-1.5 rounded text-sm hover:opacity-80 transition-colors"
+                          style={{
+                            backgroundColor: `rgb(var(--bg-secondary))`,
+                            color: `rgb(var(--text-primary))`,
+                          }}
+                        >
+                          <span className="font-medium">{skill.skill_name}</span>
+                          {skill.skill_description && (
+                            <span className="ml-2 text-xs truncate" style={{ color: `rgb(var(--text-secondary))` }}>
+                              {skill.skill_description}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      {getFilteredSkills().length > 5 && (
+                        <p className="text-xs mt-1" style={{ color: `rgb(var(--text-tertiary))` }}>
+                          +{getFilteredSkills().length - 5} more skills...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Preview */}
       <div
         className="rounded-lg border p-3"
@@ -497,7 +880,7 @@ export function StatusForm({
           </p>
         )}
         {/* Flow configuration badges in preview */}
-        {(isFlowIncluded || onFailedGoto || askApproveToContinue) && (
+        {(isFlowIncluded || onFailedGoto || askApproveToContinue || selectedSkills.length > 0) && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {isFlowIncluded && (
               <span
@@ -530,6 +913,17 @@ export function StatusForm({
                 }}
               >
                 Approval
+              </span>
+            )}
+            {selectedSkills.length > 0 && (
+              <span
+                className="text-xs px-2 py-0.5 rounded"
+                style={{
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  color: 'rgb(59, 130, 246)',
+                }}
+              >
+                {selectedSkills.length} Skill{selectedSkills.length !== 1 ? 's' : ''}
               </span>
             )}
           </div>

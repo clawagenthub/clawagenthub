@@ -8,7 +8,7 @@ import { useAgents } from '@/lib/query/hooks/useChat'
 import { Sidebar } from '@/components/layout/sidebar'
 import { NavigationProvider } from '@/lib/contexts/navigation-context'
 
-type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'danger'
+type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'skillsmp' | 'danger'
 
 // Default flow prompt template
 const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
@@ -22,25 +22,33 @@ Task:
 Before starting, read latest comments:
 {$commentsJson}
 
+{$skills}
+
 Available APIs:
 1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
-2) POST /api/tickets/{$ticketId}/comments
+2) GET /api/tickets/{$ticketId}/flow/skills  -> get skills for current status (returns array with id, name, description)
+3) POST /api/tickets/{$ticketId}/flow/skills/detail  -> get full skill data
+   body example:
+   {
+     "skill_ids": ["skill_123", "skill_456"]
+   }
+4) POST /api/tickets/{$ticketId}/comments
    body example:
    {
      "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
      "is_agent_completion_signal": false
    }
-3) POST /api/tickets/{$ticketId}/finished
+5) POST /api/tickets/{$ticketId}/finished
    body example:
    {
      "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
    }
-4) POST /api/tickets/{$ticketId}/failed
+6) POST /api/tickets/{$ticketId}/failed
    body example:
    {
      "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
    }
-5) POST /api/tickets/{$ticketId}/pause
+7) POST /api/tickets/{$ticketId}/pause
    body example:
    {
      "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
@@ -78,6 +86,11 @@ export default function SettingsPage() {
   const [flowPromptTemplate, setFlowPromptTemplate] = useState('')
   const [flowTemplateLoading, setFlowTemplateLoading] = useState(true)
   const [loadMessage, setLoadMessage] = useState('')
+  
+  // SkillsMP API key state
+  const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
+  const [skillsmpSaving, setSkillsmpSaving] = useState(false)
+  const [skillsmpMessage, setSkillsmpMessage] = useState('')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -95,7 +108,7 @@ export default function SettingsPage() {
     }
   }, [settings])
   
-  // Fetch workspace flow template
+  // Fetch workspace flow template and SkillsMP API key
   useEffect(() => {
     async function fetchWorkspaceSettings() {
       try {
@@ -104,6 +117,7 @@ export default function SettingsPage() {
         if (res.ok) {
           const data = await res.json()
           setFlowPromptTemplate(data.flow_prompt_template || '')
+          setSkillsmpApiKey(data.skillsmp_api_key || '')
         }
       } catch (error) {
         console.error('Error fetching workspace settings:', error)
@@ -130,6 +144,7 @@ export default function SettingsPage() {
     { key: 'chat', label: 'Chat', icon: '💬' },
     { key: 'flow', label: 'Flow', icon: '🔄' },
     { key: 'workspace', label: 'Workspace', icon: '👥' },
+    { key: 'skillsmp', label: 'SkillsMP', icon: '🔌' },
     { key: 'danger', label: 'Danger Zone', icon: '⚠️' },
   ]
 
@@ -703,6 +718,103 @@ export default function SettingsPage() {
                   >
                     View
                   </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'skillsmp' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
+                    SkillsMP Integration
+                  </h2>
+                  <button
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={skillsmpSaving}
+                    onClick={async () => {
+                      setSkillsmpSaving(true)
+                      setSkillsmpMessage('Saving...')
+                      try {
+                        const res = await fetch('/api/workspaces/settings', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            skillsmp_api_key: skillsmpApiKey || null,
+                          }),
+                        })
+                        
+                        if (!res.ok) {
+                          const errorData = await res.json()
+                          throw new Error(errorData.error || 'Failed to save settings')
+                        }
+                        
+                        setSkillsmpMessage('Saved!')
+                        setTimeout(() => setSkillsmpMessage(''), 2000)
+                      } catch (error) {
+                        console.error('Error saving SkillsMP settings:', error)
+                        setSkillsmpMessage('Error saving')
+                        setTimeout(() => setSkillsmpMessage(''), 2000)
+                      } finally {
+                        setSkillsmpSaving(false)
+                      }
+                    }}
+                  >
+                    {skillsmpSaving ? 'Saving...' : skillsmpMessage || 'Save Settings'}
+                  </button>
+                </div>
+
+                {/* API Key Input */}
+                <div
+                  className="flex flex-col gap-2 py-3 border-b"
+                  style={{ borderColor: 'rgb(var(--border-color))' }}
+                >
+                  <div>
+                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
+                      SkillsMP API Key
+                    </p>
+                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                      Enter your SkillsMP API key to enable marketplace search. Get your API key from{' '}
+                      <a
+                        href="https://skillsmp.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        skillsmp.com
+                      </a>
+                    </p>
+                  </div>
+                  <input
+                    type="password"
+                    className="px-3 py-2 rounded-lg border font-mono text-sm"
+                    style={{
+                      backgroundColor: 'rgb(var(--bg-secondary))',
+                      borderColor: 'rgb(var(--border-color))',
+                      color: 'rgb(var(--text-primary))',
+                    }}
+                    value={skillsmpApiKey}
+                    onChange={(e) => setSkillsmpApiKey(e.target.value)}
+                    placeholder="sk_live_..."
+                  />
+                </div>
+
+                {/* Info Card */}
+                <div
+                  className="mt-4 p-4 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgb(var(--bg-secondary))',
+                    borderColor: 'rgb(var(--border-color))',
+                  }}
+                >
+                  <h4 className="font-semibold mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
+                    About SkillsMP
+                  </h4>
+                  <ul className="space-y-1 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                    <li>• SkillsMP is a marketplace for AI skills and prompts</li>
+                    <li>• Browse and import skills directly into your workspace</li>
+                    <li>• API key is required to search the marketplace</li>
+                    <li>• Your API key is stored securely in your workspace settings</li>
+                  </ul>
                 </div>
               </div>
             )}

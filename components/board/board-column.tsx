@@ -35,30 +35,26 @@ interface BoardColumnProps {
   id: string
   title: string
   color: string
-  onDragOver: (e: React.DragEvent) => void
-  onDrop: (e: React.DragEvent, columnId: string) => void
-  onDragStart: (e: React.DragEvent, columnId: string) => void
-  draggable?: boolean
   tickets?: TicketWithRelations[]
   showDrafts?: boolean
   onTicketDoubleClick?: (ticket: TicketWithRelations) => void
-  onTicketDelete?: (ticket: TicketWithRelations) => void
-  deletingTicketId?: string | null
+  onTicketDragStart?: (ticketId: string) => void
+  onTicketDragOver?: (e: React.DragEvent) => void
+  onTicketDrop?: (e: React.DragEvent, statusId: string) => void
+  draggedTicketId?: string | null
 }
 
 export function BoardColumn({
   id,
   title,
   color,
-  onDragOver,
-  onDrop,
-  onDragStart,
-  draggable = true,
   tickets = [],
   showDrafts = false,
   onTicketDoubleClick,
-  onTicketDelete,
-  deletingTicketId = null,
+  onTicketDragStart,
+  onTicketDragOver,
+  onTicketDrop,
+  draggedTicketId = null,
 }: BoardColumnProps) {
   // Filter tickets based on showDrafts setting
   const visibleTickets = tickets.filter(ticket => {
@@ -72,11 +68,9 @@ export function BoardColumn({
 
   return (
     <div
-      draggable={draggable}
-      onDragStart={(e) => onDragStart(e, id)}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, id)}
-      className="w-full h-full rounded-lg p-4 border-2 transition-all cursor-move"
+      onDragOver={onTicketDragOver}
+      onDrop={(e) => onTicketDrop?.(e, id)}
+      className="w-full h-full rounded-lg p-4 border-2 transition-all"
       style={{
         backgroundColor: `rgb(var(--bg-secondary))`,
         borderColor: `rgb(var(--border-color))`,
@@ -128,7 +122,12 @@ export function BoardColumn({
           visibleTickets.map((ticket) => (
             <div
               key={ticket.id}
-              className="p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md"
+              draggable={true}
+              onDragStart={(e) => {
+                e.stopPropagation()
+                onTicketDragStart?.(ticket.id)
+              }}
+              className="p-3 rounded-lg border cursor-move transition-all hover:shadow-md"
               onDoubleClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -140,7 +139,7 @@ export function BoardColumn({
                   ? 'rgba(156, 163, 175, 0.5)'
                   : `rgb(var(--border-color))`,
                 borderStyle: ticket.creation_status === 'draft' ? 'dashed' : 'solid',
-                opacity: ticket.creation_status === 'draft' ? 0.8 : 1,
+                opacity: draggedTicketId === ticket.id ? 0.5 : (ticket.creation_status === 'draft' ? 0.8 : 1),
               }}
             >
               <div className="flex items-start justify-between gap-2">
@@ -200,24 +199,6 @@ export function BoardColumn({
                     )}
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onTicketDelete?.(ticket)
-                  }}
-                  disabled={deletingTicketId === ticket.id}
-                  className="text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    color: 'rgb(220, 38, 38)',
-                    backgroundColor: 'rgba(220, 38, 38, 0.08)'
-                  }}
-                  title={deletingTicketId === ticket.id ? 'Deleting...' : 'Delete ticket'}
-                >
-                  {deletingTicketId === ticket.id ? 'Deleting...' : '🗑 Delete'}
-                </button>
               </div>
             </div>
           ))

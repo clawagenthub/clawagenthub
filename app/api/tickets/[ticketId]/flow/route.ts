@@ -23,25 +23,33 @@ Task:
 Before starting, read latest comments:
 {$commentsJson}
 
+{$skills}
+
 Available APIs:
 1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
-2) POST /api/tickets/{$ticketId}/comments
+2) GET /api/tickets/{$ticketId}/flow/skills  -> get skills for current status (returns array with id, name, description)
+3) POST /api/tickets/{$ticketId}/flow/skills/detail  -> get full skill data
+   body example:
+   {
+     "skill_ids": ["skill_123", "skill_456"]
+   }
+4) POST /api/tickets/{$ticketId}/comments
    body example:
    {
      "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
      "is_agent_completion_signal": false
    }
-3) POST /api/tickets/{$ticketId}/finished
+5) POST /api/tickets/{$ticketId}/finished
    body example:
    {
      "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
    }
-4) POST /api/tickets/{$ticketId}/failed
+6) POST /api/tickets/{$ticketId}/failed
    body example:
    {
      "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
    }
-5) POST /api/tickets/{$ticketId}/pause
+7) POST /api/tickets/{$ticketId}/pause
    body example:
    {
      "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
@@ -54,12 +62,16 @@ Execution policy:
 - If success, choose result=finished.
 - If blocked/failure, choose result=failed with root cause.
 
-Respond in plain text (NOT JSON and no code block) using this exact format:
-RESULT: finished | failed | pause
-COMMENT: <normal sentence for timeline comment, what you did>
-SUMMARY: <short final summary and reason>
+IMPORTANT: Respond in plain text (NOT JSON, no code blocks, no markdown) using EXACTLY this format:
+RESULT: finished
+COMMENT: I completed the task by doing X, Y, and Z.
+SUMMARY: Task completed successfully with all requirements met.
 
-Do not add JSON output unless explicitly requested.`
+Alternative formats accepted:
+- Plain text with keywords: "finished", "failed", or "pause"
+- JSON: {"result": "finished", "comment": "...", "notes": "..."}
+
+If you don't follow the format, your response will be treated as "finished" by default.`
 
 /**
  * Replace template variables with actual values
@@ -106,9 +118,9 @@ function parseAgentFlowResult(rawText: string): {
   const text = rawText.trim()
   if (!text) {
     return {
-      result: 'pause',
-      notes: 'No structured response received from agent.',
-      progressComment: 'No structured response was returned. Waiting for user confirmation before continuing.',
+      result: 'finished',
+      notes: 'Agent completed with empty response.',
+      progressComment: 'Agent completed the task.',
     }
   }
 
@@ -221,6 +233,35 @@ function buildFlowPrompt(params: {
 
   const template = customTemplateSetting?.setting_value || DEFAULT_FLOW_TEMPLATE
 
+  // Fetch skills for this status
+  const skills = db.prepare(`
+    SELECT s.id, s.skill_name, s.skill_description
+    FROM status_skills ss
+    JOIN skills s ON ss.skill_id = s.id
+    WHERE ss.status_id = ? AND s.workspace_id = ? AND s.is_active = 1
+    ORDER BY ss.priority ASC
+  `).all(currentStatus.id, workspaceId) as Array<{
+    id: string
+    skill_name: string
+    skill_description: string | null
+  }>
+
+  // Build skills section for prompt - show as array of skills with names and descriptions
+  let skillsSection = ''
+  if (skills.length > 0) {
+    skillsSection = JSON.stringify(
+      skills.map(skill => ({
+        id: skill.id,
+        name: skill.skill_name,
+        description: skill.skill_description || ''
+      })),
+      null,
+      2
+    )
+  } else {
+    skillsSection = '[]'
+  }
+
   // Prepare variables for template replacement
   const commentsJson = JSON.stringify(recentComments, null, 2)
   const ticketJson = JSON.stringify({
@@ -242,6 +283,7 @@ function buildFlowPrompt(params: {
     commentsJson: commentsJson,
     ticketJson: ticketJson,
     workspaceId: workspaceId,
+    skills: skillsSection,
   }
 
   const prompt = replaceTemplateVariables(template, variables)
