@@ -40,5 +40,5 @@ data/
 *.swo
 *~
 
-# Skills directory
-skills/
+# Downloaded skills directory
+downloaded_skills/
