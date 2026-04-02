@@ -194,12 +194,14 @@ export function StatusesPageContent({ user }: PageContentProps) {
               )}
             </div>
 
-            <StatusList
-              statuses={statuses}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              canManage={canManage}
-            />
+            <div className="max-h-[calc(100vh-16rem)] overflow-y-auto rounded-lg">
+              <StatusList
+                statuses={statuses}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                canManage={canManage}
+              />
+            </div>
           </>
         )}
       </div>

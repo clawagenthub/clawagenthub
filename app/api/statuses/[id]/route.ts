@@ -221,6 +221,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 /**
  * DELETE /api/statuses/[id]
  * Delete a status (admin/owner only)
+ * If tickets are using this status, reassign them to the first available status
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
@@ -277,10 +278,82 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       )
     }
 
+    // Check if any tickets are using this status
+    const ticketsUsingStatus = db
+      .prepare('SELECT id, title FROM tickets WHERE status_id = ?')
+      .all(id) as { id: string; title: string }[]
+
+    console.log(`[Status Delete] Status ${id} is used by ${ticketsUsingStatus.length} tickets`)
+
+    if (ticketsUsingStatus.length > 0) {
+      // Find a replacement status (any other status in the same workspace)
+      const replacementStatus = db
+        .prepare('SELECT id FROM statuses WHERE workspace_id = ? AND id != ? ORDER BY priority ASC LIMIT 1')
+        .get(status.workspace_id, id) as { id: string } | undefined
+
+      if (!replacementStatus) {
+        return NextResponse.json(
+          { 
+            message: 'Cannot delete status - it is used by tickets and no replacement status is available',
+            ticketsUsingStatus 
+          },
+          { status: 400 }
+        )
+      }
+
+      console.log(`[Status Delete] Reassigning tickets to replacement status: ${replacementStatus.id}`)
+
+      // Reassign all tickets using this status to the replacement status
+      const now = new Date().toISOString()
+      const reassignStmt = db.prepare('UPDATE tickets SET status_id = ?, updated_at = ? WHERE status_id = ?')
+      reassignStmt.run(replacementStatus.id, now, id)
+      console.log(`[Status Delete] Reassigned ${ticketsUsingStatus.length} tickets from status ${id} to ${replacementStatus.id}`)
+    }
+
+    // Also update flow_configs if it references this status
+    const flowConfigsUsingStatus = db
+      .prepare('SELECT id, ticket_id FROM ticket_flow_configs WHERE status_id = ?')
+      .all(id) as { id: string; ticket_id: string }[]
+
+    console.log(`[Status Delete] Found ${flowConfigsUsingStatus.length} flow_configs using status ${id}`)
+
+    if (flowConfigsUsingStatus.length > 0) {
+      // Get replacement status for flow config
+      const replacementForFlow = db
+        .prepare('SELECT id FROM statuses WHERE workspace_id = ? AND id != ? ORDER BY priority ASC LIMIT 1')
+        .get(status.workspace_id, id) as { id: string } | undefined
+
+      console.log(`[Status Delete] Replacement status for flow: ${replacementForFlow?.id}`)
+
+      if (replacementForFlow) {
+        // For each flow_config using this status, check if replacing would cause a conflict
+        for (const fc of flowConfigsUsingStatus) {
+          // Check if this ticket already has a flow_config with the replacement status
+          const existingConfig = db
+            .prepare('SELECT id FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ?')
+            .get(fc.ticket_id, replacementForFlow.id)
+
+          if (existingConfig) {
+            // Conflict exists - delete the old flow_config (ticket already has one for replacement status)
+            console.log(`[Status Delete] Conflict on ticket ${fc.ticket_id} - deleting old flow_config ${fc.id}`)
+            db.prepare('DELETE FROM ticket_flow_configs WHERE id = ?').run(fc.id)
+          } else {
+            // No conflict - update the flow_config to use new status
+            console.log(`[Status Delete] Updating flow_config ${fc.id} to status ${replacementForFlow.id}`)
+            db.prepare('UPDATE ticket_flow_configs SET status_id = ? WHERE id = ?')
+              .run(replacementForFlow.id, fc.id)
+          }
+        }
+      }
+    }
+
     // Delete the status
     db.prepare('DELETE FROM statuses WHERE id = ?').run(id)
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      reassignedTickets: ticketsUsingStatus.length
+    })
   } catch (error) {
     console.error('Error deleting status:', error)
     return NextResponse.json(

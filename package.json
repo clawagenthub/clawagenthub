@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vinext dev --host --port 7777",
+    "dev": "HOSTNAME=0.0.0.0 vinext dev --port 7777",
     "build": "vinext build",
     "start": "vinext start --port 7777",
     "lint": "eslint . --ext .ts,.tsx",
@@ -13,7 +13,7 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:reset": "tsx scripts/db-reset.ts",
     "db:seed": "tsx scripts/db-seed.ts",
-    "db:check": "tsx scripts/db-check.ts",
+     "db:check": "tsx scripts/db-check.ts",
     "db:fix-passwords": "tsx scripts/db-fix-passwords.ts",
     "db:reset-admin-password": "tsx scripts/db-reset-admin-password.ts",
     "test:login": "tsx scripts/test-login.ts"

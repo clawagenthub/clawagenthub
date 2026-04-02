@@ -171,11 +171,35 @@ See [`.env.example`](githubprojects/clawhub/.env.example).
 - `SETUP_TOKEN_DURATION` setup token expiration in milliseconds
 - `NODE_ENV` runtime environment
 
-## Docs
+## Troubleshooting
 
-- Core DB reference: [`docs/DATABASE.md`](githubprojects/clawhub/docs/DATABASE.md)
-- Device identity reference: [`docs/DEVICE_IDENTITY.md`](githubprojects/clawhub/docs/DEVICE_IDENTITY.md)
-- AI-created progress/plans: [`docs/plans_ai_created_explanations`](githubprojects/clawhub/docs/plans_ai_created_explanations)
+### "control ui requires device identity" Error
+
+If you see this error when trying to connect the Control UI to the OpenClaw Gateway:
+
+**Symptom:**
+```
+Error: control ui requires device identity (use HTTPS or localhost secure context)
+```
+
+**Cause:**
+The OpenClaw Gateway requires a secure context (HTTPS) for device identity verification. When running the Control UI on HTTP (like `http://localhost:7777`), the browser blocks access to device identity APIs.
+
+**Solution:**
+
+Disable device identity checks for local development by running:
+
+```bash
+
+openclaw config set gateway.controlUi.dangerouslyDisableDeviceAuth true
+```
+
+Then restart the gateway:
+
+```bash
+openclaw gateway fix --doctor
+```
+
 
 ## License
 
