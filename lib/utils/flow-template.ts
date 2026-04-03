@@ -60,8 +60,8 @@ Execution policy:
 
 Non-interactive command guidelines:
 - Always use non-interactive flags (-y, --yes, --non-interactive) when available for package managers, installers, and CLI tools.
-- Redirect stdin from /dev/null when running commands that may prompt for input: use `command < /dev/null` or `echo "" | command`.
-- For apt/dpkg commands, set environment variable DEBIAN_FRONTEND=noninteractive: `DEBIAN_FRONTEND=noninteractive apt-get install -y package`.
+- Redirect stdin from /dev/null when running commands that may prompt for input: use 'command < /dev/null' or 'echo "" | command'.
+- For apt/dpkg commands, set environment variable DEBIAN_FRONTEND=noninteractive: 'DEBIAN_FRONTEND=noninteractive apt-get install -y package'.
 - Treat 30+ seconds of waiting for input as a failure - use result=pause with notes explaining what input is needed.
 - If a command hangs waiting for stdin or interactive input, terminate it and retry with appropriate non-interactive flags or stdin redirection.
 
