@@ -7,66 +7,9 @@ import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
 import { useAgents } from '@/lib/query/hooks/useChat'
 import { Sidebar } from '@/components/layout/sidebar'
 import { NavigationProvider } from '@/lib/contexts/navigation-context'
+import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
 
 type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'skillsmp' | 'danger'
-
-// Default flow prompt template
-const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
-Your responsible status: {$currentStatusName}
-Status objective/description: {$currentStatusDescription}
-Status instructions override: {$statusInstructions}
-
-Task:
-{$ticketJson}
-
-Before starting, read latest comments:
-{$commentsJson}
-
-{$skills}
-
-Available APIs:
-1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
-2) GET /api/tickets/{$ticketId}/flow/skills  -> get skills for current status (returns array with id, name, description)
-3) POST /api/tickets/{$ticketId}/flow/skills/detail  -> get full skill data
-   body example:
-   {
-     "skill_ids": ["skill_123", "skill_456"]
-   }
-4) POST /api/tickets/{$ticketId}/comments
-   body example:
-   {
-     "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
-     "is_agent_completion_signal": false
-   }
-5) POST /api/tickets/{$ticketId}/finished
-   body example:
-   {
-     "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
-   }
-6) POST /api/tickets/{$ticketId}/failed
-   body example:
-   {
-     "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
-   }
-7) POST /api/tickets/{$ticketId}/pause
-   body example:
-   {
-     "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
-   }
-
-Execution policy:
-- Perform work for this status using your skills.
-- You MUST provide a concrete progress comment (what you changed, what you checked, what remains).
-- If user input is required, choose result=pause and explain exactly what answer is needed.
-- If success, choose result=finished.
-- If blocked/failure, choose result=failed with root cause.
-
-Respond in plain text (NOT JSON and no code block) using this exact format:
-RESULT: finished | failed | pause
-COMMENT: <normal sentence for timeline comment, what you did>
-SUMMARY: <short final summary and reason>
-
-Do not add JSON output unless explicitly requested.`
 
 export default function SettingsPage() {
   const router = useRouter()
