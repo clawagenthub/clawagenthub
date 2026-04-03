@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
-import { useBulkStartTicketFlow } from '@/lib/query/hooks'
+import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks'
 
 const FLOW_BADGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   flowing: {
@@ -58,7 +58,9 @@ export function BoardColumn({
   draggedTicketId = null,
 }: BoardColumnProps) {
   const { mutateAsync: bulkStartFlow, isPending: isBulkStartingFlow } = useBulkStartTicketFlow()
+  const { mutateAsync: bulkStopFlow, isPending: isBulkStoppingFlow } = useBulkStopTicketFlow()
   const [showStartAllConfirm, setShowStartAllConfirm] = useState(false)
+  const [showStopAllConfirm, setShowStopAllConfirm] = useState(false)
 
   const visibleTickets = tickets.filter(ticket => {
     if (ticket.creation_status === 'active') return true
@@ -71,6 +73,17 @@ export function BoardColumn({
     t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status !== 'flowing'
   )
 
+  const eligibleForFlowStop = visibleTickets.filter(
+    t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status === 'flowing'
+  )
+
+  // Show Stop All button only when ALL visible active tickets with flow enabled are flowing
+  const allFlowingTickets = visibleTickets.filter(
+    t => t.flow_enabled && t.creation_status === 'active'
+  )
+  const showStopAll = allFlowingTickets.length > 0 && 
+    allFlowingTickets.every(t => t.flowing_status === 'flowing')
+
   const handleStartFlowAll = async () => {
     if (eligibleForFlowStart.length === 0) return
     try {
@@ -80,6 +93,18 @@ export function BoardColumn({
     } catch (error) {
       console.error('Failed to start flow for all tickets:', error)
       alert(error instanceof Error ? error.message : 'Failed to start flow')
+    }
+  }
+
+  const handleStopFlowAll = async () => {
+    if (eligibleForFlowStop.length === 0) return
+    try {
+      const ticketIds = eligibleForFlowStop.map(t => t.id)
+      await bulkStopFlow(ticketIds)
+      setShowStopAllConfirm(false)
+    } catch (error) {
+      console.error('Failed to stop flow for all tickets:', error)
+      alert(error instanceof Error ? error.message : 'Failed to stop flow')
     }
   }
 
@@ -118,7 +143,21 @@ export function BoardColumn({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {eligibleForFlowStart.length > 0 && (
+          {showStopAll ? (
+            <button
+              type="button"
+              onClick={() => setShowStopAllConfirm(true)}
+              disabled={isBulkStoppingFlow}
+              className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
+              style={{
+                backgroundColor: 'rgb(239, 68, 68)',
+                color: 'white',
+              }}
+              title="Stop Flow for all flowing tickets"
+            >
+              {isBulkStoppingFlow ? 'Stopping...' : `■ Stop All (${eligibleForFlowStop.length})`}
+            </button>
+          ) : eligibleForFlowStart.length > 0 && (
             <button
               type="button"
               onClick={() => setShowStartAllConfirm(true)}
@@ -175,7 +214,39 @@ export function BoardColumn({
         </div>
       )}
 
-      <div className="space-y-2 min-h-[200px]">
+      {showStopAllConfirm && (
+        <div
+          className="mb-4 p-3 rounded-lg border"
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderColor: 'rgb(239, 68, 68)',
+          }}
+        >
+          <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+            Stop flow for {eligibleForFlowStop.length} flowing ticket{eligibleForFlowStop.length === 1 ? '' : 's'}?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleStopFlowAll}
+              className="px-3 py-1 text-xs rounded-md"
+              style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
+            >
+              Stop All
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowStopAllConfirm(false)}
+              className="px-3 py-1 text-xs rounded-md"
+              style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2 min-h-[200px] max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
         {visibleTickets.length === 0 ? (
           <p
             className="text-sm text-center py-8"

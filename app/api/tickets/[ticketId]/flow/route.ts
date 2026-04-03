@@ -268,7 +268,7 @@ function buildFlowPrompt(params: {
   return prompt
 }
 
-async function triggerAgentForFlowStart(args: {
+export async function triggerAgentForFlowStart(args: {
   ticketId: string
   workspaceId: string
   userId: string
@@ -358,11 +358,11 @@ async function triggerAgentForFlowStart(args: {
 
   const hasVision = clientMatch.agentModel ? modelHasVisionCapability(clientMatch.agentModel) : false
 
-  // Get flow timeout from workspace settings (default 600 seconds = 10 minutes)
+  // Get flow timeout from workspace settings (default 1800 seconds = 30 minutes)
   const timeoutSetting = db.prepare(
     'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
   ).get(workspaceId, 'flow_timeout_seconds') as { setting_value: string | null } | undefined
-  const flowTimeoutSeconds = timeoutSetting?.setting_value ? parseInt(timeoutSetting.setting_value) : 600
+  const flowTimeoutSeconds = timeoutSetting?.setting_value ? parseInt(timeoutSetting.setting_value) : 1800
   const timeoutMs = flowTimeoutSeconds * 1000
 
   const prompt = buildFlowPrompt({

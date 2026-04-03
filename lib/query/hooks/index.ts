@@ -42,6 +42,7 @@ export {
   useStartTicketFlow,
   useStopTicketFlow,
   useBulkStartTicketFlow,
+  useBulkStopTicketFlow,
   type TicketWithRelations,
   type TicketDetail,
   type TicketFlowConfigWithStatus,

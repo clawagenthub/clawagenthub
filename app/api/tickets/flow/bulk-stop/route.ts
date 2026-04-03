@@ -4,12 +4,11 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerAgentForFlowStart } from '../../[ticketId]/flow/route.js'
 
 /**
- * POST /api/tickets/flow/bulk-start
- * Start flow for multiple tickets at once
- * Only targets flow_enabled=true AND creation_status='active' tickets
+ * POST /api/tickets/flow/bulk-stop
+ * Stop flow for multiple tickets at once
+ * Only targets flow_enabled=true AND creation_status='active' AND flowing_status='flowing' tickets
  */
 export async function POST(request: NextRequest) {
   try {
@@ -65,6 +64,7 @@ export async function POST(request: NextRequest) {
         AND id IN (${ticketIds.map(() => '?').join(',')})
         AND flow_enabled = 1
         AND creation_status = 'active'
+        AND flowing_status = 'flowing'
     `).all(workspaceId, ...ticketIds) as Array<{
       id: string
       title: string
@@ -76,36 +76,37 @@ export async function POST(request: NextRequest) {
     const results = {
       total: ticketIds.length,
       eligible: eligibleTickets.length,
-      started: 0,
+      stopped: 0,
       skipped: 0,
       failed: 0,
       details: [] as Array<{
         ticketId: string
         title: string
-        status: 'started' | 'skipped' | 'failed'
+        status: 'stopped' | 'skipped' | 'failed'
         error?: string
       }>
     }
 
+    const now = new Date().toISOString()
+
     for (const ticket of eligibleTickets) {
-      if (ticket.flowing_status === 'flowing') {
+      if (ticket.flowing_status !== 'flowing') {
         results.skipped++
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,
           status: 'skipped',
-          error: 'Flow already running'
+          error: 'Flow not running'
         })
         continue
       }
 
       try {
-        const now = new Date().toISOString()
         db.prepare(`
           UPDATE tickets
-          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
+          SET flowing_status = ?, current_agent_session_id = NULL, last_flow_check_at = ?, updated_at = ?
           WHERE id = ?
-        `).run('flowing', now, now, ticket.id)
+        `).run('stopped', now, now, ticket.id)
 
         const auditLogId = generateUserId()
         db.prepare(`
@@ -115,27 +116,19 @@ export async function POST(request: NextRequest) {
         `).run(
           auditLogId,
           ticket.id,
-          'flow_started',
+          'flow_stopped',
           user.id,
           'user',
           JSON.stringify({ flowing_status: ticket.flowing_status || 'stopped' }),
-          JSON.stringify({ flowing_status: 'flowing' }),
+          JSON.stringify({ flowing_status: 'stopped' }),
           now
         )
 
-        // Trigger OpenClaw agent in background after DB update
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        triggerAgentForFlowStart({
-          ticketId: ticket.id,
-          workspaceId,
-          userId: user.id,
-        })
-
-        results.started++
+        results.stopped++
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,
-          status: 'started'
+          status: 'stopped'
         })
       } catch (error) {
         results.failed++
@@ -153,7 +146,7 @@ export async function POST(request: NextRequest) {
       results
     })
   } catch (error) {
-    console.error('Error in bulk-start flow:', error)
+    console.error('Error in bulk-stop flow:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
