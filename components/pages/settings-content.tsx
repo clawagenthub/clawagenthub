@@ -336,6 +336,7 @@ function SettingsContent({ user }: PageContentProps) {
                   <p className="text-sm mb-3" style={{ color: 'rgb(var(--text-secondary))' }}>Use these variables in your template. They will be replaced with actual values when the agent is triggered.</p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
+                      ['{$domain}', 'Application domain (BASE_URL)'], ['{$tempPath}', 'Temp file path for agent artifacts'],
                       ['{$ticketId}', 'Ticket ID'], ['{$ticketNumber}', 'Ticket number'], ['{$ticketTitle}', 'Ticket title'],
                       ['{$ticketDescription}', 'Ticket description'], ['{$currentStatusId}', 'Current status ID'],
                       ['{$currentStatusName}', 'Current status name'], ['{$currentStatusDescription}', 'Status description'],
