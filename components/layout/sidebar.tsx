@@ -204,31 +204,6 @@ export function Sidebar({ user }: SidebarProps) {
           </li>
           <li>
             <button
-              onClick={() => navigateTo('gateways')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('gateways') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('gateways') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('gateways')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('gateways')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">🔌</span>
-              <span>Gateways</span>
-            </button>
-          </li>
-          <li>
-            <button
               onClick={() => navigateTo('statuses')}
               className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
                 isActive('statuses') ? 'font-semibold' : ''

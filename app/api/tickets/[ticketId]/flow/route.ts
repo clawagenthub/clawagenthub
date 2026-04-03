@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import path from 'path'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
@@ -16,6 +17,7 @@ const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
 Your responsible status: {$currentStatusName}
 Status objective/description: {$currentStatusDescription}
 Status instructions override: {$statusInstructions}
+Temp file path: {$tempPath}
 
 Task:
 {$ticketJson}
@@ -58,6 +60,7 @@ Available APIs:
 Execution policy:
 - Perform work for this status using your skills.
 - You MUST provide a concrete progress comment (what you changed, what you checked, what remains).
+- If you need to create files (e.g., code, configs, artifacts) that other agents or systems need to read, use {$tempPath} as the base directory.
 - If user input is required, choose result=pause and explain exactly what answer is needed.
 - If success, choose result=finished.
 - If blocked/failure, choose result=failed with root cause.
@@ -284,6 +287,7 @@ function buildFlowPrompt(params: {
     ticketJson: ticketJson,
     workspaceId: workspaceId,
     skills: skillsSection,
+    tempPath: path.join(process.cwd(), 'temp'),
   }
 
   const prompt = replaceTemplateVariables(template, variables)

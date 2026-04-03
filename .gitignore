@@ -42,3 +42,6 @@ data/
 
 # Downloaded skills directory
 downloaded_skills/
+
+# Temp folder for prompts and temporary files
+temp/
