@@ -20,6 +20,7 @@ Before starting, read latest comments:
 {$skills}
 
 ClawAgentHub: {$domain}
+Authentication: Use session_token={$sessionToken} header for all API calls.
 Available APIs:
 1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
 2) GET /api/tickets/{$ticketId}/flow/skills  -> get skills for current status (returns array with id, name, description)

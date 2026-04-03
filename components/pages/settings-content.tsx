@@ -383,7 +383,8 @@ function SettingsContent({ user }: PageContentProps) {
                       ['{$currentStatusName}', 'Current status name'], ['{$currentStatusDescription}', 'Status description'],
                       ['{$agentId}', 'Agent ID'], ['{$statusInstructions}', 'Status instructions'],
                       ['{$commentsJson}', 'Comments JSON'], ['{$ticketJson}', 'Ticket JSON'], ['{$workspaceId}', 'Workspace ID'],
-                      ['{$onflowlimit}', 'Max concurrent flowing tickets (0 = unlimited)']
+                      ['{$onflowlimit}', 'Max concurrent flowing tickets (0 = unlimited)'],
+                      ['{$sessionToken}', 'Session token for API authentication']
                     ].map(([code, label]) => (
                       <div key={code}>
                         <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>{code}</code>

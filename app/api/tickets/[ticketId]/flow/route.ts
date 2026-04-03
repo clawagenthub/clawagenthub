@@ -196,8 +196,9 @@ function buildFlowPrompt(params: {
   recentComments: Array<{ id: string; content: string; created_at: string; email: string }>
   workspaceId: string
   hasVisionCapability?: boolean
+  sessionToken: string
 }): string {
-  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId, hasVisionCapability } = params
+  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId, hasVisionCapability, sessionToken } = params
   const db = getDatabase()
 
   // Fetch custom template from workspace settings
@@ -260,6 +261,7 @@ function buildFlowPrompt(params: {
     skills: skillsSection,
     tempPath: path.join(process.cwd(), 'temp'),
     domain: process.env.BASE_URL || 'http://localhost:7777',
+    sessionToken: sessionToken,
   }
 
   const prompt = replaceTemplateVariables(template, variables)
@@ -272,8 +274,9 @@ export async function triggerAgentForFlowStart(args: {
   ticketId: string
   workspaceId: string
   userId: string
+  sessionToken: string
 }) {
-  const { ticketId, workspaceId, userId } = args
+  const { ticketId, workspaceId, userId, sessionToken } = args
   const db = getDatabase()
 
   const ticket = db.prepare('SELECT * FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as Ticket | undefined
@@ -373,6 +376,7 @@ export async function triggerAgentForFlowStart(args: {
     recentComments: recentComments.reverse(),
     workspaceId: workspaceId,
     hasVisionCapability: hasVision,
+    sessionToken,
   })
 
   let sessionKey = `agent:${effectiveAgentId}:main`
@@ -541,6 +545,7 @@ export async function triggerAgentForFlowStart(args: {
         ticketId,
         workspaceId,
         userId,
+        sessionToken,
       })
     }
   } catch (error) {
@@ -860,6 +865,7 @@ export async function processFlowPost(
         ticketId,
         workspaceId,
         userId: user.id,
+        sessionToken,
       })
 
       return NextResponse.json({
@@ -1067,6 +1073,7 @@ export async function processFlowPost(
         ticketId,
         workspaceId,
         userId: user.id,
+        sessionToken,
       })
     }
 

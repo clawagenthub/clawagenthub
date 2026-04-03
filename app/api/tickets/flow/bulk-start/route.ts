@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
           ticketId: ticket.id,
           workspaceId,
           userId: user.id,
+          sessionToken,
         })
 
         results.started++
