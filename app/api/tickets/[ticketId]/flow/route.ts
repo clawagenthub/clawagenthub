@@ -13,7 +13,9 @@ interface RouteParams {
 }
 
 // Default flow prompt template
-const DEFAULT_FLOW_TEMPLATE = `You are {$agentId}.
+const DEFAULT_FLOW_TEMPLATE = `
+ClawAgentHub: {$domain}
+You are {$agentId}.
 Your responsible status: {$currentStatusName}
 Status objective/description: {$currentStatusDescription}
 Status instructions override: {$statusInstructions}
@@ -288,6 +290,7 @@ function buildFlowPrompt(params: {
     workspaceId: workspaceId,
     skills: skillsSection,
     tempPath: path.join(process.cwd(), 'temp'),
+    domain: process.env.BASE_URL || 'http://localhost:7777',
   }
 
   const prompt = replaceTemplateVariables(template, variables)
