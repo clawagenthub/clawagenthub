@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks'
+import { Toast } from '@/components/ui/toast'
 
 const FLOW_BADGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   flowing: {
@@ -61,6 +62,7 @@ export function BoardColumn({
   const { mutateAsync: bulkStopFlow, isPending: isBulkStoppingFlow } = useBulkStopTicketFlow()
   const [showStartAllConfirm, setShowStartAllConfirm] = useState(false)
   const [showStopAllConfirm, setShowStopAllConfirm] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   const visibleTickets = tickets.filter(ticket => {
     if (ticket.creation_status === 'active') return true
@@ -92,7 +94,7 @@ export function BoardColumn({
       setShowStartAllConfirm(false)
     } catch (error) {
       console.error('Failed to start flow for all tickets:', error)
-      alert(error instanceof Error ? error.message : 'Failed to start flow')
+      setToast({ message: error instanceof Error ? error.message : 'Failed to start flow', type: 'error' })
     }
   }
 
@@ -104,7 +106,7 @@ export function BoardColumn({
       setShowStopAllConfirm(false)
     } catch (error) {
       console.error('Failed to stop flow for all tickets:', error)
-      alert(error instanceof Error ? error.message : 'Failed to stop flow')
+      setToast({ message: error instanceof Error ? error.message : 'Failed to stop flow', type: 'error' })
     }
   }
 
@@ -342,6 +344,7 @@ export function BoardColumn({
           ))
         )}
       </div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

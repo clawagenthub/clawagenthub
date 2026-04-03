@@ -20,7 +20,6 @@ Before starting, read latest comments:
 {$skills}
 
 ClawAgentHub: {$domain}
-Authentication: Use session_token={$sessionToken} header for all API calls.
 Available APIs:
 1) GET /api/tickets/{$ticketId}/flow/view  -> get latest task + flow context
 2) GET /api/tickets/{$ticketId}/flow/skills  -> get skills for current status (returns array with id, name, description)
@@ -35,17 +34,17 @@ Available APIs:
      "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
      "is_agent_completion_signal": false
    }
-5) POST /api/tickets/{$ticketId}/finished
+5) POST /api/tickets/{$ticketId}_{$sessionToken}/finished
    body example:
    {
      "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
    }
-6) POST /api/tickets/{$ticketId}/failed
+6) POST /api/tickets/{$ticketId}_{$sessionToken}/failed
    body example:
    {
      "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
    }
-7) POST /api/tickets/{$ticketId}/pause
+7) POST /api/tickets/{$ticketId}_{$sessionToken}/pause
    body example:
    {
      "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."

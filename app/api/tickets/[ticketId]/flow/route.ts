@@ -735,14 +735,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 export async function processFlowPost(
   request: NextRequest,
   { params }: RouteParams,
-  forcedResult?: 'finished' | 'failed' | 'pause'
+  forcedResult?: 'finished' | 'failed' | 'pause',
+  validatedSessionToken?: string
 ) {
   try {
     await ensureDatabase()
 
     const { ticketId } = await params
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('session_token')?.value
+    const sessionToken = validatedSessionToken || (await cookies()).get('session_token')?.value
 
     if (!sessionToken) {
       return NextResponse.json(

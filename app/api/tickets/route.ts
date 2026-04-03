@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
-import { generateUserId } from '@/lib/auth/token.js'
+import { generateTicketId, generateUserId } from '@/lib/auth/token.js'
 import type { Ticket, TicketFlowConfig, Status } from '@/lib/db/schema.js'
 
 /**
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
       ticketNumber = sequence.next_ticket_number
     }
 
-    const ticketId = generateUserId()
+    const ticketId = generateTicketId()
     const now = new Date().toISOString()
 
     // Create ticket
