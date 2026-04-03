@@ -58,6 +58,16 @@ export async function POST(request: NextRequest) {
     }
     const workspaceId = session.current_workspace_id
 
+    const currentFlowingCount = db.prepare(`
+      SELECT COUNT(*) as count FROM tickets WHERE workspace_id = ? AND flowing_status = 'flowing'
+    `).get(workspaceId) as { count: number }
+
+    const onflowlimitSetting = db.prepare(`
+      SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
+    `).get(workspaceId) as { setting_value: string } | undefined
+
+    const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 0
+
     const eligibleTickets = db.prepare(`
       SELECT id, title, flow_enabled, creation_status, flowing_status
       FROM tickets
@@ -88,6 +98,17 @@ export async function POST(request: NextRequest) {
     }
 
     for (const ticket of eligibleTickets) {
+      if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
+        results.skipped++
+        results.details.push({
+          ticketId: ticket.id,
+          title: ticket.title,
+          status: 'skipped',
+          error: `Max concurrent flowing tickets (${onflowlimit}) reached`
+        })
+        continue
+      }
+
       if (ticket.flowing_status === 'flowing') {
         results.skipped++
         results.details.push({
@@ -132,6 +153,7 @@ export async function POST(request: NextRequest) {
         })
 
         results.started++
+        currentFlowingCount.count++
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,

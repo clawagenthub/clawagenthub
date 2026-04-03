@@ -32,6 +32,7 @@ function SettingsContent({ user }: PageContentProps) {
   const [saveMessage, setSaveMessage] = useState('')
   const [flowPromptTemplate, setFlowPromptTemplate] = useState('')
   const [flowTimeoutSeconds, setFlowTimeoutSeconds] = useState(600)
+  const [onflowlimit, setOnflowlimit] = useState(10)
   const [flowTemplateLoading, setFlowTemplateLoading] = useState(true)
   const [loadMessage, setLoadMessage] = useState('')
   const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
@@ -76,6 +77,7 @@ function SettingsContent({ user }: PageContentProps) {
           setFlowPromptTemplate(data.flow_prompt_template || '')
           setSkillsmpApiKey(data.skillsmp_api_key || '')
           setFlowTimeoutSeconds(data.flow_timeout_seconds ? parseInt(data.flow_timeout_seconds) : 600)
+          setOnflowlimit(data.onflowlimit ? parseInt(data.onflowlimit) : 0)
         }
       } catch (error) {
         console.error('Error fetching workspace settings:', error)
@@ -164,10 +166,11 @@ function SettingsContent({ user }: PageContentProps) {
       </div>
 
       <div
-        className="rounded-lg border p-6 shadow-sm"
+        className="rounded-lg border p-6 shadow-sm overflow-y-auto"
         style={{
           backgroundColor: 'rgb(var(--bg-primary))',
           borderColor: 'rgb(var(--border-color))',
+          maxHeight: 'calc(100vh - 16rem)'
         }}
       >
         {activeTab === 'general' && (
@@ -314,7 +317,7 @@ function SettingsContent({ user }: PageContentProps) {
                   setIsSaving(true)
                   setSaveMessage('Saving...')
                   try {
-                    const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flow_prompt_template: flowPromptTemplate, flow_timeout_seconds: flowTimeoutSeconds.toString() }) })
+                    const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flow_prompt_template: flowPromptTemplate, flow_timeout_seconds: flowTimeoutSeconds.toString(), onflowlimit: onflowlimit.toString() }) })
                     if (res.ok) { setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) }
                     else throw new Error((await res.json()).message || 'Failed to save settings')
                   } catch (error) { console.error('Error saving flow settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) }
@@ -346,6 +349,24 @@ function SettingsContent({ user }: PageContentProps) {
                     <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>seconds</span>
                   </div>
                 </div>
+                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+                  <div>
+                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Max Concurrent Flowing Tickets</p>
+                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Maximum number of tickets that can flow simultaneously (0 = unlimited)</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="1000" 
+                      className="w-20 px-2 py-1 rounded border text-center" 
+                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }} 
+                      value={onflowlimit} 
+                      onChange={(e) => setOnflowlimit(parseInt(e.target.value) || 0)} 
+                    />
+                    <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>tickets</span>
+                  </div>
+                </div>
                 <div className="space-y-2 mt-4">
                   <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Custom Prompt Template</label>
                   <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Customize the prompt sent to agents during ticket flow execution. Leave empty to use the default template.</p>
@@ -354,14 +375,15 @@ function SettingsContent({ user }: PageContentProps) {
                 <div className="p-4 rounded-lg border mt-4" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}>
                   <h4 className="font-semibold mb-3" style={{ color: 'rgb(var(--text-primary))' }}>Available Variables</h4>
                   <p className="text-sm mb-3" style={{ color: 'rgb(var(--text-secondary))' }}>Use these variables in your template. They will be replaced with actual values when the agent is triggered.</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 overflow-x-hidden">
                     {[
                       ['{$domain}', 'Application domain (BASE_URL)'], ['{$tempPath}', 'Temp file path for agent artifacts'],
                       ['{$ticketId}', 'Ticket ID'], ['{$ticketNumber}', 'Ticket number'], ['{$ticketTitle}', 'Ticket title'],
                       ['{$ticketDescription}', 'Ticket description'], ['{$currentStatusId}', 'Current status ID'],
                       ['{$currentStatusName}', 'Current status name'], ['{$currentStatusDescription}', 'Status description'],
                       ['{$agentId}', 'Agent ID'], ['{$statusInstructions}', 'Status instructions'],
-                      ['{$commentsJson}', 'Comments JSON'], ['{$ticketJson}', 'Ticket JSON'], ['{$workspaceId}', 'Workspace ID']
+                      ['{$commentsJson}', 'Comments JSON'], ['{$ticketJson}', 'Ticket JSON'], ['{$workspaceId}', 'Workspace ID'],
+                      ['{$onflowlimit}', 'Max concurrent flowing tickets (0 = unlimited)']
                     ].map(([code, label]) => (
                       <div key={code}>
                         <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>{code}</code>

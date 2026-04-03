@@ -815,6 +815,23 @@ export async function processFlowPost(
     const now = new Date().toISOString()
 
     if (action === 'start') {
+      const currentFlowingCount = db.prepare(`
+        SELECT COUNT(*) as count FROM tickets WHERE workspace_id = ? AND flowing_status = 'flowing'
+      `).get(workspaceId) as { count: number }
+
+      const onflowlimitSetting = db.prepare(`
+        SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
+      `).get(workspaceId) as { setting_value: string } | undefined
+
+      const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 0
+
+      if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
+        return NextResponse.json(
+          { message: `Max concurrent flowing tickets (${onflowlimit}) reached` },
+          { status: 400 }
+        )
+      }
+
       db.prepare(
         `UPDATE tickets
          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
