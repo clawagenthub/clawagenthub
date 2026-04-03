@@ -125,6 +125,12 @@ function formatEventDescription(log: AuditLogPanelProps['logs'][0]): string {
       return `${actorName} assigned agent: ${newVal?.agent_id || 'None'}`
     }
     
+    case 'flow_failed': {
+      const newVal = safeParse(log.new_value)
+      const reason = newVal?.reason || 'Unknown error'
+      return `Flow failed: ${reason}`
+    }
+    
     default:
       return `${actorName} ${getEventLabel(log.event_type)}`
   }

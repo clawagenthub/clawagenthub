@@ -121,12 +121,28 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
   }
 
   const isFlowingNow = flowRuntimeStatus?.flowing_status === 'flowing'
+  const isFlowFailed = flowRuntimeStatus?.flowing_status === 'failed'
   const isFlowActionPending = isStartingFlow || isStoppingFlow
   const canControlFlowRuntime = ticket?.flow_enabled && ticket?.creation_status === 'active'
   
   // Check if ticket status is "done" or "finished" (case-insensitive)
   const statusName = ticket?.status?.name?.toLowerCase() || ''
   const canDelete = statusName.includes('done') || statusName.includes('finished')
+
+  // Get the most recent flow failure reason from audit logs
+  const latestFlowFailure = ticket?.audit_logs
+    ?.filter(log => log.event_type === 'flow_failed')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+  const getFlowFailureReason = () => {
+    if (!latestFlowFailure?.new_value) return 'Unknown error'
+    try {
+      const parsed = JSON.parse(latestFlowFailure.new_value)
+      return parsed.reason || 'Unknown error'
+    } catch {
+      return latestFlowFailure.new_value || 'Unknown error'
+    }
+  }
 
   return (
     <Modal
@@ -137,6 +153,29 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
       size="xl"
     >
       <div className="space-y-4">
+        {/* Flow Failure Alert */}
+        {isFlowFailed && (
+          <div
+            className="p-3 rounded-lg border"
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderColor: 'rgb(239, 68, 68)',
+            }}
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-red-500 text-lg">⚠️</span>
+              <div>
+                <p className="text-sm font-medium text-red-600">
+                  Flow Failed
+                </p>
+                <p className="text-xs text-red-500 mt-1">
+                  {getFlowFailureReason()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs" style={{ color: `rgb(var(--text-secondary))` }}>
