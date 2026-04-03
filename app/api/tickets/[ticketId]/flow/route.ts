@@ -245,6 +245,9 @@ async function triggerAgentForFlowStart(args: {
   const ticket = db.prepare('SELECT * FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as Ticket | undefined
   if (!ticket) return
 
+  const status = db.prepare('SELECT * FROM statuses WHERE id = ?').get(ticket.status_id) as Status | undefined
+  if (!status) return
+
   const currentFlowConfig = db.prepare(`
     SELECT * FROM ticket_flow_configs
     WHERE ticket_id = ? AND status_id = ? AND is_included = 1
@@ -254,9 +257,12 @@ async function triggerAgentForFlowStart(args: {
     instructions_override: string | null
   } | undefined
 
-  if (!currentFlowConfig?.agent_id) {
+  // Use flow config's agent_id, or fallback to status's agent_id
+  const effectiveAgentId = currentFlowConfig?.agent_id || status.agent_id
+
+  if (!effectiveAgentId) {
     const now = new Date().toISOString()
-    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?').run(
+    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ?').run(
       'waiting',
       now,
       ticketId
@@ -280,9 +286,6 @@ async function triggerAgentForFlowStart(args: {
     return
   }
 
-  const status = db.prepare('SELECT * FROM statuses WHERE id = ?').get(ticket.status_id) as Status | undefined
-  if (!status) return
-
   const recentComments = db.prepare(`
     SELECT tc.id, tc.content, tc.created_at, u.email
     FROM ticket_comments tc
@@ -292,10 +295,10 @@ async function triggerAgentForFlowStart(args: {
     LIMIT 10
   `).all(ticketId) as Array<{ id: string; content: string; created_at: string; email: string }>
 
-  const clientMatch = await findClientForAgent(workspaceId, currentFlowConfig.agent_id)
+  const clientMatch = await findClientForAgent(workspaceId, effectiveAgentId)
   if (!clientMatch) {
     const now = new Date().toISOString()
-    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?').run(
+    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ?').run(
       'failed',
       now,
       ticketId
@@ -310,10 +313,10 @@ async function triggerAgentForFlowStart(args: {
       auditLogId,
       ticketId,
       'flow_failed',
-      currentFlowConfig.agent_id,
+      effectiveAgentId,
       'agent',
       null,
-      JSON.stringify({ reason: `Agent ${currentFlowConfig.agent_id} is not reachable from connected gateways` }),
+      JSON.stringify({ reason: `Agent ${effectiveAgentId} is not reachable from connected gateways` }),
       now
     )
     return
@@ -322,15 +325,15 @@ async function triggerAgentForFlowStart(args: {
   const prompt = buildFlowPrompt({
     ticket,
     currentStatus: status,
-    agentId: currentFlowConfig.agent_id,
-    statusInstructions: currentFlowConfig.instructions_override || status.instructions_override,
+    agentId: effectiveAgentId,
+    statusInstructions: currentFlowConfig?.instructions_override || status.instructions_override,
     recentComments: recentComments.reverse(),
     workspaceId: workspaceId,
   })
 
   try {
     const response = await clientMatch.client.sendChatMessageAndWait(
-      `agent:${currentFlowConfig.agent_id}:main`,
+      `agent:${effectiveAgentId}:main`,
       prompt,
       { timeoutMs: 180000 }
     )
@@ -342,8 +345,8 @@ async function triggerAgentForFlowStart(args: {
     const now = new Date().toISOString()
     const commentId = generateUserId()
     const normalizedAgentComment = parsed.result === 'pause'
-      ? `[Agent ${currentFlowConfig.agent_id}] Waiting: ${parsed.progressComment}`
-      : `[Agent ${currentFlowConfig.agent_id}] ${parsed.progressComment} | Summary: ${parsed.notes}`
+      ? `[Agent ${effectiveAgentId}] Waiting: ${parsed.progressComment}`
+      : `[Agent ${effectiveAgentId}] ${parsed.progressComment} | Summary: ${parsed.notes}`
 
     db.prepare(
       `INSERT INTO ticket_comments (
@@ -368,7 +371,7 @@ async function triggerAgentForFlowStart(args: {
       commentAuditId,
       ticketId,
       'comment_added',
-      currentFlowConfig.agent_id,
+      effectiveAgentId,
       'agent',
       null,
       JSON.stringify({
@@ -445,7 +448,7 @@ async function triggerAgentForFlowStart(args: {
       flowAuditId,
       ticketId,
       parsed.result === 'pause' ? 'flow_stopped' : 'flow_transition',
-      currentFlowConfig.agent_id,
+      effectiveAgentId,
       'agent',
       JSON.stringify({ from_status_id: oldTicket.status_id, result: parsed.result }),
       JSON.stringify({ to_status_id: nextStatusId, flowing_status: nextFlowingStatus }),
