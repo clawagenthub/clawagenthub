@@ -417,7 +417,7 @@ function SettingsContent({ user }: PageContentProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {gateways.map((gateway) => <GatewayCard key={gateway.id} gateway={gateway} onConnect={handleConnect} onDelete={handleDelete} />)}
+                {gateways.map((gateway) => <GatewayCard key={gateway.id} gateway={gateway} onConnect={handleConnect} onDelete={handleDelete} onUpdate={refresh} />)}
               </div>
             )}
             <AddGatewayModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />

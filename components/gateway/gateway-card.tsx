@@ -5,17 +5,20 @@ import { StatusBadge } from './status-badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Toast } from '@/components/ui/toast'
+import { EditGatewayModal } from './edit-gateway-modal'
 import type { Gateway } from '@/lib/db/schema'
 
 interface GatewayCardProps {
   gateway: Gateway
   onConnect: (gateway: Gateway) => void
   onDelete: (gatewayId: string) => void
+  onUpdate: () => void
 }
 
-export function GatewayCard({ gateway, onConnect, onDelete }: GatewayCardProps) {
+export function GatewayCard({ gateway, onConnect, onDelete, onUpdate }: GatewayCardProps) {
   const [deleting, setDeleting] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [toast, setToast] = useState<{
     message: string
     type: 'success' | 'error' | 'info'
@@ -128,6 +131,13 @@ export function GatewayCard({ gateway, onConnect, onDelete }: GatewayCardProps) 
         </div>
 
         <div className="flex flex-col gap-2 ml-4">
+          <Button
+            onClick={() => setShowEditModal(true)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Edit
+          </Button>
+          
           {gateway.status === 'connected' && (
             <Button
               onClick={handleHealthCheck}
@@ -165,6 +175,16 @@ export function GatewayCard({ gateway, onConnect, onDelete }: GatewayCardProps) 
         onClose={() => setToast(null)}
       />
     )}
+    
+    <EditGatewayModal
+      isOpen={showEditModal}
+      onClose={() => setShowEditModal(false)}
+      gateway={gateway}
+      onSuccess={() => {
+        onUpdate()
+        setShowEditModal(false)
+      }}
+    />
     </>
   )
 }
