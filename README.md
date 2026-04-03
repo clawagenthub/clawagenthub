@@ -171,6 +171,87 @@ See [`.env.example`](githubprojects/clawhub/.env.example).
 - `SETUP_TOKEN_DURATION` setup token expiration in milliseconds
 - `NODE_ENV` runtime environment
 
+## Agent-Project Communication
+
+Agents can be configured to communicate with the ClawAgentHub project API to perform actions like creating tickets, updating statuses, and managing flows programmatically.
+
+### API Endpoint
+
+The API server runs alongside the dashboard. Default base URL: `http://127.0.0.1:7777/api`
+
+
+### Required Security Settings for Agents
+
+Agents cannot communicate with the project unless these OpenClaw security settings are configured:
+
+**`openclaw.json` — controlUi section:**
+```json
+"controlUi": {
+  "dangerouslyAllowHostHeaderOriginFallback": true
+}
+```
+
+**Environment variables:**
+```bash
+NO_PROXY=localhost,127.0.0.1
+no_proxy=localhost,127.0.0.1
+OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1
+```
+
+These settings allow sandboxed agents to securely connect to local services. Without them, WebSocket connections and API requests from agents to `localhost` will be blocked.
+
+### Authentication
+
+Include the session token in requests:
+
+```bash
+Authorization: Bearer <session_token>
+```
+
+### Available Endpoints
+
+#### Tickets
+
+- `GET /api/tickets` — List all tickets
+- `POST /api/tickets` — Create a ticket
+- `GET /api/tickets/:id` — Get ticket details
+- `PATCH /api/tickets/:id` — Update a ticket
+- `DELETE /api/tickets/:id` — Delete a ticket
+
+#### Statuses
+
+- `GET /api/statuses` — List all statuses
+- `POST /api/statuses` — Create a status
+- `PATCH /api/statuses/:id` — Update a status
+- `DELETE /api/statuses/:id` — Delete a status
+
+#### Flows
+
+- `GET /api/flows` — List all flows
+- `POST /api/flows` — Create a flow
+- `GET /api/flows/:id` — Get flow details
+- `PATCH /api/flows/:id` — Update a flow
+- `DELETE /api/flows/:id` — Delete a flow
+
+### Example: Create a Ticket via Agent
+
+Agents can POST to the API using environment variables or configuration:
+
+```bash
+curl -X POST http://127.0.0.1:7777/api/tickets \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Agent task",
+    "description": "Description from agent",
+    "statusId": 1
+  }'
+```
+
+### Session Token
+
+The session token is established when a user logs in through the dashboard UI. Agents using service accounts should use a dedicated API token configured in the `OPENCLAW_API_TOKEN` environment variable or via the agent's `auth` configuration.
+
 ## Troubleshooting
 
 ### "control ui requires device identity" Error
