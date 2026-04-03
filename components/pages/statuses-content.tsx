@@ -194,7 +194,7 @@ export function StatusesPageContent({ user }: PageContentProps) {
               )}
             </div>
 
-            <div className="max-h-[calc(100vh-16rem)] overflow-y-auto rounded-lg">
+            <div className="max-h-[calc(100vh-16rem)] overflow-hidden rounded-lg">
               <StatusList
                 statuses={statuses}
                 onEdit={handleEdit}

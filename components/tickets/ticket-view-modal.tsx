@@ -55,7 +55,24 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
       await startFlow({ ticketId })
     } catch (error) {
       console.error('Failed to start flow:', error)
-      alert(error instanceof Error ? error.message : 'Failed to start flow')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start flow'
+      
+      // Check if this is a gateway/auth error that might need gateway restart
+      const isGatewayAuthError = 
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('503') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('auth') ||
+        errorMessage.includes('Gateway') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('unreachable') ||
+        errorMessage.includes('not reachable')
+      
+      if (isGatewayAuthError) {
+        alert(`Gateway connection error: ${errorMessage}\n\nThe gateway may need to be restarted. Please go to Settings > Gateways and reconnect.`)
+      } else {
+        alert(errorMessage)
+      }
     }
   }
 
@@ -65,7 +82,24 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
       await stopFlow({ ticketId })
     } catch (error) {
       console.error('Failed to stop flow:', error)
-      alert(error instanceof Error ? error.message : 'Failed to stop flow')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to stop flow'
+      
+      // Check if this is a gateway/auth error that might need gateway restart
+      const isGatewayAuthError = 
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('503') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('auth') ||
+        errorMessage.includes('Gateway') ||
+        errorMessage.includes('connection') ||
+        errorMessage.includes('unreachable') ||
+        errorMessage.includes('not reachable')
+      
+      if (isGatewayAuthError) {
+        alert(`Gateway connection error: ${errorMessage}\n\nThe gateway may need to be restarted. Please go to Settings > Gateways and reconnect.`)
+      } else {
+        alert(errorMessage)
+      }
     }
   }
 

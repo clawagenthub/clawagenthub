@@ -1,6 +1,8 @@
 // Default flow prompt template for agent flow execution
 export const DEFAULT_FLOW_TEMPLATE = `
-
+Do is your responsible status not more. Do not out of your responsible statuses.  
+And do your status responsible to task_todo there is others agents have, others parts they will do. 
+You just need to doing your part.
 You are {$agentId}.
 Your responsible status: {$currentStatusName}
 Status objective/description: {$currentStatusDescription}
@@ -54,10 +56,13 @@ Execution policy:
 - If success, choose result=finished.
 - If blocked/failure, choose result=failed with root cause.
 
+
 IMPORTANT: Respond in plain text (NOT JSON, no code blocks, no markdown) using EXACTLY this format:
 RESULT: finished
 COMMENT: I completed the task by doing X, Y, and Z.
 SUMMARY: Task completed successfully with all requirements met.
+
+
 
 Alternative formats accepted:
 - Plain text with keywords: "finished", "failed", or "pause"

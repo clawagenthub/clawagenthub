@@ -88,7 +88,7 @@ export function StatusList({ statuses, onEdit, onDelete, canManage }: StatusList
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 content-start">
       {statuses.map((status) => (
         <StatusCard
           key={status.id}
