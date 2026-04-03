@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import path from 'path'
+import { randomUUID } from 'crypto'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
@@ -48,6 +49,28 @@ function extractText(value: unknown, depth = 0): string {
     return Object.values(rec).map((v) => extractText(v, depth + 1)).filter(Boolean).join('\n')
   }
   return ''
+}
+
+function modelHasVisionCapability(model: unknown): boolean {
+  if (!model) return false
+  
+  // Handle case where model is an object like { id: 'gpt-4o', name: 'GPT-4O' }
+  let modelName: string
+  if (typeof model === 'object' && model !== null) {
+    const modelObj = model as Record<string, unknown>
+    modelName = String(modelObj.id || modelObj.name || '')
+  } else {
+    modelName = String(model)
+  }
+  
+  if (!modelName) return false
+  const lowerModel = modelName.toLowerCase()
+  const visionIndicators = [
+    'vision', 'vl-', 'gpt-4v', 'gpt-4-vision', 'claude-3-opus',
+    'claude-3-sonnet', 'claude-3-5', 'multimodal', 'gemma3',
+    'pixtral', 'mistral-large', 'CommandR+'
+  ]
+  return visionIndicators.some(indicator => lowerModel.includes(indicator))
 }
 
 function parseAgentFlowResult(rawText: string): {
@@ -139,19 +162,29 @@ async function findClientForAgent(workspaceId: string, agentId: string) {
     'SELECT id, name FROM gateways WHERE workspace_id = ? ORDER BY created_at ASC'
   ).all(workspaceId) as Array<{ id: string; name: string }>
 
+  console.log(`[findClientForAgent] Looking for agent ${agentId} in ${gateways.length} gateways`)
+  
   for (const gateway of gateways) {
     const client = manager.getClient(gateway.id)
+    console.log(`[findClientForAgent] Gateway ${gateway.name}: client=${!!client}, connected=${client?.isConnected()}`)
+    
     if (!client || !client.isConnected()) continue
     try {
       const agents = await client.listAgents()
-      if (agents.some((a) => a.id === agentId)) {
-        return { client, gatewayId: gateway.id, gatewayName: gateway.name }
+      console.log(`[findClientForAgent] Gateway ${gateway.name} returned ${agents.length} agents:`, agents.map(a => a.id))
+      
+      const matchingAgent = agents.find((a) => a.id === agentId)
+      if (matchingAgent) {
+        console.log(`[findClientForAgent] Found matching agent ${agentId} in gateway ${gateway.name}`)
+        return { client, gatewayId: gateway.id, gatewayName: gateway.name, agentModel: matchingAgent.model, agentName: matchingAgent.name || agentId }
       }
-    } catch {
+    } catch (err) {
+      console.error(`[findClientForAgent] Error listing agents for gateway ${gateway.name}:`, err)
       // skip broken gateway and continue scanning
     }
   }
 
+  console.log(`[findClientForAgent] Agent ${agentId} not found in any gateway`)
   return null
 }
 
@@ -162,8 +195,9 @@ function buildFlowPrompt(params: {
   statusInstructions: string | null
   recentComments: Array<{ id: string; content: string; created_at: string; email: string }>
   workspaceId: string
+  hasVisionCapability?: boolean
 }): string {
-  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId } = params
+  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId, hasVisionCapability } = params
   const db = getDatabase()
 
   // Fetch custom template from workspace settings
@@ -298,7 +332,7 @@ async function triggerAgentForFlowStart(args: {
   const clientMatch = await findClientForAgent(workspaceId, effectiveAgentId)
   if (!clientMatch) {
     const now = new Date().toISOString()
-    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ?').run(
+    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?').run(
       'failed',
       now,
       ticketId
@@ -322,6 +356,15 @@ async function triggerAgentForFlowStart(args: {
     return
   }
 
+  const hasVision = clientMatch.agentModel ? modelHasVisionCapability(clientMatch.agentModel) : false
+
+  // Get flow timeout from workspace settings (default 600 seconds = 10 minutes)
+  const timeoutSetting = db.prepare(
+    'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
+  ).get(workspaceId, 'flow_timeout_seconds') as { setting_value: string | null } | undefined
+  const flowTimeoutSeconds = timeoutSetting?.setting_value ? parseInt(timeoutSetting.setting_value) : 600
+  const timeoutMs = flowTimeoutSeconds * 1000
+
   const prompt = buildFlowPrompt({
     ticket,
     currentStatus: status,
@@ -329,13 +372,50 @@ async function triggerAgentForFlowStart(args: {
     statusInstructions: currentFlowConfig?.instructions_override || status.instructions_override,
     recentComments: recentComments.reverse(),
     workspaceId: workspaceId,
+    hasVisionCapability: hasVision,
   })
+
+  let sessionKey = `agent:${effectiveAgentId}:main`
+  let chatSessionId: string | null = null
+
+  const existingSession = ticket.current_agent_session_id
+    ? db.prepare('SELECT * FROM chat_sessions WHERE id = ?').get(ticket.current_agent_session_id) as { id: string; session_key: string } | undefined
+    : null
+
+  if (existingSession) {
+    sessionKey = existingSession.session_key
+    chatSessionId = existingSession.id
+  } else {
+    const newChatSessionId = randomUUID()
+    sessionKey = `agent:${effectiveAgentId}:${newChatSessionId}`
+    const now = new Date().toISOString()
+
+    db.prepare(`
+      INSERT INTO chat_sessions (
+        id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', ?, ?, ?)
+    `).run(
+      newChatSessionId,
+      workspaceId,
+      userId,
+      clientMatch.gatewayId,
+      effectiveAgentId,
+      clientMatch.agentName || 'Agent',
+      sessionKey,
+      now,
+      now,
+      now
+    )
+
+    chatSessionId = newChatSessionId
+    db.prepare('UPDATE tickets SET current_agent_session_id = ? WHERE id = ?').run(newChatSessionId, ticketId)
+  }
 
   try {
     const response = await clientMatch.client.sendChatMessageAndWait(
-      `agent:${effectiveAgentId}:main`,
+      sessionKey,
       prompt,
-      { timeoutMs: 180000 }
+      { timeoutMs }
     )
 
     const messageText = response.error ? response.error : extractText(response.message)

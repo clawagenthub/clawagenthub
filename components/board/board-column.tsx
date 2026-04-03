@@ -1,7 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
+import { useBulkStartTicketFlow } from '@/lib/query/hooks'
 
 const FLOW_BADGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   flowing: {
@@ -56,15 +57,31 @@ export function BoardColumn({
   onTicketDrop,
   draggedTicketId = null,
 }: BoardColumnProps) {
-  // Filter tickets based on showDrafts setting
+  const { mutateAsync: bulkStartFlow, isPending: isBulkStartingFlow } = useBulkStartTicketFlow()
+  const [showStartAllConfirm, setShowStartAllConfirm] = useState(false)
+
   const visibleTickets = tickets.filter(ticket => {
-    // Always show active tickets
     if (ticket.creation_status === 'active') return true
-    // Only show draft tickets when showDrafts is true
     return showDrafts && ticket.creation_status === 'draft'
   })
 
   const draftCount = tickets.filter(t => t.creation_status === 'draft').length
+
+  const eligibleForFlowStart = visibleTickets.filter(
+    t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status !== 'flowing'
+  )
+
+  const handleStartFlowAll = async () => {
+    if (eligibleForFlowStart.length === 0) return
+    try {
+      const ticketIds = eligibleForFlowStart.map(t => t.id)
+      await bulkStartFlow(ticketIds)
+      setShowStartAllConfirm(false)
+    } catch (error) {
+      console.error('Failed to start flow for all tickets:', error)
+      alert(error instanceof Error ? error.message : 'Failed to start flow')
+    }
+  }
 
   return (
     <div
@@ -100,14 +117,64 @@ export function BoardColumn({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          className="transition-colors"
-          style={{ color: `rgb(var(--text-tertiary))` }}
-        >
-          ⋮
-        </button>
+        <div className="flex items-center gap-2">
+          {eligibleForFlowStart.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowStartAllConfirm(true)}
+              disabled={isBulkStartingFlow}
+              className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
+              style={{
+                backgroundColor: 'rgb(16, 185, 129)',
+                color: 'white',
+              }}
+              title="Start Flow for all eligible tickets"
+            >
+              {isBulkStartingFlow ? 'Starting...' : `▶ Start All (${eligibleForFlowStart.length})`}
+            </button>
+          )}
+          <button
+            type="button"
+            className="transition-colors"
+            style={{ color: `rgb(var(--text-tertiary))` }}
+          >
+            ⋮
+          </button>
+        </div>
       </div>
+
+      {showStartAllConfirm && (
+        <div
+          className="mb-4 p-3 rounded-lg border"
+          style={{
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderColor: 'rgb(16, 185, 129)',
+          }}
+        >
+          <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+            Start flow for {eligibleForFlowStart.length} eligible ticket{eligibleForFlowStart.length === 1 ? '' : 's'}?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleStartFlowAll}
+              className="px-3 py-1 text-xs rounded-md"
+              style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
+            >
+              Start All
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowStartAllConfirm(false)}
+              className="px-3 py-1 text-xs rounded-md"
+              style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2 min-h-[200px]">
         {visibleTickets.length === 0 ? (
           <p

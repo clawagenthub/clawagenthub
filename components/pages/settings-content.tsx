@@ -31,6 +31,7 @@ function SettingsContent({ user }: PageContentProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [flowPromptTemplate, setFlowPromptTemplate] = useState('')
+  const [flowTimeoutSeconds, setFlowTimeoutSeconds] = useState(600)
   const [flowTemplateLoading, setFlowTemplateLoading] = useState(true)
   const [loadMessage, setLoadMessage] = useState('')
   const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
@@ -74,6 +75,7 @@ function SettingsContent({ user }: PageContentProps) {
           const data = await res.json()
           setFlowPromptTemplate(data.flow_prompt_template || '')
           setSkillsmpApiKey(data.skillsmp_api_key || '')
+          setFlowTimeoutSeconds(data.flow_timeout_seconds ? parseInt(data.flow_timeout_seconds) : 600)
         }
       } catch (error) {
         console.error('Error fetching workspace settings:', error)
@@ -303,7 +305,7 @@ function SettingsContent({ user }: PageContentProps) {
         {activeTab === 'flow' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>Flow Prompt Template</h2>
+              <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>Flow Settings</h2>
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }} disabled={flowTemplateLoading} onClick={() => { setFlowPromptTemplate(DEFAULT_FLOW_TEMPLATE); setLoadMessage('Default template loaded'); setTimeout(() => setLoadMessage(''), 2000) }}>
                   {loadMessage || 'Load Default Template'}
@@ -312,26 +314,44 @@ function SettingsContent({ user }: PageContentProps) {
                   setIsSaving(true)
                   setSaveMessage('Saving...')
                   try {
-                    const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flow_prompt_template: flowPromptTemplate }) })
+                    const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flow_prompt_template: flowPromptTemplate, flow_timeout_seconds: flowTimeoutSeconds.toString() }) })
                     if (res.ok) { setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) }
-                    else throw new Error((await res.json()).message || 'Failed to save template')
-                  } catch (error) { console.error('Error saving flow template:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) }
+                    else throw new Error((await res.json()).message || 'Failed to save settings')
+                  } catch (error) { console.error('Error saving flow settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) }
                   finally { setIsSaving(false) }
                 }}>
-                  {isSaving ? 'Saving...' : saveMessage || 'Save Template'}
+                  {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
                 </button>
               </div>
             </div>
             {flowTemplateLoading ? (
-              <div className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Loading template...</div>
+              <div className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Loading settings...</div>
             ) : (
               <>
-                <div className="space-y-2">
+                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+                  <div>
+                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Flow Timeout</p>
+                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Maximum time to wait for agent response during flow execution</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" 
+                      min="60" 
+                      max="3600" 
+                      className="w-20 px-2 py-1 rounded border text-center" 
+                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }} 
+                      value={flowTimeoutSeconds} 
+                      onChange={(e) => setFlowTimeoutSeconds(parseInt(e.target.value) || 600)} 
+                    />
+                    <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>seconds</span>
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4">
                   <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Custom Prompt Template</label>
                   <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Customize the prompt sent to agents during ticket flow execution. Leave empty to use the default template.</p>
                   <textarea className="w-full px-3 py-2 rounded-lg border font-mono text-sm" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))', minHeight: '400px', fontFamily: 'monospace' }} value={flowPromptTemplate} onChange={(e) => setFlowPromptTemplate(e.target.value)} placeholder="Enter custom template or leave empty for default..." />
                 </div>
-                <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}>
+                <div className="p-4 rounded-lg border mt-4" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}>
                   <h4 className="font-semibold mb-3" style={{ color: 'rgb(var(--text-primary))' }}>Available Variables</h4>
                   <p className="text-sm mb-3" style={{ color: 'rgb(var(--text-secondary))' }}>Use these variables in your template. They will be replaced with actual values when the agent is triggered.</p>
                   <div className="grid grid-cols-2 gap-3">

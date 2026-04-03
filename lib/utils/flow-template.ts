@@ -1,8 +1,10 @@
 // Default flow prompt template for agent flow execution
 export const DEFAULT_FLOW_TEMPLATE = `
+RULE:
 Do is your responsible status not more. Do not out of your responsible statuses.  
 And do your status responsible to task_todo there is others agents have, others parts they will do. 
 You just need to doing your part.
+
 You are {$agentId}.
 Your responsible status: {$currentStatusName}
 Status objective/description: {$currentStatusDescription}
@@ -55,6 +57,13 @@ Execution policy:
 - If user input is required, choose result=pause and explain exactly what answer is needed.
 - If success, choose result=finished.
 - If blocked/failure, choose result=failed with root cause.
+
+Non-interactive command guidelines:
+- Always use non-interactive flags (-y, --yes, --non-interactive) when available for package managers, installers, and CLI tools.
+- Redirect stdin from /dev/null when running commands that may prompt for input: use `command < /dev/null` or `echo "" | command`.
+- For apt/dpkg commands, set environment variable DEBIAN_FRONTEND=noninteractive: `DEBIAN_FRONTEND=noninteractive apt-get install -y package`.
+- Treat 30+ seconds of waiting for input as a failure - use result=pause with notes explaining what input is needed.
+- If a command hangs waiting for stdin or interactive input, terminate it and retry with appropriate non-interactive flags or stdin redirection.
 
 
 IMPORTANT: Respond in plain text (NOT JSON, no code blocks, no markdown) using EXACTLY this format:

@@ -498,6 +498,31 @@ export function useStopTicketFlow() {
 }
 
 /**
+ * Bulk start ticket flow runtime
+ */
+export function useBulkStartTicketFlow() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (ticketIds: string[]) => {
+      const res = await fetch('/api/tickets/flow/bulk-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketIds }),
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.message || 'Failed to bulk start flow')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
+}
+
+/**
  * Publish a draft ticket (change creation_status from 'draft' to 'active')
  */
 export function usePublishDraftTicket() {

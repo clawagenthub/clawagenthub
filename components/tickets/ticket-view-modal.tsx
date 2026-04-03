@@ -280,7 +280,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
               </div>
             )}
 
-            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
               {isCommentsLoading ? (
                 <p className="text-sm" style={{ color: `rgb(var(--text-secondary))` }}>Loading comments...</p>
               ) : comments.length === 0 ? (
@@ -363,7 +363,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
                   <h4 className="text-sm font-medium mb-2" style={{ color: `rgb(var(--text-primary))` }}>
                     Combined Timeline
                   </h4>
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[250px] overflow-auto pr-1">
                     {timeline.length === 0 ? (
                       <p className="text-xs" style={{ color: `rgb(var(--text-secondary))` }}>No timeline items yet.</p>
                     ) : (
