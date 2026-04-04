@@ -70,6 +70,7 @@ export function runMigrations(): void {
     '028_add_workspace_settings.sql',
     '029_add_skills_tables.sql',
     '030_add_skills_path_columns.sql',
+    '031_update_flowing_status_check.sql',
   ]
 
   for (const file of migrationFiles) {
