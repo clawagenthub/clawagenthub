@@ -40,7 +40,7 @@ interface TicketModalProps {
       instructions_override?: string
       is_included?: boolean
     }>
-  }) => void
+  }, switchToView?: boolean) => void
   initialData?: {
     id?: string
     title?: string
@@ -53,6 +53,7 @@ interface TicketModalProps {
   }
   isSubmitting?: boolean
   onSwitchToView?: () => void
+  onSaveAndView?: () => void
   onDelete?: () => void
   // Deprecated - use hooks internally instead
   availableUsers?: Array<{ id: string; email: string }>
@@ -108,6 +109,7 @@ export function TicketModal({
   initialData,
   isSubmitting = false,
   onSwitchToView,
+  onSaveAndView,
   onDelete,
   availableUsers = [],
   availableAgents = [],
@@ -817,9 +819,40 @@ export function TicketModal({
                   Delete
                 </button>
               )}
+              {onSaveAndView && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit('active')}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: `rgb(var(--bg-secondary))`,
+                    color: `rgb(var(--text-primary))`,
+                    border: '1px solid rgb(var(--border-color))',
+                  }}
+                  disabled={isSubmitting || !title.trim() || !statusId}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save & View'}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => handleSubmit('active')}
+                onClick={() => {
+                  if (onSaveAndView && initialData?.title) {
+                    onSubmit({
+                      id: initialData.id,
+                      title: title.trim(),
+                      description: description.trim() || undefined,
+                      status_id: statusId,
+                      assigned_to: assignedTo || undefined,
+                      flow_enabled: flowEnabled,
+                      flow_mode: flowMode,
+                      creation_status: 'active',
+                      flow_configs: flowEnabled ? flowConfigs : undefined,
+                    }, true)
+                  } else {
+                    handleSubmit('active')
+                  }
+                }}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
@@ -827,7 +860,7 @@ export function TicketModal({
                 }}
                 disabled={isSubmitting || !title.trim() || !statusId}
               >
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                {isSubmitting ? 'Saving...' : onSaveAndView ? 'Save & Close' : 'Save Changes'}
               </button>
             </>
           )}

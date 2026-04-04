@@ -73,11 +73,11 @@ export function useNavigation() {
 // Helper functions
 function getPathnameRoute(pathname: string): AppRoute {
   if (pathname.startsWith('/chat')) return 'chat'
-  if (pathname.startsWith('/gateways')) return 'settings'
   if (pathname.startsWith('/statuses')) return 'statuses'
   if (pathname.startsWith('/skills')) return 'skills'
   if (pathname.startsWith('/profile')) return 'profile'
-  if (pathname.startsWith('/settings') || pathname.includes('settings')) return 'settings'
+  if (pathname.startsWith('/settings')) return 'settings'
+  if (pathname.startsWith('/gateways')) return 'settings'
   return 'dashboard'
 }
 

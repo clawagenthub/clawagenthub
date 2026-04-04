@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Modal } from '@/components/ui/modal'
 import { ChangePasswordForm } from '@/components/auth/change-password-form'
 import { BoardColumn } from '@/components/board/board-column'
 import { TicketModal, TicketViewModal } from '@/components/tickets'
 import { Button } from '@/components/ui/button'
-import { useUser, useStatuses, useCreateTicket, useUpdateTicket, useUpdateTicketFlowConfig, useTickets } from '@/lib/query/hooks'
+import { Dropdown } from '@/components/ui/dropdown'
+import { useUser, useStatuses, useCreateTicket, useUpdateTicket, useUpdateTicketFlowConfig, useTickets, useDeleteTicket } from '@/lib/query/hooks'
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import type { PageContentProps } from './index'
 
@@ -58,6 +59,16 @@ export function DashboardPageContent({ user }: PageContentProps) {
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null)
+
+  // Multi-select state
+  const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([])
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [flowStatusFilter, setFlowStatusFilter] = useState<string>('all')
+
+  // Delete mutation
+  const deleteMutation = useDeleteTicket()
 
   // Load show drafts preference on mount
   useEffect(() => {
@@ -129,10 +140,10 @@ export function DashboardPageContent({ user }: PageContentProps) {
     setDraggedTicketId(null)
   }
 
-  async function handleCreateTicket(data: any) {
+  async function handleCreateTicket(data: any, switchToView = false) {
     if (data?.id) {
       try {
-        await updateMutation.mutateAsync({
+        const updatedTicket = await updateMutation.mutateAsync({
           id: data.id,
           title: data.title,
           description: data.description,
@@ -150,8 +161,15 @@ export function DashboardPageContent({ user }: PageContentProps) {
           })
         }
 
-        setIsTicketModalOpen(false)
-        setEditingTicket(null)
+        if (switchToView && editingTicket) {
+          setViewingTicket(editingTicket)
+          setIsTicketModalOpen(false)
+          setEditingTicket(null)
+          setIsTicketViewModalOpen(true)
+        } else {
+          setIsTicketModalOpen(false)
+          setEditingTicket(null)
+        }
       } catch (error) {
         console.error('Failed to update ticket:', error)
       }
@@ -201,6 +219,93 @@ export function DashboardPageContent({ user }: PageContentProps) {
     setIsTicketViewModalOpen(true)
   }
 
+  // Filter tickets based on search and status filter
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(ticket => {
+      const matchesSearch = searchQuery === '' || 
+        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ticket.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+      const matchesFlowStatus = flowStatusFilter === 'all' || ticket.flowing_status === flowStatusFilter
+      return matchesSearch && matchesFlowStatus
+    })
+  }, [tickets, searchQuery, flowStatusFilter])
+
+  // Selection handlers
+  const handleTicketSelect = (ticketId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedTicketIds(prev => [...prev, ticketId])
+    } else {
+      setSelectedTicketIds(prev => prev.filter(id => id !== ticketId))
+    }
+  }
+
+  const handleSelectAllInColumn = (statusId: string, selected: boolean) => {
+    const columnTicketIds = filteredTickets
+      .filter(t => t.status_id === statusId && t.creation_status === 'active')
+      .map(t => t.id)
+    
+    if (selected) {
+      setSelectedTicketIds(prev => {
+        const existing = new Set(prev)
+        columnTicketIds.forEach(id => existing.add(id))
+        return Array.from(existing)
+      })
+    } else {
+      setSelectedTicketIds(prev => prev.filter(id => !columnTicketIds.includes(id)))
+    }
+  }
+
+  const isAllSelectedInColumn = (statusId: string) => {
+    const columnTicketIds = filteredTickets
+      .filter(t => t.status_id === statusId && t.creation_status === 'active')
+      .map(t => t.id)
+    return columnTicketIds.length > 0 && columnTicketIds.every(id => selectedTicketIds.includes(id))
+  }
+
+  const isSomeSelectedInColumn = (statusId: string) => {
+    const columnTicketIds = filteredTickets
+      .filter(t => t.status_id === statusId && t.creation_status === 'active')
+      .map(t => t.id)
+    const selectedCount = columnTicketIds.filter(id => selectedTicketIds.includes(id)).length
+    return selectedCount > 0 && selectedCount < columnTicketIds.length
+  }
+
+  // Bulk action handlers
+  const handleBulkMoveTo = async (targetStatusId: string) => {
+    if (selectedTicketIds.length === 0) return
+    try {
+      await Promise.all(selectedTicketIds.map(ticketId => 
+        updateMutation.mutateAsync({ id: ticketId, status_id: targetStatusId })
+      ))
+      setSelectedTicketIds([])
+    } catch (error) {
+      console.error('Failed to move tickets:', error)
+      alert(error instanceof Error ? error.message : 'Failed to move tickets')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedTicketIds.length === 0) return
+    const confirmed = window.confirm(`Delete ${selectedTicketIds.length} selected ticket(s)? This cannot be undone.`)
+    if (!confirmed) return
+    try {
+      await Promise.all(selectedTicketIds.map(ticketId => 
+        deleteMutation.mutateAsync(ticketId)
+      ))
+      setSelectedTicketIds([])
+    } catch (error) {
+      console.error('Failed to delete tickets:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete tickets')
+    }
+  }
+
+  // Check if all active tickets in a column are selected
+  const getColumnSelectedCount = (statusId: string) => {
+    return filteredTickets
+      .filter(t => t.status_id === statusId && t.creation_status === 'active')
+      .filter(t => selectedTicketIds.includes(t.id)).length
+  }
+
 
   return (
     <>
@@ -222,6 +327,106 @@ export function DashboardPageContent({ user }: PageContentProps) {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search tickets..."
+                className="pl-9 pr-4 py-2 rounded-lg text-sm border w-64"
+                style={{
+                  backgroundColor: 'rgb(var(--bg-secondary))',
+                  borderColor: 'rgb(var(--border-color))',
+                  color: 'rgb(var(--text-primary))',
+                }}
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: 'rgb(var(--text-tertiary))' }}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            {/* Flow Status Filter */}
+            <select
+              value={flowStatusFilter}
+              onChange={(e) => setFlowStatusFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg text-sm border"
+              style={{
+                backgroundColor: 'rgb(var(--bg-secondary))',
+                borderColor: 'rgb(var(--border-color))',
+                color: 'rgb(var(--text-primary))',
+              }}
+            >
+              <option value="all">All Flow Status</option>
+              <option value="flowing">Flowing</option>
+              <option value="failed">Failed</option>
+              <option value="waiting">Waiting</option>
+              <option value="waiting_to_flow">Waiting to Flow</option>
+              <option value="stopped">Stopped</option>
+              <option value="completed">Completed</option>
+            </select>
+
+{/* Bulk Actions Dropdown */}
+            {selectedTicketIds.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+                  style={{
+                    backgroundColor: 'rgb(var(--accent-primary, 59 130, 246))',
+                    color: 'white',
+                  }}
+                >
+                  {selectedTicketIds.length} Selected ▼
+                </button>
+                <div
+                  className="absolute right-0 mt-2 w-48 rounded-lg border shadow-lg z-50"
+                  style={{
+                    backgroundColor: 'rgb(var(--bg-primary))',
+                    borderColor: 'rgb(var(--border-color))',
+                  }}
+                >
+                  <div className="py-1">
+                    <div className="px-4 py-2 text-xs font-semibold" style={{ color: 'rgb(var(--text-tertiary))' }}>
+                      Move to Status
+                    </div>
+                    {statuses.map(status => (
+                      <button
+                        key={status.id}
+                        onClick={() => handleBulkMoveTo(status.id)}
+                        className="flex w-full items-center px-4 py-2 text-left text-sm transition-colors"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(var(--bg-secondary))'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: status.color }} />
+                        {status.name}
+                      </button>
+                    ))}
+                    <div
+                      className="my-1 border-t"
+                      style={{ borderColor: 'rgb(var(--border-color))' }}
+                    />
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex w-full items-center px-4 py-2 text-left text-sm transition-colors"
+                      style={{ color: 'rgb(220, 38, 38)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      Delete Selected
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Show Drafts Toggle */}
             <button
               type="button"
@@ -250,7 +455,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              {showDrafts ? 'Drafts: ON 📝' : 'Drafts: OFF'}
+              {showDrafts ? 'Drafts: ON' : 'Drafts: OFF'}
             </button>
             <button
               type="button"
@@ -352,13 +557,19 @@ export function DashboardPageContent({ user }: PageContentProps) {
                       id={status.id}
                       title={status.name}
                       color={status.color}
-                      tickets={tickets.filter(t => t.status_id === status.id)}
+                      tickets={filteredTickets.filter(t => t.status_id === status.id)}
                       showDrafts={showDrafts}
                       onTicketDoubleClick={handleTicketDoubleClick}
                       onTicketDragStart={handleTicketDragStart}
                       onTicketDragOver={handleTicketDragOver}
                       onTicketDrop={handleTicketDrop}
                       draggedTicketId={draggedTicketId}
+                      selectedTicketIds={selectedTicketIds}
+                      onTicketSelect={handleTicketSelect}
+                      onSelectAll={(selected) => handleSelectAllInColumn(status.id, selected)}
+                      isAllSelected={isAllSelectedInColumn(status.id)}
+                      isSomeSelected={isSomeSelectedInColumn(status.id)}
+                      selectedCount={getColumnSelectedCount(status.id)}
                     />
                   </div>
                 ))}
@@ -376,6 +587,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
           onSubmit={handleCreateTicket}
           isSubmitting={createMutation.isPending}
           onSwitchToView={handleSwitchToViewFromEdit}
+          onSaveAndView={editingTicket ? handleSwitchToViewFromEdit : undefined}
           initialData={editingTicket ? {
             id: editingTicket.id,
             title: editingTicket.title,

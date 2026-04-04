@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks'
 import { Toast } from '@/components/ui/toast'
@@ -49,6 +49,12 @@ interface BoardColumnProps {
   onTicketDragOver?: (e: React.DragEvent) => void
   onTicketDrop?: (e: React.DragEvent, statusId: string) => void
   draggedTicketId?: string | null
+  selectedTicketIds?: string[]
+  onTicketSelect?: (ticketId: string, selected: boolean) => void
+  onSelectAll?: (selected: boolean) => void
+  isAllSelected?: boolean
+  isSomeSelected?: boolean
+  selectedCount?: number
 }
 
 export function BoardColumn({
@@ -62,6 +68,12 @@ export function BoardColumn({
   onTicketDragOver,
   onTicketDrop,
   draggedTicketId = null,
+  selectedTicketIds = [],
+  onTicketSelect,
+  onSelectAll,
+  isAllSelected = false,
+  isSomeSelected = false,
+  selectedCount = 0,
 }: BoardColumnProps) {
   const { mutateAsync: bulkStartFlow, isPending: isBulkStartingFlow } = useBulkStartTicketFlow()
   const { mutateAsync: bulkStopFlow, isPending: isBulkStoppingFlow } = useBulkStopTicketFlow()
@@ -69,12 +81,20 @@ export function BoardColumn({
   const [showStopAllConfirm, setShowStopAllConfirm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
-  const visibleTickets = tickets.filter(ticket => {
-    if (ticket.creation_status === 'active') return true
-    return showDrafts && ticket.creation_status === 'draft'
-  })
+  const visibleTickets = useMemo(() => {
+    const filtered = tickets.filter(ticket => {
+      if (ticket.creation_status === 'active') return true
+      return showDrafts && ticket.creation_status === 'draft'
+    })
+    return filtered.sort((a, b) => {
+      const aFlowing = a.flowing_status === 'flowing' ? 1 : 0
+      const bFlowing = b.flowing_status === 'flowing' ? 1 : 0
+      return bFlowing - aFlowing
+    })
+  }, [tickets, showDrafts])
 
   const draftCount = tickets.filter(t => t.creation_status === 'draft').length
+  const activeTicketsForSelection = visibleTickets.filter(t => t.creation_status === 'active')
 
   const eligibleForFlowStart = visibleTickets.filter(
     t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status !== 'flowing'
@@ -84,7 +104,6 @@ export function BoardColumn({
     t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status === 'flowing'
   )
 
-  // Show Stop All button only when ALL visible active tickets with flow enabled are flowing
   const allFlowingTickets = visibleTickets.filter(
     t => t.flow_enabled && t.creation_status === 'active'
   )
@@ -127,6 +146,18 @@ export function BoardColumn({
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
+          {activeTicketsForSelection.length > 0 && (
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = isSomeSelected
+              }}
+              onChange={(e) => onSelectAll?.(e.target.checked)}
+              className="w-4 h-4 rounded cursor-pointer"
+              title="Select all in column"
+            />
+          )}
           <div
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: color }}
@@ -146,6 +177,17 @@ export function BoardColumn({
               }}
             >
               {draftCount} draft{draftCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {selectedCount > 0 && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                color: 'rgb(59, 130, 246)',
+              }}
+            >
+              {selectedCount} selected
             </span>
           )}
         </div>
@@ -280,16 +322,31 @@ export function BoardColumn({
               }}
               style={{
                 backgroundColor: `rgb(var(--bg-primary))`,
-                borderColor: ticket.creation_status === 'draft'
-                  ? 'rgba(156, 163, 175, 0.5)'
-                  : `rgb(var(--border-color))`,
+                borderColor: selectedTicketIds.includes(ticket.id)
+                  ? 'rgb(59, 130, 246)'
+                  : ticket.creation_status === 'draft'
+                    ? 'rgba(156, 163, 175, 0.5)'
+                    : `rgb(var(--border-color))`,
                 borderStyle: ticket.creation_status === 'draft' ? 'dashed' : 'solid',
                 opacity: draggedTicketId === ticket.id ? 0.5 : (ticket.creation_status === 'draft' ? 0.8 : 1),
+                borderWidth: selectedTicketIds.includes(ticket.id) ? '2px' : '1px',
               }}
             >
               <div className="flex items-start justify-between gap-2">
+                {ticket.creation_status === 'active' && (
+                  <input
+                    type="checkbox"
+                    checked={selectedTicketIds.includes(ticket.id)}
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      onTicketSelect?.(ticket.id, e.target.checked)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className="text-xs font-medium"
                       style={{ color: `rgb(var(--text-tertiary))` }}

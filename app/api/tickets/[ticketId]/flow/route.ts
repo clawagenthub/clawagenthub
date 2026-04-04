@@ -480,8 +480,12 @@ export async function triggerAgentForFlowStart(args: {
       { timeoutMs }
     )
 
-    const messageText = response.error ? response.error : extractText(response.message)
-    const parsed = parseAgentFlowResult(messageText)
+    const isTimeoutError = !!response.error
+    const errorMessage = response.error || 'Unknown error'
+    const messageText = isTimeoutError ? errorMessage : extractText(response.message)
+    const parsed = isTimeoutError
+      ? { result: 'failed' as const, notes: errorMessage, progressComment: `Agent timeout or error: ${errorMessage}` }
+      : parseAgentFlowResult(messageText)
 
     // Persist one normal agent comment (avoid duplicate style)
     const now = new Date().toISOString()
