@@ -357,7 +357,7 @@ export async function triggerAgentForFlowStart(args: {
 
   if (!effectiveAgentId) {
     const now = new Date().toISOString()
-    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ?').run(
+    db.prepare('UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?').run(
       'waiting',
       now,
       ticketId
