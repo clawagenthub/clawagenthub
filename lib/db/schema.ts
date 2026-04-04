@@ -143,7 +143,7 @@ export interface StatusUpdate {
 
 // Ticket creation status type
 export type TicketCreationStatus = 'draft' | 'active'
-export type TicketFlowingStatus = 'stopped' | 'flowing' | 'waiting' | 'failed' | 'completed'
+export type TicketFlowingStatus = 'stopped' | 'flowing' | 'waiting' | 'waiting_to_flow' | 'failed' | 'completed'
 export type TicketFlowMode = 'manual' | 'automatic'
 
 // Ticket types

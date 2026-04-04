@@ -31,6 +31,11 @@ const FLOW_BADGE_CONFIG: Record<string, { label: string; bg: string; text: strin
     bg: 'rgba(59, 130, 246, 0.18)',
     text: 'rgb(37, 99, 235)',
   },
+  waiting_to_flow: {
+    label: 'Waiting To Flow',
+    bg: 'rgba(139, 92, 246, 0.18)',
+    text: 'rgb(124, 58, 237)',
+  },
 }
 
 interface BoardColumnProps {

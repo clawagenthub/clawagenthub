@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
     `).get(workspaceId) as { setting_value: string } | undefined
 
-    const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 0
+    const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 5
 
     const eligibleTickets = db.prepare(`
       SELECT id, title, flow_enabled, creation_status, flowing_status
@@ -92,19 +92,42 @@ export async function POST(request: NextRequest) {
       details: [] as Array<{
         ticketId: string
         title: string
-        status: 'started' | 'skipped' | 'failed'
+        status: 'started' | 'skipped' | 'failed' | 'waiting'
         error?: string
       }>
     }
 
     for (const ticket of eligibleTickets) {
       if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
+        const now = new Date().toISOString()
+        db.prepare(`
+          UPDATE tickets
+          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
+          WHERE id = ?
+        `).run('waiting_to_flow', now, now, ticket.id)
+
+        const auditLogId = generateUserId()
+        db.prepare(`
+          INSERT INTO ticket_audit_logs (
+            id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          auditLogId,
+          ticket.id,
+          'flow_waiting',
+          user.id,
+          'user',
+          JSON.stringify({ flowing_status: ticket.flowing_status || 'stopped' }),
+          JSON.stringify({ flowing_status: 'waiting_to_flow', reason: `Max concurrent flowing tickets (${onflowlimit}) reached` }),
+          now
+        )
+
         results.skipped++
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,
-          status: 'skipped',
-          error: `Max concurrent flowing tickets (${onflowlimit}) reached`
+          status: 'waiting',
+          error: `Ticket queued - max concurrent flowing tickets (${onflowlimit}) reached`
         })
         continue
       }
