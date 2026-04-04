@@ -57,6 +57,7 @@ Execution policy:
 - If user input is required, choose result=pause and explain exactly what answer is needed.
 - If success, choose result=finished.
 - If blocked/failure, choose result=failed with root cause.
+- If you need to create new ticket etc. look to project Readme for available APIs, or ask user for next steps.
 
 Non-interactive command guidelines:
 - Always use non-interactive flags (-y, --yes, --non-interactive) when available for package managers, installers, and CLI tools.
@@ -77,4 +78,5 @@ Alternative formats accepted:
 - Plain text with keywords: "finished", "failed", or "pause"
 - JSON: {"result": "finished", "comment": "...", "notes": "..."}
 
-If you don't follow the format, your response will be treated as "finished" by default.`
+If you don't follow the format, your response will be treated as "finished" by default.
+`
