@@ -1,5 +1,6 @@
 import { initializeDatabase } from './lib/db/index.js'
 import { checkSetupRequired, createSetupToken, displaySetupUrl } from './lib/setup/index.js'
+import '@/lib/services/waiting-to-flow-service.js'
 
 // Initialize database and check for setup
 async function startup() {
