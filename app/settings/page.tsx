@@ -2,14 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '@/lib/query/hooks'
+import { useUser, useWorkspacePrompts, useUpdateWorkspacePrompts, useDeletePromptMutation, useAddCustomPrompt, type WorkspacePrompt } from '@/lib/query/hooks'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
 import { useAgents } from '@/lib/query/hooks/useChat'
+import { useGateways } from '@/lib/query/hooks'
+import { GatewayCard } from '@/components/gateway/gateway-card'
+import { AddGatewayModal } from '@/components/gateway/add-gateway-modal'
+import { Button } from '@/components/ui/button'
 import { Sidebar } from '@/components/layout/sidebar'
 import { NavigationProvider } from '@/lib/contexts/navigation-context'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
-
-type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'skillsmp' | 'danger'
+import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
+import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
+import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
+type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'skillsmp' | 'danger'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -17,8 +23,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const { data: settings, isLoading: settingsLoading } = useUserSettings()
   const { data: agents, isLoading: agentsLoading } = useAgents()
-  
-  // Local state for form values
+  const { gateways, isLoading: gatewaysLoading, refresh } = useGateways()
   const [summarizerAgentId, setSummarizerAgentId] = useState(settings?.summarizer_agent_id ?? '')
   const [autoSummaryEnabled, setAutoSummaryEnabled] = useState(settings?.auto_summary_enabled ?? true)
   const [idleTimeout, setIdleTimeout] = useState(settings?.idle_timeout_minutes ?? 2)
@@ -34,6 +39,43 @@ export default function SettingsPage() {
   const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
   const [skillsmpSaving, setSkillsmpSaving] = useState(false)
   const [skillsmpMessage, setSkillsmpMessage] = useState('')
+
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  // Default prompts state
+  const [selectedPrompt, setSelectedPrompt] = useState<WorkspacePrompt | null>(null)
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
+  const [isLoadDefaultsModalOpen, setIsLoadDefaultsModalOpen] = useState(false)
+  const [isAddCustomModalOpen, setIsAddCustomModalOpen] = useState(false)
+
+  const { data: prompts, isLoading: promptsLoading } = useWorkspacePrompts()
+  const updatePrompts = useUpdateWorkspacePrompts()
+  const deletePrompt = useDeletePromptMutation()
+  const addCustomPrompt = useAddCustomPrompt()
+
+  const handleConnect = async (gateway: any) => {
+    try {
+      const response = await fetch(`/api/gateways/${gateway.id}/connect`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        await refresh()
+      } else {
+        alert(data.message || 'Failed to connect to gateway')
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to connect to gateway')
+    }
+  }
+
+  const handleDelete = async (gatewayId: string) => {
+    await refresh()
+  }
+
+  const handleAddSuccess = () => {
+    refresh()
+  }
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -87,6 +129,8 @@ export default function SettingsPage() {
     { key: 'chat', label: 'Chat', icon: '💬' },
     { key: 'flow', label: 'Flow', icon: '🔄' },
     { key: 'workspace', label: 'Workspace', icon: '👥' },
+    { key: 'gateway', label: 'Gateway', icon: '🔌' },
+    { key: 'defaultprompts', label: 'Default Prompts', icon: '📝' },
     { key: 'skillsmp', label: 'SkillsMP', icon: '🔌' },
     { key: 'danger', label: 'Danger Zone', icon: '⚠️' },
   ]
@@ -662,6 +706,200 @@ export default function SettingsPage() {
                     View
                   </button>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'gateway' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold" style={{ color: 'rgb(var(--text-primary))' }}>Gateways</h2>
+                    <p className="mt-2" style={{ color: 'rgb(var(--text-secondary))' }}>Manage your OpenClaw Gateway connections</p>
+                  </div>
+                  <Button onClick={() => setShowAddModal(true)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                    <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Gateway
+                  </Button>
+                </div>
+                {gatewaysLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4" style={{ color: 'rgb(var(--text-secondary))' }}>Loading gateways...</p>
+                  </div>
+                ) : gateways.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                    </svg>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No gateways</h3>
+                    <p className="mt-1 text-sm text-gray-500">Get started by adding your first gateway.</p>
+                    <div className="mt-6">
+                      <Button onClick={() => setShowAddModal(true)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                        <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Gateway
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {gateways.map((gateway: any) => <GatewayCard key={gateway.id} gateway={gateway} onConnect={handleConnect} onDelete={handleDelete} onUpdate={refresh} />)}
+                  </div>
+                )}
+                <AddGatewayModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
+              </div>
+            )}
+
+            {activeTab === 'defaultprompts' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
+                    Default Prompts
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsLoadDefaultsModalOpen(true)}
+                      className="px-4 py-2 rounded-lg border transition-colors"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
+                    >
+                      Load Default Prompts
+                    </button>
+                    <button
+                      onClick={() => setIsAddCustomModalOpen(true)}
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      Add Custom Prompt
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                  Manage prompts that can be loaded into ticket descriptions. Click on a prompt to view details.
+                </p>
+
+                {promptsLoading ? (
+                  <div className="text-center py-8" style={{ color: 'rgb(var(--text-secondary))' }}>
+                    Loading prompts...
+                  </div>
+                ) : prompts && prompts.length > 0 ? (
+                  <div
+                    className="border rounded-lg overflow-hidden"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    {prompts.map((prompt) => (
+                      <div
+                        key={prompt.id}
+                        className="p-4 border-b last:border-b-0 cursor-pointer hover:bg-opacity-50 transition-colors"
+                        style={{ borderColor: 'rgb(var(--border-color))' }}
+                        onClick={() => {
+                          setSelectedPrompt(prompt)
+                          setIsPromptModalOpen(true)
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
+                                {prompt.name}
+                              </p>
+                              {prompt.isCustom && (
+                                <span
+                                  className="px-1.5 py-0.5 text-xs rounded"
+                                  style={{
+                                    backgroundColor: 'rgb(var(--primary-color))',
+                                    color: 'white',
+                                  }}
+                                >
+                                  Custom
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm mt-1" style={{ color: 'rgb(var(--text-secondary))' }}>
+                              {prompt.description}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (confirm('Are you sure you want to delete this prompt?')) {
+                                deletePrompt.mutate({
+                                  promptId: prompt.id,
+                                  currentPrompts: prompts,
+                                })
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-medium rounded transition-colors hover:bg-red-100"
+                            style={{
+                              backgroundColor: 'rgb(var(--bg-secondary))',
+                              color: 'rgb(239 68 68)',
+                              border: '1px solid rgb(239 68 68)',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border rounded-lg" style={{ borderColor: 'rgb(var(--border-color))', borderStyle: 'dashed' }}>
+                    <p className="text-lg mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
+                      No prompts configured
+                    </p>
+                    <p className="text-sm mb-4" style={{ color: 'rgb(var(--text-secondary))' }}>
+                      Load default prompts or add your own custom prompts.
+                    </p>
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => setIsLoadDefaultsModalOpen(true)}
+                        className="px-4 py-2 rounded-lg border transition-colors"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                      >
+                        Load Default Prompts
+                      </button>
+                      <button
+                        onClick={() => setIsAddCustomModalOpen(true)}
+                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        Add Custom Prompt
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <PromptDetailModal
+                  isOpen={isPromptModalOpen}
+                  onClose={() => setIsPromptModalOpen(false)}
+                  prompt={selectedPrompt}
+                />
+
+                <LoadDefaultPromptsModal
+                  isOpen={isLoadDefaultsModalOpen}
+                  onClose={() => setIsLoadDefaultsModalOpen(false)}
+                  onLoad={(newPrompts) => {
+                    updatePrompts.mutate([...(prompts || []), ...newPrompts])
+                  }}
+                  existingPromptIds={prompts?.map(p => p.id) || []}
+                />
+
+                <AddCustomPromptModal
+                  isOpen={isAddCustomModalOpen}
+                  onClose={() => setIsAddCustomModalOpen(false)}
+                  onAdd={async (prompt) => {
+                    await addCustomPrompt(prompt)
+                  }}
+                />
               </div>
             )}
 

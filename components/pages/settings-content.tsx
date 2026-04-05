@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useUser } from '@/lib/query/hooks'
+import { useUser, useWorkspacePrompts, useUpdateWorkspacePrompts, useDeletePromptMutation, useAddCustomPrompt, type WorkspacePrompt } from '@/lib/query/hooks'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
 import { useAgents } from '@/lib/query/hooks/useChat'
 import { useGateways } from '@/lib/query/hooks'
@@ -10,10 +10,13 @@ import { GatewayCard } from '@/components/gateway/gateway-card'
 import { AddGatewayModal } from '@/components/gateway/add-gateway-modal'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
+import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
+import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
+import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
 import type { PageContentProps } from './index'
 import type { Gateway } from '@/lib/db/schema'
 
-type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'skillsmp' | 'danger'
+type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'skillsmp' | 'danger'
 
 function SettingsContent({ user }: PageContentProps) {
   const router = useRouter()
@@ -23,6 +26,17 @@ function SettingsContent({ user }: PageContentProps) {
   const { data: settings, isLoading: settingsLoading } = useUserSettings()
   const { data: agents, isLoading: agentsLoading } = useAgents()
   const { gateways, isLoading: gatewaysLoading, refresh } = useGateways()
+
+  // Default prompts state
+  const [selectedPrompt, setSelectedPrompt] = useState<WorkspacePrompt | null>(null)
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
+  const [isLoadDefaultsModalOpen, setIsLoadDefaultsModalOpen] = useState(false)
+  const [isAddCustomModalOpen, setIsAddCustomModalOpen] = useState(false)
+
+  const { data: prompts, isLoading: promptsLoading } = useWorkspacePrompts()
+  const updatePrompts = useUpdateWorkspacePrompts()
+  const deletePrompt = useDeletePromptMutation()
+  const addCustomPrompt = useAddCustomPrompt()
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [summarizerAgentId, setSummarizerAgentId] = useState(settings?.summarizer_agent_id ?? '')
@@ -41,7 +55,7 @@ function SettingsContent({ user }: PageContentProps) {
 
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab | null
-    if (tab && ['general', 'chat', 'flow', 'workspace', 'gateway', 'skillsmp', 'danger'].includes(tab)) {
+    if (tab && ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'skillsmp', 'danger'].includes(tab)) {
       setActiveTabState(tab)
     }
   }, [searchParams])
@@ -126,6 +140,7 @@ function SettingsContent({ user }: PageContentProps) {
     { key: 'flow', label: 'Flow', icon: '🔄' },
     { key: 'workspace', label: 'Workspace', icon: '👥' },
     { key: 'gateway', label: 'Gateway', icon: '🔌' },
+    { key: 'defaultprompts', label: 'Default Prompts', icon: '📝' },
     { key: 'skillsmp', label: 'SkillsMP', icon: '🔌' },
     { key: 'danger', label: 'Danger Zone', icon: '⚠️' },
   ]
@@ -464,6 +479,156 @@ function SettingsContent({ user }: PageContentProps) {
               </div>
             )}
             <AddGatewayModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
+          </div>
+        )}
+
+        {activeTab === 'defaultprompts' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
+                Default Prompts
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsLoadDefaultsModalOpen(true)}
+                  className="px-4 py-2 rounded-lg border transition-colors"
+                  style={{
+                    backgroundColor: 'rgb(var(--bg-secondary))',
+                    borderColor: 'rgb(var(--border-color))',
+                    color: 'rgb(var(--text-primary))',
+                  }}
+                >
+                  Load Default Prompts
+                </button>
+                <button
+                  onClick={() => setIsAddCustomModalOpen(true)}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  Add Custom Prompt
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+              Manage prompts that can be loaded into ticket descriptions. Click on a prompt to view details.
+            </p>
+
+            {promptsLoading ? (
+              <div className="text-center py-8" style={{ color: 'rgb(var(--text-secondary))' }}>
+                Loading prompts...
+              </div>
+            ) : prompts && prompts.length > 0 ? (
+              <div
+                className="border rounded-lg overflow-hidden"
+                style={{ borderColor: 'rgb(var(--border-color))' }}
+              >
+                {prompts.map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    className="p-4 border-b last:border-b-0 cursor-pointer hover:bg-opacity-50 transition-colors"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                    onClick={() => {
+                      setSelectedPrompt(prompt)
+                      setIsPromptModalOpen(true)
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
+                            {prompt.name}
+                          </p>
+                          {prompt.isCustom && (
+                            <span
+                              className="px-1.5 py-0.5 text-xs rounded"
+                              style={{
+                                backgroundColor: 'rgb(var(--primary-color))',
+                                color: 'white',
+                              }}
+                            >
+                              Custom
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm mt-1" style={{ color: 'rgb(var(--text-secondary))' }}>
+                          {prompt.description}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (confirm('Are you sure you want to delete this prompt?')) {
+                            deletePrompt.mutate({
+                              promptId: prompt.id,
+                              currentPrompts: prompts,
+                            })
+                          }
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium rounded transition-colors hover:bg-red-100"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          color: 'rgb(239 68 68)',
+                          border: '1px solid rgb(239 68 68)',
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 border rounded-lg" style={{ borderColor: 'rgb(var(--border-color))', borderStyle: 'dashed' }}>
+                <p className="text-lg mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
+                  No prompts configured
+                </p>
+                <p className="text-sm mb-4" style={{ color: 'rgb(var(--text-secondary))' }}>
+                  Load default prompts or add your own custom prompts.
+                </p>
+                <div className="flex justify-center gap-2">
+                  <button
+                    onClick={() => setIsLoadDefaultsModalOpen(true)}
+                    className="px-4 py-2 rounded-lg border transition-colors"
+                    style={{
+                      backgroundColor: 'rgb(var(--bg-secondary))',
+                      borderColor: 'rgb(var(--border-color))',
+                      color: 'rgb(var(--text-primary))',
+                    }}
+                  >
+                    Load Default Prompts
+                  </button>
+                  <button
+                    onClick={() => setIsAddCustomModalOpen(true)}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  >
+                    Add Custom Prompt
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <PromptDetailModal
+              isOpen={isPromptModalOpen}
+              onClose={() => setIsPromptModalOpen(false)}
+              prompt={selectedPrompt}
+            />
+
+            <LoadDefaultPromptsModal
+              isOpen={isLoadDefaultsModalOpen}
+              onClose={() => setIsLoadDefaultsModalOpen(false)}
+              onLoad={(newPrompts) => {
+                updatePrompts.mutate([...(prompts || []), ...newPrompts])
+              }}
+              existingPromptIds={prompts?.map(p => p.id) || []}
+            />
+
+            <AddCustomPromptModal
+              isOpen={isAddCustomModalOpen}
+              onClose={() => setIsAddCustomModalOpen(false)}
+              onAdd={async (prompt) => {
+                await addCustomPrompt(prompt)
+              }}
+            />
           </div>
         )}
 

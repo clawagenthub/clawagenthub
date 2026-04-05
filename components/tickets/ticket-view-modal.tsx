@@ -125,9 +125,8 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
   const isFlowActionPending = isStartingFlow || isStoppingFlow
   const canControlFlowRuntime = ticket?.flow_enabled && ticket?.creation_status === 'active'
   
-  // Check if ticket status is "done" or "finished" (case-insensitive)
-  const statusName = ticket?.status?.name?.toLowerCase() || ''
-  const canDelete = statusName.includes('done') || statusName.includes('finished')
+  // Allow deletion for all tickets (drafts and published from any status)
+  const canDelete = true
 
   // Get the most recent flow failure reason from audit logs
   const latestFlowFailure = ticket?.audit_logs

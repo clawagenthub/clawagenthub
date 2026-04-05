@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const sessionKey = `agent:${agentId}:${chatSessionId}`
     const now = new Date().toISOString()
 
-    console.log('[Sessions API] Inserting session with status=idle, last_activity_at=', now)
+ 
     db.prepare(`
       INSERT INTO chat_sessions (
         id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       updated_at: now
     }
 
-    console.log('[Sessions API] Session created successfully:', chatSessionId, 'status=idle')
+   
     return NextResponse.json({ session: chatSession })
   } catch (error) {
     console.error('[Chat API] Error creating session:', error)
@@ -93,13 +93,13 @@ export async function GET(request: Request) {
     const db = getDatabase()
 
     // Use global auth utility
-    console.log('[Sessions API] Fetching sessions - checking auth...')
+   
     const auth = await getUserWithWorkspace()
     if (!auth) {
       console.error('[Sessions API] Auth failed or no workspace selected')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
-    console.log('[Sessions API] Auth successful, workspaceId:', auth.workspaceId)
+   
 
     // Get all chat sessions for the current workspace
     const sessions = db
@@ -114,13 +114,8 @@ export async function GET(request: Request) {
     const activeCount = sessions.filter((s: ChatSession) => s.status === 'active').length
     const idleCount = sessions.filter((s: ChatSession) => s.status === 'idle').length
     const inactiveCount = sessions.filter((s: ChatSession) => s.status === 'inactive').length
-    console.log(`[Sessions API] Returning ${sessions.length} sessions: ${activeCount} active, ${idleCount} idle, ${inactiveCount} inactive`)
+  
     
-    // Log each session's status for detailed debugging
-    sessions.forEach((s: ChatSession) => {
-      console.log(`[Sessions API] Session ${s.id.slice(0, 8)}... - status: ${s.status}, last_activity: ${s.last_activity_at}`)
-    })
-
     return NextResponse.json({ sessions })
   } catch (error) {
     console.error('[Chat API] Error fetching sessions:', error)

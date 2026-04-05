@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { MarkdownEditor } from './markdown-editor'
 import { StatusFlowBuilder } from './status-flow-builder'
+import { SelectPromptModal } from '@/components/ui/select-prompt-modal'
 import {
   useStatuses,
   useWorkspaceMembers,
@@ -16,6 +17,7 @@ import {
   useTicketFlowStatus,
   useStartTicketFlow,
   useStopTicketFlow,
+  useWorkspacePrompts,
 } from '@/lib/query/hooks'
 import type { TicketCreationStatus, TicketFlowMode } from '@/lib/db/schema'
 
@@ -134,6 +136,7 @@ export function TicketModal({
   const [draftTicketId, setDraftTicketId] = useState<string | null>(null)
   const [hasCreatedDraft, setHasCreatedDraft] = useState(false)
   const [isLoadDefaultsConfirmOpen, setIsLoadDefaultsConfirmOpen] = useState(false)
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
 
   // Debounced save timeout ref
   const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -146,6 +149,7 @@ export function TicketModal({
   const { data: flowRuntimeStatus } = useTicketFlowStatus(editingTicketId)
   const { mutateAsync: startFlow, isPending: isStartingFlow } = useStartTicketFlow()
   const { mutateAsync: stopFlow, isPending: isStoppingFlow } = useStopTicketFlow()
+  const { data: workspacePrompts } = useWorkspacePrompts()
 
   useEffect(() => {
     if (!editingTicketId) return
@@ -398,10 +402,12 @@ export function TicketModal({
       ? initialData?.id
       : draftTicketId
 
+    const finalDescription = description.trim()
+
     onSubmit({
       id: submitTicketId || undefined,
       title: title.trim(),
-      description: description.trim() || undefined,
+      description: finalDescription || undefined,
       status_id: statusId,
       assigned_to: assignedTo || undefined,
       flow_enabled: flowEnabled,
@@ -587,6 +593,36 @@ export function TicketModal({
             height={200}
             readOnly={isSubmitting}
           />
+        </div>
+
+        {/* Load Prompt Button */}
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: `rgb(var(--text-secondary))` }}>
+            Quick Add Prompt
+          </label>
+          <button
+            type="button"
+            onClick={() => setIsPromptModalOpen(true)}
+            disabled={isSubmitting || !workspacePrompts?.length}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            style={{
+              backgroundColor: 'rgb(var(--bg-secondary))',
+              color: 'rgb(var(--text-primary))',
+              border: '1px solid rgb(var(--border-color))',
+            }}
+          >
+            Load Prompt
+          </button>
+          {workspacePrompts && workspacePrompts.length > 0 && (
+            <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
+              {workspacePrompts.length} prompt{workspacePrompts.length !== 1 ? 's' : ''} available
+            </p>
+          )}
+          {!workspacePrompts?.length && (
+            <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
+              No prompts available. Add prompts in Settings → Default Prompts.
+            </p>
+          )}
         </div>
 
         {/* Status Selection */}
@@ -778,6 +814,20 @@ export function TicketModal({
           {/* Show dual buttons for new tickets or drafts */}
           {!isEditing || isDraft ? (
             <>
+              {isDraft && onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:curor-not-allowed"
+                  style={{
+                    backgroundColor: 'rgb(239, 68, 68)',
+                    color: 'white',
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Delete Draft
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => handleSubmit('draft')}
@@ -906,6 +956,17 @@ export function TicketModal({
           </div>
         </div>
       </Modal>
+
+      <SelectPromptModal
+        isOpen={isPromptModalOpen}
+        onClose={() => setIsPromptModalOpen(false)}
+        prompts={workspacePrompts || []}
+        onSelect={(promptContent) => {
+          const currentDescription = description.trim()
+          const promptSection = `\n\n---\n${promptContent}\n`
+          setDescription(currentDescription ? `${currentDescription}${promptSection}` : promptSection)
+        }}
+      />
     </>
   )
 }

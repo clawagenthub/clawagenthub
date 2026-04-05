@@ -53,6 +53,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
   const createMutation = useCreateTicket()
   const updateMutation = useUpdateTicket()
   const updateFlowConfigMutation = useUpdateTicketFlowConfig()
+  const deleteMutation = useDeleteTicket()
   
   // Show drafts toggle state
   const [showDrafts, setShowDrafts] = useState(false)
@@ -66,9 +67,6 @@ export function DashboardPageContent({ user }: PageContentProps) {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('')
   const [flowStatusFilter, setFlowStatusFilter] = useState<string>('all')
-
-  // Delete mutation
-  const deleteMutation = useDeleteTicket()
 
   // Load show drafts preference on mount
   useEffect(() => {
@@ -182,6 +180,20 @@ export function DashboardPageContent({ user }: PageContentProps) {
         setEditingTicket(null)
       },
     })
+  }
+
+  async function handleDeleteDraft(ticketId: string) {
+    const confirmed = window.confirm('Delete this draft? This cannot be undone.')
+    if (!confirmed) return
+
+    try {
+      await deleteMutation.mutateAsync(ticketId)
+      setIsTicketModalOpen(false)
+      setEditingTicket(null)
+    } catch (error) {
+      console.error('Failed to delete draft:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete draft')
+    }
   }
 
   function handleTicketDoubleClick(ticket: TicketWithRelations) {
@@ -309,7 +321,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
 
   return (
     <>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Header with Add Ticket button and Show Drafts toggle */}
         <div className="flex-shrink-0 mb-6 flex items-center justify-between">
           <div>
@@ -475,9 +487,9 @@ export function DashboardPageContent({ user }: PageContentProps) {
 
         {/* Board System - Slider-style horizontal scroll with 3 visible items per row */}
         <div
-          className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden snap-x snap-mandatory dashboard-slider"
+          className="flex-1 min-h-0 overflow-x-auto overflow-y-auto snap-x snap-mandatory dashboard-slider"
         >
-          <div className="flex flex-row gap-4 h-full min-w-max items-stretch pb-6">
+          <div className="flex flex-row gap-4 min-w-max items-stretch pb-4">
             {isLoading ? (
               // Loading skeleton - 3 visible items
               <>
@@ -585,6 +597,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
           isOpen={isTicketModalOpen}
           onClose={handleCloseTicketModal}
           onSubmit={handleCreateTicket}
+          onDelete={editingTicket?.creation_status === 'draft' ? () => handleDeleteDraft(editingTicket.id) : undefined}
           isSubmitting={createMutation.isPending}
           onSwitchToView={handleSwitchToViewFromEdit}
           onSaveAndView={editingTicket ? handleSwitchToViewFromEdit : undefined}
