@@ -13,7 +13,7 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:reset": "tsx scripts/db-reset.ts",
     "db:seed": "tsx scripts/db-seed.ts",
-     "db:check": "tsx scripts/db-check.ts",
+    "db:check": "tsx scripts/db-check.ts",
     "db:fix-passwords": "tsx scripts/db-fix-passwords.ts",
     "db:reset-admin-password": "tsx scripts/db-reset-admin-password.ts",
     "test:login": "tsx scripts/test-login.ts"
@@ -36,18 +36,28 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-typescript": "^18.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
     "postcss": "^8.4.0",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.0",
     "tailwindcss": "^3.4.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.58.0"
   }
 }
