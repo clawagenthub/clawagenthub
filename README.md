@@ -36,7 +36,11 @@ A workspace can have its own gateways, settings, statuses, and ticket flows.
 
 ## UI Views
 
+
+
+
 Dashboard view
+<img width="1510" height="862" alt="image" src="https://github.com/user-attachments/assets/4823084a-fb13-48b7-94a2-d8c55fa54ed5" />
 <img width="1510" height="871" alt="Image" src="https://github.com/user-attachments/assets/45a17e97-ab44-4d4c-a75a-0e295ae907b4" />
 
 Edit ticket view
