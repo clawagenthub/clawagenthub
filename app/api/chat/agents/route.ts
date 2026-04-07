@@ -4,6 +4,17 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { AgentInfo } from '@/lib/db/schema'
 
+function modelHasImageRecognition(model: unknown): boolean {
+  if (!model) return false
+  const modelName = String(model).toLowerCase()
+  const indicators = [
+    'vision', 'vl-', 'gpt-4v', 'gpt-4-vision', 'claude-3-opus', 'claude-3-sonnet',
+    'claude-3-5', 'multimodal', 'gemma3', 'pixtral', 'mistral-large', 'commandr+',
+    'gemini', 'gpt-4.1', 'gpt-4o'
+  ]
+  return indicators.some((indicator) => modelName.includes(indicator))
+}
+
 export async function GET(request: Request) {
   console.log('[API /api/chat/agents] Starting request')
   
@@ -65,12 +76,16 @@ export async function GET(request: Request) {
         })
         
         for (const agent of gatewayAgents) {
-          const agentInfo = {
+          const agentInfo: AgentInfo = {
             gatewayId: gateway.id,
             gatewayName: gateway.name,
             agentId: agent.id,
             agentName: agent.name || agent.id,
-            sessionKey: agent.sessionKey || `agent:${agent.id}:main`
+            sessionKey: agent.sessionKey || `agent:${agent.id}:main`,
+            model: agent.model || null,
+            capabilities: {
+              imageRecognition: agent.capabilities?.imageRecognition ?? modelHasImageRecognition(agent.model),
+            },
           }
           console.log(`[API /api/chat/agents] Adding agent:`, agentInfo)
           agents.push(agentInfo)

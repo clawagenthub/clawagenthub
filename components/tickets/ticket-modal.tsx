@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { MarkdownEditor } from './markdown-editor'
+import { TextAreaWithImage, type ComposerAttachment } from '@/components/ui/text-area-with-image'
 import { StatusFlowBuilder } from './status-flow-builder'
 import { SelectPromptModal } from '@/components/ui/select-prompt-modal'
 import {
@@ -37,6 +38,7 @@ import {
   FLOW_MODE_OPTIONS,
   buildSubmitTicketData,
 } from './ticket-modal-form-utils'
+import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
 
 // ============================================================================
 // Types
@@ -111,6 +113,7 @@ export function TicketModal({
   // -------------------------------------------------------------------------
   const [title, setTitle] = useState(initialData?.title || '')
   const [description, setDescription] = useState(initialData?.description || '')
+  const [descriptionAttachments, setDescriptionAttachments] = useState<ComposerAttachment[]>([])
   const [statusId, setStatusId] = useState(initialData?.status_id || '')
   const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to || '')
   const [flowEnabled, setFlowEnabled] = useState(initialData?.flow_enabled ?? false)
@@ -125,6 +128,7 @@ export function TicketModal({
   const [hasCreatedDraft, setHasCreatedDraft] = useState(false)
   const [isLoadDefaultsConfirmOpen, setIsLoadDefaultsConfirmOpen] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
+  const [isAutoPromptLoading, setIsAutoPromptLoading] = useState(false)
 
   // Debounced save timeout ref
   const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -467,38 +471,64 @@ export function TicketModal({
             </p>
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="mb-1 block text-sm font-medium" style={{ color: `rgb(var(--text-secondary))` }}>
-              Description
-            </label>
-            <MarkdownEditor
-              value={description}
-              onChange={setDescription}
-              placeholder="Describe the ticket in Markdown..."
-              height={200}
-              readOnly={isSubmitting}
-            />
-          </div>
-
           {/* Quick Add Prompt */}
           <div>
             <label className="mb-1 block text-sm font-medium" style={{ color: `rgb(var(--text-secondary))` }}>
               Quick Add Prompt
             </label>
-            <button
-              type="button"
-              onClick={() => setIsPromptModalOpen(true)}
-              disabled={isSubmitting || !workspacePrompts?.length}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: 'rgb(var(--bg-secondary))',
-                color: 'rgb(var(--text-primary))',
-                border: '1px solid rgb(var(--border-color))',
-              }}
-            >
-              Load Prompt
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsPromptModalOpen(true)}
+                disabled={isSubmitting || !workspacePrompts?.length}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                style={{
+                  backgroundColor: 'rgb(var(--bg-secondary))',
+                  color: 'rgb(var(--text-primary))',
+                  border: '1px solid rgb(var(--border-color))',
+                }}
+              >
+                Load Prompt
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!description.trim()) {
+                    alert('Please enter some text in the description first.')
+                    return
+                  }
+                  if (!workspacePrompts?.length) {
+                    alert('No prompts available. Add prompts in Settings → Default Prompts.')
+                    return
+                  }
+                  setIsAutoPromptLoading(true)
+                  try {
+                    const promptFormats = workspacePrompts.map(p => ({
+                      name: p.name,
+                      description: p.description,
+                    }))
+                    const prompt = buildAutoTicketConverterPrompt({
+                      targetText: description,
+                      promptFormats,
+                    })
+                    setDescription(description.trim() + '\n\n---\n' + prompt)
+                  } catch (error) {
+                    console.error('Auto prompt error:', error)
+                    alert('Failed to generate auto prompt')
+                  } finally {
+                    setIsAutoPromptLoading(false)
+                  }
+                }}
+                disabled={isSubmitting || !workspacePrompts?.length || isAutoPromptLoading}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                style={{
+                  backgroundColor: 'rgb(var(--primary-color))',
+                  color: 'white',
+                }}
+              >
+                {isAutoPromptLoading ? 'Auto Prompt...' : 'Auto Prompt'}
+              </button>
+            </div>
             {workspacePrompts && workspacePrompts.length > 0 && (
               <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
                 {workspacePrompts.length} prompt{workspacePrompts.length !== 1 ? 's' : ''} available
@@ -509,6 +539,35 @@ export function TicketModal({
                 No prompts available. Add prompts in Settings → Default Prompts.
               </p>
             )}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="mb-1 block text-sm font-medium" style={{ color: `rgb(var(--text-secondary))` }}>
+              Description
+            </label>
+            <div className="space-y-3">
+              <TextAreaWithImage
+                value={description}
+                onChange={setDescription}
+                attachments={descriptionAttachments}
+                onAttachmentsChange={setDescriptionAttachments}
+                placeholder="Describe the ticket in Markdown..."
+                disabled={isSubmitting}
+                minHeight={120}
+                maxHeight={260}
+                maxImages={5}
+                maxFiles={5}
+                allowPdf
+              />
+              <MarkdownEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Describe the ticket in Markdown..."
+                height={200}
+                readOnly={isSubmitting}
+              />
+            </div>
           </div>
 
           {/* Status Selection */}

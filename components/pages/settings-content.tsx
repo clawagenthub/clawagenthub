@@ -16,7 +16,9 @@ import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
 import type { PageContentProps } from './index'
 import type { Gateway } from '@/lib/db/schema'
 
-type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'skillsmp' | 'danger'
+type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'
+
+const DEFAULT_MAX_IMAGES_PER_POST = 5
 
 function SettingsContent({ user }: PageContentProps) {
   const router = useRouter()
@@ -52,10 +54,19 @@ function SettingsContent({ user }: PageContentProps) {
   const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
   const [skillsmpSaving, setSkillsmpSaving] = useState(false)
   const [skillsmpMessage, setSkillsmpMessage] = useState('')
+  const [maxImagesPerPost, setMaxImagesPerPost] = useState(DEFAULT_MAX_IMAGES_PER_POST)
+  const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
+
+  // Prompt Templates state
+  const [promptConverterAgentId, setPromptConverterAgentId] = useState('')
+  const [promptTemplatesSaving, setPromptTemplatesSaving] = useState(false)
+  const [promptTemplatesMessage, setPromptTemplatesMessage] = useState('')
+  const [autoPromptTemplate, setAutoPromptTemplate] = useState('')
+  const [selectedPromptTemplate, setSelectedPromptTemplate] = useState('')
 
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab | null
-    if (tab && ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'skillsmp', 'danger'].includes(tab)) {
+    if (tab && ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'prompttemplates', 'skillsmp', 'danger'].includes(tab)) {
       setActiveTabState(tab)
     }
   }, [searchParams])
@@ -92,6 +103,11 @@ function SettingsContent({ user }: PageContentProps) {
           setSkillsmpApiKey(data.skillsmp_api_key || '')
           setFlowTimeoutSeconds(data.flow_timeout_seconds ? parseInt(data.flow_timeout_seconds) : 600)
           setOnflowlimit(data.onflowlimit ? parseInt(data.onflowlimit) : 0)
+          setPromptConverterAgentId(data.prompt_converter_agent_id || '')
+          setAutoPromptTemplate(data.auto_prompt_template || '')
+          setSelectedPromptTemplate(data.selected_prompt_template || '')
+          setMaxImagesPerPost(data.max_images_per_post ? parseInt(data.max_images_per_post) : DEFAULT_MAX_IMAGES_PER_POST)
+          setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
         }
       } catch (error) {
         console.error('Error fetching workspace settings:', error)
@@ -141,6 +157,7 @@ function SettingsContent({ user }: PageContentProps) {
     { key: 'workspace', label: 'Workspace', icon: '👥' },
     { key: 'gateway', label: 'Gateway', icon: '🔌' },
     { key: 'defaultprompts', label: 'Default Prompts', icon: '📝' },
+    { key: 'prompttemplates', label: 'Prompt Templates', icon: '📋' },
     { key: 'skillsmp', label: 'SkillsMP', icon: '🔌' },
     { key: 'danger', label: 'Danger Zone', icon: '⚠️' },
   ]
@@ -417,8 +434,27 @@ function SettingsContent({ user }: PageContentProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>Workspace Settings</h2>
-              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSaving} onClick={() => { setIsSaving(true); setSaveMessage('Saving...'); setTimeout(() => { setIsSaving(false); setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) }, 500) }}>
+              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSaving} onClick={async () => { setIsSaving(true); setSaveMessage('Saving...'); try { const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ max_images_per_post: String(maxImagesPerPost), allow_pdf_attachments: String(allowPdfAttachments) }) }); if (!res.ok) throw new Error((await res.json()).message || 'Failed to save settings'); setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) } catch (error) { console.error('Error saving workspace settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) } finally { setIsSaving(false) } }}>
                 {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
+              </button>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+              <div>
+                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Max images per post</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Controls how many pasted or dropped images are allowed by default in chat and ticket editors.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="number" min="1" max="20" className="w-20 px-2 py-1 rounded border text-center" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }} value={maxImagesPerPost} onChange={(e) => setMaxImagesPerPost(parseInt(e.target.value) || DEFAULT_MAX_IMAGES_PER_POST)} />
+                <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>images</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+              <div>
+                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Allow PDF attachments</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Enables PDF files in the shared text area component alongside image paste and drag-drop.</p>
+              </div>
+              <button className={`w-12 h-6 rounded-full transition-colors ${allowPdfAttachments ? 'bg-blue-500' : 'bg-gray-300'}`} onClick={() => setAllowPdfAttachments(!allowPdfAttachments)}>
+                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${allowPdfAttachments ? 'translate-x-6' : 'translate-x-0.5'}`} />
               </button>
             </div>
             <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
@@ -629,6 +665,102 @@ function SettingsContent({ user }: PageContentProps) {
                 await addCustomPrompt(prompt)
               }}
             />
+          </div>
+        )}
+
+        {activeTab === 'prompttemplates' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>Prompt Templates Settings</h2>
+              <button
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={promptTemplatesSaving || agentsLoading}
+                onClick={async () => {
+                  setPromptTemplatesSaving(true)
+                  setPromptTemplatesMessage('Saving...')
+                  try {
+                    const selectedAgent = agents?.find((a) => a.agentId === promptConverterAgentId)
+                    const body: any = {
+                      prompt_converter_agent_id: promptConverterAgentId || null,
+                      auto_prompt_template: autoPromptTemplate || null,
+                      selected_prompt_template: selectedPromptTemplate || null
+                    }
+                    if (promptConverterAgentId && selectedAgent) {
+                      body.prompt_converter_gateway_id = selectedAgent.gatewayId
+                    } else {
+                      body.prompt_converter_gateway_id = null
+                    }
+                    const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                    if (!res.ok) throw new Error((await res.json()).error || 'Failed to save settings')
+                    setPromptTemplatesMessage('Saved!')
+                    setTimeout(() => setPromptTemplatesMessage(''), 2000)
+                  } catch (error) {
+                    console.error('Error saving prompt templates settings:', error)
+                    setPromptTemplatesMessage('Error saving')
+                    setTimeout(() => setPromptTemplatesMessage(''), 2000)
+                  } finally {
+                    setPromptTemplatesSaving(false)
+                  }
+                }}
+              >
+                {promptTemplatesSaving ? 'Saving...' : promptTemplatesMessage || 'Save Settings'}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+              <div>
+                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Prompt Converter Agent</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Select an agent to automatically convert prompts using AI. This is used by the Auto Prompt and Auto Format features in tickets.</p>
+              </div>
+              <select
+                className="px-3 py-2 rounded-lg border"
+                style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                value={promptConverterAgentId}
+                onChange={(e) => setPromptConverterAgentId(e.target.value)}
+              >
+                <option value="">None selected (will use summarizer agent fallback)</option>
+                {agents?.map((agent) => (
+                  <option key={agent.agentId} value={agent.agentId}>
+                    {agent.agentName} ({agent.gatewayName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Auto Prompt Template (Optional)</label>
+              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for Auto Prompt feature. Leave empty to use default. Variables: {$targetText}, {$promptFormats}</p>
+              <textarea
+                className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+                style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))', minHeight: '150px', fontFamily: 'monospace' }}
+                value={autoPromptTemplate}
+                onChange={(e) => setAutoPromptTemplate(e.target.value)}
+                placeholder="Leave empty for default template..."
+              />
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Selected Prompt Template (Optional)</label>
+              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for specific format conversion. Leave empty to use default. Variables: {$targetText}, {$selectedFormat}</p>
+              <textarea
+                className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+                style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))', minHeight: '150px', fontFamily: 'monospace' }}
+                value={selectedPromptTemplate}
+                onChange={(e) => setSelectedPromptTemplate(e.target.value)}
+                placeholder="Leave empty for default template..."
+              />
+            </div>
+
+            <div className="mt-4 p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}>
+              <h4 className="font-semibold mb-2" style={{ color: 'rgb(var(--text-primary))' }}>How it works</h4>
+              <ul className="space-y-1 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                <li>1. Select a Prompt Converter Agent to enable Auto Prompt and Auto Format features</li>
+                <li>2. Auto Prompt analyzes your text and automatically selects the best format</li>
+                <li>3. Auto Format converts text using a specific selected format</li>
+                <li>4. Both features use the same agent but with different prompt templates</li>
+                <li>5. If no agent is selected, the system will fall back to the summarizer agent</li>
+              </ul>
+            </div>
           </div>
         )}
 

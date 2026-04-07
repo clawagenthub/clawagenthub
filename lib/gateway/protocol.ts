@@ -139,6 +139,9 @@ export interface AgentInfo {
   model?: string
   status?: string
   sessionKey?: string
+  capabilities?: {
+    imageRecognition?: boolean
+  }
 }
 
 /** Agent typing event payload */

@@ -51,7 +51,7 @@ export function AgentSelector({ agents, selectedAgent, onSelect, loading = false
             key={`${agent.gatewayId}:${agent.agentId}`}
             value={`${agent.gatewayId}:${agent.agentId}`}
           >
-            {agent.gatewayName}: {agent.agentName}
+            {agent.capabilities?.imageRecognition ? '🖼️ ' : ''}{agent.gatewayName}: {agent.agentName}
           </option>
         ))}
       </select>
@@ -60,7 +60,8 @@ export function AgentSelector({ agents, selectedAgent, onSelect, loading = false
           className="mt-2 text-sm"
           style={{ color: 'rgb(var(--text-secondary))' }}
         >
-          💬 Chatting with <span className="font-medium">{selectedAgent.agentName}</span> on{' '}
+          💬 Chatting with <span className="font-medium">{selectedAgent.agentName}</span>{' '}
+          {selectedAgent.capabilities?.imageRecognition ? <span title="Image recognition enabled">🖼️</span> : null} on{' '}
           {selectedAgent.gatewayName}
         </div>
       )}

@@ -481,4 +481,8 @@ export interface AgentInfo {
   agentId: string
   agentName: string
   sessionKey: string
+  model?: string | null
+  capabilities?: {
+    imageRecognition?: boolean
+  }
 }

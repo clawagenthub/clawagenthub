@@ -88,6 +88,7 @@ export function ChatPanel() {
             onSend={handleSendMessage}
             disabled={sendMessage.isPending}
             placeholder={`Message ${selectedAgent.agentName}...`}
+            agentSupportsImages={selectedAgent.capabilities?.imageRecognition ?? false}
           />
         </>
       ) : (

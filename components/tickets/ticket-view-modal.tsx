@@ -2,8 +2,9 @@
 
 import React, { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/modal'
-import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket } from '@/lib/query/hooks'
+import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket, useWorkspacePrompts } from '@/lib/query/hooks'
 import { AuditLogPanel } from './audit-log-panel'
+import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
 
 interface TicketViewModalProps {
   isOpen: boolean
@@ -23,6 +24,8 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
   const { mutateAsync: deleteTicket, isPending: isDeletingTicket } = useDeleteTicket()
   const [commentInput, setCommentInput] = useState('')
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+  const [isAutoFormatLoading, setIsAutoFormatLoading] = useState(false)
+  const { data: workspacePrompts } = useWorkspacePrompts()
 
   const timeline = useMemo(() => {
     const commentEvents = comments.map((comment) => ({
@@ -53,6 +56,38 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
     if (!ticketId || !commentInput.trim()) return
     await addComment({ ticketId, content: commentInput.trim() })
     setCommentInput('')
+  }
+
+  async function handleAutoFormat() {
+    if (!ticketId) return
+    if (!ticket?.description?.trim()) {
+      alert('No description text to format.')
+      return
+    }
+    if (!workspacePrompts?.length) {
+      alert('No prompts available. Add prompts in Settings → Default Prompts.')
+      return
+    }
+    setIsAutoFormatLoading(true)
+    try {
+      const promptFormats = workspacePrompts.map(p => ({
+        name: p.name,
+        description: p.description,
+      }))
+      const prompt = buildAutoTicketConverterPrompt({
+        targetText: ticket.description,
+        promptFormats,
+      })
+      await addComment({ 
+        ticketId, 
+        content: '**Auto-Formatted:**\n\n' + prompt 
+      })
+    } catch (error) {
+      console.error('Auto format error:', error)
+      alert('Failed to generate auto format')
+    } finally {
+      setIsAutoFormatLoading(false)
+    }
   }
 
   async function handleStartFlow() {
@@ -366,7 +401,20 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
                 }}
                 placeholder="Add a comment..."
               />
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoFormat}
+                  disabled={isAutoFormatLoading || !ticket?.description?.trim()}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium transition-opacity disabled:opacity-50"
+                  style={{
+                    backgroundColor: `rgb(var(--bg-secondary))`,
+                    color: `rgb(var(--text-primary))`,
+                    border: '1px solid rgb(var(--border-color))',
+                  }}
+                >
+                  {isAutoFormatLoading ? 'Formatting...' : 'Auto Format'}
+                </button>
                 <button
                   type="button"
                   onClick={handleAddComment}
