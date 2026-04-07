@@ -10,14 +10,41 @@ export type WSEvent =
   | { type: 'mcp.complete'; sessionId: string }
   | { type: 'session.status'; sessionId: string; status: string }
   // Extended events for enhanced chat
-  | { type: 'chat'; sessionId?: string; data?: any }  // OpenClaw gateway chat events
+  | { type: 'chat'; sessionId?: string; data?: any } // OpenClaw gateway chat events
   | { type: 'agent'; sessionId?: string; data?: any } // OpenClaw agent events
   // New instance bridge events
-  | { type: 'connected'; clientId: string; capabilities?: { instanceBridge: boolean } }
-  | { type: 'chat.delta'; sessionId: string; runId: string; seq: number; delta: string }
-  | { type: 'chat.final'; sessionId: string; runId: string; seq: number; message: ChatMessage }
-  | { type: 'chat.error'; sessionId: string; runId: string; seq: number; error: string }
-  | { type: 'agent.typing'; sessionId: string; agentId: string; isTyping: boolean }
+  | {
+      type: 'connected'
+      clientId: string
+      capabilities?: { instanceBridge: boolean }
+    }
+  | {
+      type: 'chat.delta'
+      sessionId: string
+      runId: string
+      seq: number
+      delta: string
+    }
+  | {
+      type: 'chat.final'
+      sessionId: string
+      runId: string
+      seq: number
+      message: ChatMessage
+    }
+  | {
+      type: 'chat.error'
+      sessionId: string
+      runId: string
+      seq: number
+      error: string
+    }
+  | {
+      type: 'agent.typing'
+      sessionId: string
+      agentId: string
+      isTyping: boolean
+    }
   | { type: 'state.changed'; sessionId: string; state: string; error?: string }
   | { type: 'error'; sessionId?: string; error: string }
 
@@ -26,18 +53,18 @@ interface UseChatWebSocketOptions {
   agentId?: string
   onMessage?: (event: WSEvent) => void
   enabled?: boolean
-  useInstanceBridge?: boolean  // New: Use gateway session instance bridge
+  useInstanceBridge?: boolean // New: Use gateway session instance bridge
 }
 
 const MAX_RETRIES = 5
 const RETRY_DELAY = 2000
 
-export function useChatWebSocket({ 
-  sessionId, 
+export function useChatWebSocket({
+  sessionId,
   agentId,
-  onMessage, 
+  onMessage,
   enabled = true,
-  useInstanceBridge = false
+  useInstanceBridge = false,
 }: UseChatWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -47,7 +74,7 @@ export function useChatWebSocket({
   const retriesRef = useRef(0)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const authWarningShownRef = useRef(false)
-  
+
   // Use refs to store latest values without causing re-renders
   const sessionIdRef = useRef(sessionId)
   const agentIdRef = useRef(agentId)
@@ -73,8 +100,12 @@ export function useChatWebSocket({
   const connect = () => {
     const currentEnabled = enabledRef.current
     const currentIsConnecting = isConnecting
-    
-    if (!currentEnabled || currentIsConnecting || wsRef.current?.readyState === WebSocket.OPEN) {
+
+    if (
+      !currentEnabled ||
+      currentIsConnecting ||
+      wsRef.current?.readyState === WebSocket.OPEN
+    ) {
       return
     }
 
@@ -84,7 +115,7 @@ export function useChatWebSocket({
       // Create WebSocket connection
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const wsUrl = `${protocol}//${window.location.host}/api/chat/ws`
-      
+
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
 
@@ -101,27 +132,31 @@ export function useChatWebSocket({
 
         if (currentUseInstanceBridge && currentSessionId && currentAgentId) {
           // Connect to the gateway session instance with sequence resume
-          ws.send(JSON.stringify({
-            type: 'instance.subscribe',
-            sessionId: currentSessionId,
-            agentId: currentAgentId,
-            sinceSeq: savedSeqRef.current
-          }))
+          ws.send(
+            JSON.stringify({
+              type: 'instance.subscribe',
+              sessionId: currentSessionId,
+              agentId: currentAgentId,
+              sinceSeq: savedSeqRef.current,
+            })
+          )
           console.log('[WebSocket] Subscribed to instance', {
             sessionId: currentSessionId,
             agentId: currentAgentId,
-            sinceSeq: savedSeqRef.current
+            sinceSeq: savedSeqRef.current,
           })
         } else if (currentSessionId) {
           // Legacy subscription
-          ws.send(JSON.stringify({ type: 'subscribe', sessionId: currentSessionId }))
+          ws.send(
+            JSON.stringify({ type: 'subscribe', sessionId: currentSessionId })
+          )
         }
       }
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WSEvent
-          
+
           // Handle instance bridge events
           if (data.type === 'chat.delta') {
             setCurrentSeq(data.seq)
@@ -155,7 +190,7 @@ export function useChatWebSocket({
         if (enabledRef.current && retriesRef.current < MAX_RETRIES) {
           const delay = RETRY_DELAY * Math.pow(2, retriesRef.current)
           console.log(`[WebSocket] Reconnecting in ${delay}ms...`)
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             retriesRef.current++
             connect()
@@ -172,24 +207,26 @@ export function useChatWebSocket({
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
     }
-    
+
     if (wsRef.current) {
       // Unsubscribe from instance if using bridge
       if (useInstanceBridgeRef.current && sessionIdRef.current) {
         try {
-          wsRef.current.send(JSON.stringify({
-            type: 'instance.unsubscribe',
-            sessionId: sessionIdRef.current
-          }))
+          wsRef.current.send(
+            JSON.stringify({
+              type: 'instance.unsubscribe',
+              sessionId: sessionIdRef.current,
+            })
+          )
         } catch {
           // Ignore errors during cleanup
         }
       }
-      
+
       wsRef.current.close()
       wsRef.current = null
     }
-    
+
     setIsConnected(false)
     setIsConnecting(false)
     setInstanceState(null)
@@ -199,15 +236,19 @@ export function useChatWebSocket({
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       if (useInstanceBridgeRef.current && agentIdRef.current) {
         // Subscribe to instance
-        wsRef.current.send(JSON.stringify({
-          type: 'instance.subscribe',
-          sessionId: newSessionId,
-          agentId: agentIdRef.current,
-          sinceSeq: savedSeqRef.current
-        }))
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'instance.subscribe',
+            sessionId: newSessionId,
+            agentId: agentIdRef.current,
+            sinceSeq: savedSeqRef.current,
+          })
+        )
       } else {
         // Legacy subscription
-        wsRef.current.send(JSON.stringify({ type: 'subscribe', sessionId: newSessionId }))
+        wsRef.current.send(
+          JSON.stringify({ type: 'subscribe', sessionId: newSessionId })
+        )
       }
     }
   }
@@ -216,46 +257,80 @@ export function useChatWebSocket({
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       if (useInstanceBridgeRef.current) {
         // Unsubscribe from instance
-        wsRef.current.send(JSON.stringify({
-          type: 'instance.unsubscribe',
-          sessionId: oldSessionId
-        }))
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'instance.unsubscribe',
+            sessionId: oldSessionId,
+          })
+        )
       } else {
         // Legacy unsubscribe
-        wsRef.current.send(JSON.stringify({ type: 'unsubscribe', sessionId: oldSessionId }))
+        wsRef.current.send(
+          JSON.stringify({ type: 'unsubscribe', sessionId: oldSessionId })
+        )
       }
     }
   }
 
   const sendTyping = (typingSessionId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'user.typing', sessionId: typingSessionId }))
+      wsRef.current.send(
+        JSON.stringify({ type: 'user.typing', sessionId: typingSessionId })
+      )
     }
   }
 
   // New: Send chat message through instance bridge
-  const sendChatMessage = (content: string, options?: Record<string, unknown>): boolean => {
+  const sendChatMessage = (
+    content: string,
+    options?: Record<string, unknown>
+  ): boolean => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'chat.send',
+      console.info('[WebSocket] Sending chat.send', {
         sessionId: sessionIdRef.current,
-        content,
-        options
-      }))
+        hasContent: Boolean(content),
+        contentLength: content?.length || 0,
+        hasOptions: Boolean(options),
+        optionsKeys: options ? Object.keys(options).join(',') : '(none)',
+        hasAttachments: Boolean(options?.attachments),
+        attachmentsCount: options?.attachments
+          ? (options.attachments as any[]).length
+          : 0,
+        attachmentsDetail: options?.attachments
+          ? (options.attachments as any[]).map((a: any) => ({
+              name: a.name,
+              mimeType: a.mimeType,
+              hasData: !!a.dataBase64,
+            }))
+          : [],
+      })
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'chat.send',
+          sessionId: sessionIdRef.current,
+          content,
+          options,
+        })
+      )
       return true
     }
 
+    console.warn('[WebSocket] sendChatMessage failed - WebSocket not open', {
+      readyState: wsRef.current?.readyState,
+    })
     return false
   }
 
   // New: Abort chat through instance bridge
   const abortChat = (runId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'chat.abort',
-        sessionId: sessionIdRef.current,
-        runId
-      }))
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'chat.abort',
+          sessionId: sessionIdRef.current,
+          runId,
+        })
+      )
     }
   }
 
@@ -269,7 +344,7 @@ export function useChatWebSocket({
       disconnect()
     }
   }, [enabled]) // Only depend on enabled, use refs for other values
-  
+
   // Subscribe to session changes
   useEffect(() => {
     if (sessionId && isConnected) {
@@ -282,7 +357,7 @@ export function useChatWebSocket({
       }
     }
   }, [sessionId, isConnected])
-  
+
   return {
     isConnected,
     isConnecting,

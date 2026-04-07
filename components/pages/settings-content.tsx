@@ -729,7 +729,7 @@ function SettingsContent({ user }: PageContentProps) {
 
             <div className="space-y-2 mt-4">
               <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Auto Prompt Template (Optional)</label>
-              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for Auto Prompt feature. Leave empty to use default. Variables: {$targetText}, {$promptFormats}</p>
+              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for Auto Prompt feature. Leave empty to use default. Variables: {'{$targetText}'}, {'{$promptFormats}'}</p>
               <textarea
                 className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
                 style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))', minHeight: '150px', fontFamily: 'monospace' }}
@@ -741,7 +741,7 @@ function SettingsContent({ user }: PageContentProps) {
 
             <div className="space-y-2 mt-4">
               <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Selected Prompt Template (Optional)</label>
-              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for specific format conversion. Leave empty to use default. Variables: {$targetText}, {$selectedFormat}</p>
+              <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for specific format conversion. Leave empty to use default. Variables: {'{$targetText}'}, {'{$selectedFormat}'}</p>
               <textarea
                 className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
                 style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))', minHeight: '150px', fontFamily: 'monospace' }}

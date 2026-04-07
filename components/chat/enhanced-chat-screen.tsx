@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useChatMessagesWithGateway, useSendMessageStream } from '@/lib/query/hooks/useChat'
+import {
+  useChatMessagesWithGateway,
+  useSendMessageStream,
+} from '@/lib/query/hooks/useChat'
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket'
 import { useGatewayConnection } from '@/lib/hooks/useGatewayService'
 import { useSessionIdle } from '@/lib/hooks/useSessionIdle'
@@ -27,14 +30,19 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const queryClient = useQueryClient()
-  const { messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useChatMessagesWithGateway(session.id)
+  const {
+    messages = [],
+    isLoading: messagesLoading,
+    refetch: refetchMessages,
+  } = useChatMessagesWithGateway(session.id)
   const sendMessageStream = useSendMessageStream()
 
   // Extract runId helper
   const extractRunIdFromMetadata = (metadata: unknown): string | null => {
     try {
       if (!metadata) return null
-      const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata
+      const parsed =
+        typeof metadata === 'string' ? JSON.parse(metadata) : metadata
       if (!parsed || typeof parsed !== 'object') return null
       return (parsed as any).runId ?? null
     } catch {
@@ -151,7 +159,14 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     }, intervalMs)
 
     return () => clearInterval(interval)
-  }, [isTyping, isStreaming, stream?.runId, stream?.state, isWsConnected, refetchMessages])
+  }, [
+    isTyping,
+    isStreaming,
+    stream?.runId,
+    stream?.state,
+    isWsConnected,
+    refetchMessages,
+  ])
 
   // Complete stream if final message was persisted
   useEffect(() => {
@@ -170,26 +185,57 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
   }, [messages, stream?.runId, completeStream])
 
   // Send message handler
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (
+    content: string,
+    attachments?: Array<{
+      name: string
+      mimeType: string
+      size: number
+      kind: string
+      dataBase64?: string
+    }>
+  ) => {
     try {
       clearStream()
       setIsTyping(true)
 
-      const sentViaWs = wsSendChatMessage(content, { deliver: true })
+      console.info('[EnhancedChatScreen] handleSendMessage called', {
+        contentLength: content?.length || 0,
+        contentFirst50: content?.slice(0, 50) || '(empty)',
+        attachmentsCount: attachments?.length || 0,
+        attachmentsDetail: attachments?.map((a) => ({
+          name: a.name,
+          mimeType: a.mimeType,
+          hasData: !!a.dataBase64,
+        })),
+      })
+
+      // Pass attachments to WebSocket if supported
+      const sentViaWs = wsSendChatMessage(content, {
+        deliver: true,
+        attachments,
+      })
 
       if (!sentViaWs) {
         const result = await sendMessageStream.mutateAsync({
           sessionId: session.id,
           content,
+          attachments,
         })
 
         if (result && result.runId) {
-          console.log('[EnhancedChatScreen] Message queued with runId:', result.runId)
+          console.log(
+            '[EnhancedChatScreen] Message queued with runId:',
+            result.runId
+          )
           startStream(result.runId)
         }
       }
 
-      if ((!session.title || session.title === 'New Chat') && messages.length === 0) {
+      if (
+        (!session.title || session.title === 'New Chat') &&
+        messages.length === 0
+      ) {
         // generateTitle would be called here - handled by useChatHeader
       }
     } catch (error) {
@@ -209,17 +255,20 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
+    <div
+      className="flex h-full flex-col"
+      style={{ backgroundColor: 'rgb(var(--bg-primary))' }}
+    >
       {/* Header */}
       <div
-        className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0"
+        className="flex flex-shrink-0 items-center justify-between border-b px-6 py-4"
         style={{ borderColor: 'rgb(var(--border-color))' }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 font-bold text-white">
             {session.agent_name.charAt(0).toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             {/* Title editing */}
             {isEditingTitle ? (
               <div className="flex items-center gap-2">
@@ -229,19 +278,19 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                   value={editedTitle}
                   onChange={(e) => setEditedTitle(e.target.value)}
                   onKeyDown={handleTitleKeyDown}
-                  className="text-lg font-semibold bg-transparent border-b-2 border-blue-500 outline-none flex-1"
+                  className="flex-1 border-b-2 border-blue-500 bg-transparent text-lg font-semibold outline-none"
                   style={{ color: 'rgb(var(--text-primary))' }}
                 />
                 <button
                   onClick={handleTitleSave}
-                  className="p-1 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                  className="rounded bg-green-100 p-1 text-green-600 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                   title="Save (Enter)"
                 >
                   ✓
                 </button>
                 <button
                   onClick={handleTitleCancel}
-                  className="p-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                  className="rounded bg-red-100 p-1 text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                   title="Cancel (Esc)"
                 >
                   ✕
@@ -250,14 +299,14 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
             ) : (
               <div className="flex items-center gap-2">
                 <h2
-                  className="text-lg font-semibold truncate"
+                  className="truncate text-lg font-semibold"
                   style={{ color: 'rgb(var(--text-primary))' }}
                 >
                   {session.title || 'New Chat'}
                 </h2>
                 <button
                   onClick={handleTitleClick}
-                  className="opacity-60 hover:opacity-100 transition-opacity text-gray-400 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="rounded p-1 text-gray-400 opacity-60 transition-opacity hover:bg-gray-100 hover:opacity-100 dark:hover:bg-gray-800"
                   title="Edit title and description"
                 >
                   ✏️
@@ -265,12 +314,19 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
               </div>
             )}
 
-            <p className="text-sm flex items-center gap-2" style={{ color: 'rgb(var(--text-secondary))' }}>
+            <p
+              className="flex items-center gap-2 text-sm"
+              style={{ color: 'rgb(var(--text-secondary))' }}
+            >
               <span>🤖 {session.agent_name}</span>
               {isGatewayConnected ? (
-                <span className="text-xs text-green-600 dark:text-green-400">● Live</span>
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  ● Live
+                </span>
               ) : (
-                <span className="text-xs text-red-600 dark:text-red-400">● Offline</span>
+                <span className="text-xs text-red-600 dark:text-red-400">
+                  ● Offline
+                </span>
               )}
             </p>
 
@@ -282,56 +338,72 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                   value={editedDescription}
                   onChange={(e) => setEditedDescription(e.target.value)}
                   onKeyDown={handleDescriptionKeyDown}
-                  className="flex-1 text-sm bg-transparent border-b-2 border-blue-500 outline-none resize-none overflow-hidden"
-                  style={{ color: 'rgb(var(--text-primary))', minHeight: '24px', maxHeight: '80px' }}
+                  className="flex-1 resize-none overflow-hidden border-b-2 border-blue-500 bg-transparent text-sm outline-none"
+                  style={{
+                    color: 'rgb(var(--text-primary))',
+                    minHeight: '24px',
+                    maxHeight: '80px',
+                  }}
                   rows={1}
                   placeholder="Add a description..."
                 />
                 <button
                   onClick={handleDescriptionSave}
-                  className="p-1 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                  className="rounded bg-green-100 p-1 text-green-600 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                   title="Save (Enter)"
                 >
                   ✓
                 </button>
                 <button
                   onClick={handleDescriptionCancel}
-                  className="p-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                  className="rounded bg-red-100 p-1 text-red-600 transition-colors hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                   title="Cancel (Esc)"
                 >
                   ✕
                 </button>
               </div>
             ) : (
-              <div className="flex items-start gap-2 mt-1">
+              <div className="mt-1 flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   {descriptionText ? (
                     hasLongDescription ? (
                       <details className="text-sm">
                         <summary
-                          className="cursor-pointer opacity-85 hover:opacity-100 transition-opacity"
+                          className="cursor-pointer opacity-85 transition-opacity hover:opacity-100"
                           style={{ color: 'rgb(var(--text-secondary))' }}
                         >
                           {descriptionPreview}
                         </summary>
-                        <p className="mt-2 whitespace-pre-wrap break-words" style={{ color: 'rgb(var(--text-secondary))' }}>
+                        <p
+                          className="mt-2 whitespace-pre-wrap break-words"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
                           {descriptionText}
                         </p>
                       </details>
                     ) : (
-                      <p className="text-sm truncate" style={{ color: 'rgb(var(--text-secondary))' }}>
+                      <p
+                        className="truncate text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
                         {descriptionText}
                       </p>
                     )
                   ) : (
-                    <p className="text-sm truncate" style={{ color: 'rgb(var(--text-tertiary))', fontStyle: 'italic' }}>
+                    <p
+                      className="truncate text-sm"
+                      style={{
+                        color: 'rgb(var(--text-tertiary))',
+                        fontStyle: 'italic',
+                      }}
+                    >
                       Add a description...
                     </p>
                   )}
                 </div>
                 <button
                   onClick={handleDescriptionClick}
-                  className="opacity-60 hover:opacity-100 transition-opacity text-gray-400 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="rounded p-1 text-gray-400 opacity-60 transition-opacity hover:bg-gray-100 hover:opacity-100 dark:hover:bg-gray-800"
                   title="Edit description"
                 >
                   ✏️
@@ -344,20 +416,20 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
         {/* Header actions */}
         <div className="flex items-center gap-2">
           {isGenerating && (
-            <div className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-1.5 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
               <span>Summarizing...</span>
             </div>
           )}
           <button
             onClick={handleSummarize}
             disabled={generateSummary.isPending || isStreaming}
-            className="px-3 py-1.5 text-sm rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-purple-100 px-3 py-1.5 text-sm text-purple-700 transition-colors hover:bg-purple-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
             title="Generate summary using your selected summarizer agent"
           >
             {generateSummary.isPending ? (
               <span className="inline-flex items-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
                 <span>Summarizing...</span>
               </span>
             ) : (
@@ -367,7 +439,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
           {(isStreaming || isTyping) && (
             <button
               onClick={handleAbort}
-              className="px-3 py-1.5 text-sm rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              className="rounded-lg bg-red-100 px-3 py-1.5 text-sm text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
             >
               Stop
             </button>
@@ -380,7 +452,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
 
       {/* Summary error */}
       {summaryError && (
-        <div className="mx-6 mt-3 px-3 py-2 rounded-lg text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+        <div className="mx-6 mt-3 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
           Summary failed: {summaryError}
         </div>
       )}
@@ -398,7 +470,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
           />
         )}
 
-        {toolCalls.map(tool => (
+        {toolCalls.map((tool) => (
           <ToolCallCard key={tool.id} tool={tool} />
         ))}
 

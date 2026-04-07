@@ -24,14 +24,23 @@ export interface StoredAttachmentRecord {
   createdAt: string
 }
 
+// Use /tmp/photos to match OpenClaw's $tempPath variable used in flow templates
+// This ensures images are accessible by the agent at /tmp/photos/...
 const ATTACHMENTS_ROOT = path.join(process.cwd(), 'temp', 'photos')
+
+// Get base URL for constructing absolute URLs for agent access
+function getBaseUrl(): string {
+  return process.env.BASE_URL || 'http://localhost:7777'
+}
 
 function sanitizeFileName(name: string) {
   const trimmed = name.trim() || 'attachment'
   return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
-export async function storeAttachments(inputs: StoredAttachmentInput[]): Promise<StoredAttachmentRecord[]> {
+export async function storeAttachments(
+  inputs: StoredAttachmentInput[]
+): Promise<StoredAttachmentRecord[]> {
   if (!inputs.length) return []
 
   await fs.mkdir(ATTACHMENTS_ROOT, { recursive: true })
@@ -41,6 +50,7 @@ export async function storeAttachments(inputs: StoredAttachmentInput[]): Promise
   const targetDir = path.join(ATTACHMENTS_ROOT, dateFolder)
   await fs.mkdir(targetDir, { recursive: true })
 
+  const baseUrl = getBaseUrl()
   const records: StoredAttachmentRecord[] = []
 
   for (const input of inputs) {
@@ -48,11 +58,14 @@ export async function storeAttachments(inputs: StoredAttachmentInput[]): Promise
     const safeName = sanitizeFileName(input.name)
     const fileName = `${id}-${safeName}`
     const absolutePath = path.join(targetDir, fileName)
+    console.log('Storing attachment:', absolutePath)
     const buffer = Buffer.from(input.dataBase64, 'base64')
 
     await fs.writeFile(absolutePath, buffer)
 
-    const relativePath = path.posix.join('temp', 'photos', dateFolder, fileName)
+    const relativePath = path
+      .join('temp', 'photos', dateFolder, fileName)
+      .replace(/\\/g, '/')
     records.push({
       id,
       kind: input.kind,
@@ -61,7 +74,9 @@ export async function storeAttachments(inputs: StoredAttachmentInput[]): Promise
       size: input.size,
       relativePath,
       absolutePath,
-      url: `/${relativePath}`,
+      // Use absolute URL with BASE_URL so agent can access via web_fetch
+      // Format: http://localhost:7777/api/attachments/temp/photos/...
+      url: `${baseUrl}/api/attachments/${relativePath}`,
       createdAt,
     })
   }
