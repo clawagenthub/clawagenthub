@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
+import { storeAttachments, type StoredAttachmentInput } from '@/lib/attachments'
 import type { ChatMessage, ChatContentBlock } from '@/lib/db/schema'
 
 function persistAssistantFinalMessage(
@@ -125,7 +126,7 @@ export async function POST(
     const manager = getGatewayManager()
     const sessionId = params.id
     const body = await request.json()
-    const { content, stream = false } = body
+    const { content, attachments = [], stream = false } = body
 
     if (!content || typeof content !== 'string') {
       return NextResponse.json(
@@ -169,7 +170,36 @@ export async function POST(
     // *** CRITICAL FIX: Save user message to database IMMEDIATELY in both modes ***
     // This ensures messages are never lost if user navigates away
     const userMessageId = randomUUID()
-    const contentBlocks: ChatContentBlock[] = [{ type: 'text', text: content }]
+    const normalizedAttachments = Array.isArray(attachments)
+      ? attachments.map((attachment: any) => ({
+          name: String(attachment?.name || 'attachment'),
+          mimeType: String(attachment?.mimeType || 'application/octet-stream'),
+          size: Number(attachment?.size || 0),
+          kind: attachment?.kind === 'image' || attachment?.kind === 'pdf' ? attachment.kind : 'file',
+          dataBase64: String(attachment?.dataBase64 || ''),
+        })) as StoredAttachmentInput[]
+      : []
+
+    const storedAttachments = normalizedAttachments.length > 0
+      ? await storeAttachments(normalizedAttachments)
+      : []
+
+    const contentBlocks: ChatContentBlock[] = [
+      { type: 'text', text: content },
+      ...storedAttachments.map((attachment) => attachment.kind === 'image'
+        ? {
+            type: 'image' as const,
+            imageUrl: attachment.url,
+            fileName: attachment.name,
+            mimeType: attachment.mimeType,
+          }
+        : {
+            type: 'file' as const,
+            fileUrl: attachment.url,
+            fileName: attachment.name,
+            mimeType: attachment.mimeType,
+          }),
+    ]
 
     db.prepare(`
       INSERT INTO chat_messages (id, session_id, role, content, metadata, created_at)
@@ -198,7 +228,11 @@ export async function POST(
 
       // Send message without waiting for response (deliver=false)
       try {
-        await client.sendChatMessage(chatSession.session_key, content, {
+        const outboundContent = storedAttachments.length > 0
+          ? `${content}${content ? '\n\n' : ''}${storedAttachments.map((attachment) => `${attachment.kind === 'image' ? 'Image' : 'Attachment'}: ${attachment.url}`).join('\n')}`
+          : content
+
+        await client.sendChatMessage(chatSession.session_key, outboundContent, {
           deliver: false, // Don't wait for delivery
           idempotencyKey: runId,
         })
@@ -256,9 +290,13 @@ export async function POST(
 
     try {
       // Send message using chat.send (OpenClaw v3.2+)
+      const outboundContent = storedAttachments.length > 0
+        ? `${content}${content ? '\n\n' : ''}${storedAttachments.map((attachment) => `${attachment.kind === 'image' ? 'Image' : 'Attachment'}: ${attachment.url}`).join('\n')}`
+        : content
+
       const result = await client.sendChatMessageAndWait(
         chatSession.session_key,
-        content  // Send raw text string directly
+        outboundContent
       )
 
       if (result.error) {

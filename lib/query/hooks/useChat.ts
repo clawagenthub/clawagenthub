@@ -89,11 +89,11 @@ export function useSendMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (params: { sessionId: string; content: string }) => {
+    mutationFn: async (params: { sessionId: string; content: string; attachments?: Array<{ name: string; mimeType: string; size: number; kind: string; dataBase64?: string }> }) => {
       const res = await fetch(`/api/chat/sessions/${params.sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: params.content }),
+        body: JSON.stringify({ content: params.content, attachments: params.attachments }),
       })
       if (!res.ok) throw new Error('Failed to send message')
       const data = await res.json()
@@ -111,12 +111,13 @@ export function useSendMessage() {
 // Send a message with streaming support (returns immediately with runId)
 export function useSendMessageStream() {
   return useMutation({
-    mutationFn: async (params: { sessionId: string; content: string }) => {
+    mutationFn: async (params: { sessionId: string; content: string; attachments?: Array<{ name: string; mimeType: string; size: number; kind: string; dataBase64?: string }> }) => {
       const res = await fetch(`/api/chat/sessions/${params.sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: params.content,
+          attachments: params.attachments,
           stream: true, // Enable streaming mode
         }),
       })

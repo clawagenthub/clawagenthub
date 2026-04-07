@@ -129,6 +129,8 @@ export function TicketModal({
   const [isLoadDefaultsConfirmOpen, setIsLoadDefaultsConfirmOpen] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isAutoPromptLoading, setIsAutoPromptLoading] = useState(false)
+  const [maxImagesPerPost, setMaxImagesPerPost] = useState(5)
+  const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
 
   // Debounced save timeout ref
   const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -182,6 +184,36 @@ export function TicketModal({
   }, [])
 
   // -------------------------------------------------------------------------
+  // Load workspace attachment settings
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isOpen) return
+
+    let cancelled = false
+
+    const loadWorkspaceAttachmentSettings = async () => {
+      try {
+        const response = await fetch('/api/workspaces/settings')
+        if (!response.ok) return
+        const data = await response.json()
+        if (cancelled) return
+
+        const parsedMaxImages = Number.parseInt(data.max_images_per_post || '', 10)
+        setMaxImagesPerPost(Number.isFinite(parsedMaxImages) && parsedMaxImages > 0 ? parsedMaxImages : 5)
+        setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
+      } catch (error) {
+        console.error('[TicketModal] Failed to load workspace attachment settings:', error)
+      }
+    }
+
+    void loadWorkspaceAttachmentSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
+
+  // -------------------------------------------------------------------------
   // Load draft from localStorage on modal open (new ticket mode)
   // -------------------------------------------------------------------------
   useEffect(() => {
@@ -230,6 +262,35 @@ export function TicketModal({
   // -------------------------------------------------------------------------
   const { mutateAsync: createTicket } = useCreateTicket()
   const { mutateAsync: updateTicket } = useUpdateTicket()
+
+  const persistDescriptionAttachments = useCallback(async (ticketId: string, attachments: ComposerAttachment[]) => {
+    if (!attachments.length) return
+
+    const response = await fetch(`/api/tickets/${ticketId}/attachments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        attachments: attachments.map((attachment) => ({
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          kind: attachment.kind,
+          dataBase64: attachment.dataBase64,
+        })),
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Failed to save attachments')
+    }
+
+    const data = await response.json()
+    if (typeof data?.description === 'string') {
+      setDescription(data.description)
+    }
+    setDescriptionAttachments([])
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -362,14 +423,14 @@ export function TicketModal({
   // -------------------------------------------------------------------------
   // Submit handler
   // -------------------------------------------------------------------------
-  const handleSubmit = useCallback((creationStatus: TicketCreationStatus) => {
+  const handleSubmit = useCallback(async (creationStatus: TicketCreationStatus, switchToView?: boolean) => {
     if (!title.trim()) return
     if (!statusId) return
 
     const isEditingExistingTicket = !!initialData?.title
     const submitTicketId = isEditingExistingTicket ? initialData?.id : draftTicketId
 
-    onSubmit({
+    const payload = {
       id: submitTicketId || undefined,
       title: title.trim(),
       description: description.trim() || undefined,
@@ -382,20 +443,29 @@ export function TicketModal({
       parentTicketId: isSubTicket ? parentTicketId : undefined,
       waitingFinishedTicketId: waitingFinishedTicketId || undefined,
       flow_configs: flowEnabled ? flowConfigs : undefined,
-    })
+    }
+
+    const result = onSubmit(payload, switchToView)
+    const maybeTicket = result instanceof Promise ? await result : null
+
+    const resolvedTicketId = maybeTicket?.id || submitTicketId
+    if (resolvedTicketId && descriptionAttachments.length > 0) {
+      await persistDescriptionAttachments(resolvedTicketId, descriptionAttachments)
+    }
 
     console.log('[TicketModal] Submitting ticket with flow config payload', {
       creationStatus,
-      submitTicketId: submitTicketId || null,
+      submitTicketId: resolvedTicketId || submitTicketId || null,
       flowEnabled,
       flowConfigCount: flowEnabled ? flowConfigs.length : 0,
+      attachmentCount: descriptionAttachments.length,
     })
 
     clearDraftFromStorage(workspaceId)
     setHasLoadedDraft(false)
     setDraftTicketId(null)
     setHasCreatedDraft(false)
-  }, [title, description, statusId, assignedTo, flowEnabled, flowMode, flowConfigs, onSubmit, workspaceId, initialData, draftTicketId, isSubTicket, parentTicketId, waitingFinishedTicketId])
+  }, [title, description, statusId, assignedTo, flowEnabled, flowMode, flowConfigs, onSubmit, workspaceId, initialData, draftTicketId, isSubTicket, parentTicketId, waitingFinishedTicketId, descriptionAttachments, persistDescriptionAttachments])
 
   // -------------------------------------------------------------------------
   // Reset handler
@@ -454,7 +524,7 @@ export function TicketModal({
         dismissible={!isSubmitting}
         size="xl"
       >
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit('active'); }}>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void handleSubmit('active'); }}>
           {/* Title */}
           <div>
             <Input
@@ -556,9 +626,9 @@ export function TicketModal({
                 disabled={isSubmitting}
                 minHeight={120}
                 maxHeight={260}
-                maxImages={5}
-                maxFiles={5}
-                allowPdf
+                maxImages={maxImagesPerPost}
+                maxFiles={maxImagesPerPost}
+                allowPdf={allowPdfAttachments}
               />
               <MarkdownEditor
                 value={description}
@@ -807,7 +877,7 @@ export function TicketModal({
                 )}
                 <button
                   type="button"
-                  onClick={() => handleSubmit('draft')}
+                  onClick={() => { void handleSubmit('draft') }}
                   className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: `rgb(var(--border-color))`, color: `rgb(var(--text-primary))` }}
                   disabled={isSubmitting || !title.trim() || !statusId}
@@ -816,7 +886,7 @@ export function TicketModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSubmit('active')}
+                  onClick={() => { void handleSubmit('active') }}
                   className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: `rgb(var(--accent-primary, 59 130 246))`, color: `rgb(var(--accent-primary-foreground, 255 255 255))` }}
                   disabled={isSubmitting || !title.trim() || !statusId}
@@ -842,20 +912,7 @@ export function TicketModal({
                   <button
                     type="button"
                     onClick={() => {
-                      onSubmit({
-                        id: initialData?.id,
-                        title: title.trim(),
-                        description: description.trim() || undefined,
-                        status_id: statusId,
-                        assigned_to: assignedTo || undefined,
-                        flow_enabled: flowEnabled,
-                        flow_mode: flowMode,
-                        creation_status: 'active',
-                        isSubTicket,
-                        parentTicketId: isSubTicket ? parentTicketId : undefined,
-                        waitingFinishedTicketId: waitingFinishedTicketId || undefined,
-                        flow_configs: flowEnabled ? flowConfigs : undefined,
-                      }, true)
+                      void handleSubmit('active', true)
                     }}
                     className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: `rgb(var(--bg-secondary))`, color: `rgb(var(--text-primary))`, border: '1px solid rgb(var(--border-color))' }}
@@ -866,7 +923,7 @@ export function TicketModal({
                 )}
                 <button
                   type="button"
-                  onClick={() => handleSubmit('active')}
+                  onClick={() => { void handleSubmit('active') }}
                   className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: `rgb(var(--accent-primary, 59 130 246))`, color: `rgb(var(--accent-primary-foreground, 255 255 255))` }}
                   disabled={isSubmitting || !title.trim() || !statusId}

@@ -464,9 +464,13 @@ export interface StatusWithSkills extends Status {
 
 // Content block types for chat messages
 export interface ChatContentBlock {
-  type: 'text' | 'thinking' | 'toolCall'
+  type: 'text' | 'thinking' | 'toolCall' | 'image' | 'file'
   text?: string
   thinking?: string
+  imageUrl?: string
+  fileUrl?: string
+  fileName?: string
+  mimeType?: string
   toolCall?: {
     id: string
     name: string

@@ -12,6 +12,7 @@ export interface ComposerAttachment {
   size: number
   mimeType: string
   previewUrl?: string
+  dataBase64?: string
 }
 
 interface TextAreaWithImageProps {
@@ -55,6 +56,20 @@ function toKind(file: File): AttachmentKind {
   if (file.type.startsWith('image/')) return 'image'
   if (file.type === 'application/pdf') return 'pdf'
   return 'file'
+}
+
+async function toBase64(file: File) {
+  const buffer = await file.arrayBuffer()
+  let binary = ''
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+
+  return btoa(binary)
 }
 
 function extractFiles(items: DataTransferItemList | null | undefined) {
@@ -121,7 +136,7 @@ export function TextAreaWithImage({
     onAttachmentsChange?.(next)
   }, [onAttachmentsChange])
 
-  const addFiles = useCallback((inputFiles: File[]) => {
+  const addFiles = useCallback(async (inputFiles: File[]) => {
     if (!inputFiles.length) return
 
     const next = [...attachments]
@@ -163,13 +178,12 @@ export function TextAreaWithImage({
         size: file.size,
         mimeType: file.type,
         previewUrl: kind === 'image' ? URL.createObjectURL(file) : undefined,
+        dataBase64: await toBase64(file),
       })
     }
 
     setError(nextError)
-    if (next !== attachments) {
-      updateAttachments(next)
-    }
+    updateAttachments(next)
   }, [attachments, effectiveAccept, allowPdf, maxImages, totalLimit, updateAttachments])
 
   const removeAttachment = useCallback((attachmentId: string) => {

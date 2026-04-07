@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { AgentSelector } from './agent-selector'
 import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
@@ -10,6 +10,8 @@ import type { AgentInfo } from '@/lib/db/schema'
 export function ChatPanel() {
   const [selectedAgent, setSelectedAgent] = useState<AgentInfo | null>(null)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [maxImagesPerPost, setMaxImagesPerPost] = useState(5)
+  const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
 
   // Fetch agents and messages
   const { data: agents = [], isLoading: agentsLoading, error: agentsError } = useAgents()
@@ -18,6 +20,31 @@ export function ChatPanel() {
   // Mutations
   const createSession = useCreateSession()
   const sendMessage = useSendMessage()
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadWorkspaceAttachmentSettings = async () => {
+      try {
+        const response = await fetch('/api/workspaces/settings')
+        if (!response.ok) return
+        const data = await response.json()
+        if (cancelled) return
+
+        const parsedMaxImages = Number.parseInt(data.max_images_per_post || '', 10)
+        setMaxImagesPerPost(Number.isFinite(parsedMaxImages) && parsedMaxImages > 0 ? parsedMaxImages : 5)
+        setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
+      } catch (error) {
+        console.error('[ChatPanel] Failed to load workspace attachment settings:', error)
+      }
+    }
+
+    void loadWorkspaceAttachmentSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleAgentSelect = async (agent: AgentInfo) => {
     setSelectedAgent(agent)
@@ -36,13 +63,14 @@ export function ChatPanel() {
     }
   }
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, attachments?: any[]) => {
     if (!currentSessionId) return
 
     try {
       await sendMessage.mutateAsync({
         sessionId: currentSessionId,
         content,
+        attachments,
       })
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -88,6 +116,8 @@ export function ChatPanel() {
             onSend={handleSendMessage}
             disabled={sendMessage.isPending}
             placeholder={`Message ${selectedAgent.agentName}...`}
+            maxImages={maxImagesPerPost}
+            allowPdf={allowPdfAttachments}
             agentSupportsImages={selectedAgent.capabilities?.imageRecognition ?? false}
           />
         </>
