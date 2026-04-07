@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { ensureDatabase } from '@/lib/db/middleware.js'
-import { getUserFromSession } from '@/lib/auth/session.js'
-import { getDatabase } from '@/lib/db/index.js'
-import { triggerAgentForFlowStart } from './lib/trigger-agent.js'
-import { processFlowPost } from './lib/process-post.js'
-import type { Ticket } from '@/lib/db/schema.js'
+import { ensureDatabase } from '@/lib/db/middleware'
+import { getUserFromSession } from '@/lib/auth/session'
+import { getDatabase } from '@/lib/db/index'
+import { triggerAgentForFlowStart } from './lib/trigger-agent'
+import { processFlowPost } from './lib/process-post'
+import type { Ticket } from '@/lib/db/schema'
 
 interface RouteParams {
   params: Promise<{ ticketId: string }>
@@ -53,88 +53,109 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
     const workspaceId = session.current_workspace_id
 
-    const ticket = db.prepare(
-      'SELECT * FROM tickets WHERE id = ? AND workspace_id = ?'
-    ).get(ticketId, workspaceId) as Ticket | undefined
+    const ticket = db
+      .prepare('SELECT * FROM tickets WHERE id = ? AND workspace_id = ?')
+      .get(ticketId, workspaceId) as Ticket | undefined
 
     if (!ticket) {
-      return NextResponse.json(
-        { message: 'Ticket not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
     }
 
-    const currentFlowConfig = db.prepare(`
+    const currentFlowConfig = db
+      .prepare(
+        `
       SELECT tfc.*, s.name as status_name, s.color as status_color
       FROM ticket_flow_configs tfc
       LEFT JOIN statuses s ON tfc.status_id = s.id
       WHERE tfc.ticket_id = ? AND tfc.status_id = ?
-    `).get(ticketId, ticket.status_id) as {
-      id: string
-      status_id: string
-      status_name: string
-      status_color: string
-      flow_order: number
-      agent_id: string | null
-      on_failed_goto: string | null
-      ask_approve_to_continue: boolean
-      is_included: boolean
-    } | undefined
+    `
+      )
+      .get(ticketId, ticket.status_id) as
+      | {
+          id: string
+          status_id: string
+          status_name: string
+          status_color: string
+          flow_order: number
+          agent_id: string | null
+          on_failed_goto: string | null
+          ask_approve_to_continue: boolean
+          is_included: boolean
+        }
+      | undefined
 
-    const nextFlowConfig = db.prepare(`
+    const nextFlowConfig = db
+      .prepare(
+        `
       SELECT tfc.*, s.name as status_name, s.color as status_color
       FROM ticket_flow_configs tfc
       LEFT JOIN statuses s ON tfc.status_id = s.id
       WHERE tfc.ticket_id = ? AND tfc.flow_order > ? AND tfc.is_included = 1
       ORDER BY tfc.flow_order ASC
       LIMIT 1
-    `).get(ticketId, currentFlowConfig?.flow_order ?? -1) as {
-      id: string
-      status_id: string
-      status_name: string
-      status_color: string
-      flow_order: number
-      agent_id: string | null
-      on_failed_goto: string | null
-      ask_approve_to_continue: boolean
-    } | undefined
+    `
+      )
+      .get(ticketId, currentFlowConfig?.flow_order ?? -1) as
+      | {
+          id: string
+          status_id: string
+          status_name: string
+          status_color: string
+          flow_order: number
+          agent_id: string | null
+          on_failed_goto: string | null
+          ask_approve_to_continue: boolean
+        }
+      | undefined
 
-    const agentSession = db.prepare(`
+    const agentSession = db
+      .prepare(
+        `
       SELECT * FROM chat_sessions WHERE id = ?
-    `).get(ticket.current_agent_session_id) as {
-      id: string
-      agent_id: string
-      agent_name: string
-      last_activity_at: string
-      status: string
-    } | undefined
+    `
+      )
+      .get(ticket.current_agent_session_id) as
+      | {
+          id: string
+          agent_id: string
+          agent_name: string
+          last_activity_at: string
+          status: string
+        }
+      | undefined
 
     return NextResponse.json({
       flow_enabled: ticket.flow_enabled,
       flowing_status: ticket.flowing_status || 'stopped',
-      current_status: currentFlowConfig ? {
-        id: currentFlowConfig.status_id,
-        name: currentFlowConfig.status_name,
-        color: currentFlowConfig.status_color,
-        agent_id: currentFlowConfig.agent_id,
-        on_failed_goto: currentFlowConfig.on_failed_goto,
-        ask_approve_to_continue: currentFlowConfig.ask_approve_to_continue
-      } : null,
-      next_status: nextFlowConfig ? {
-        id: nextFlowConfig.status_id,
-        name: nextFlowConfig.status_name,
-        color: nextFlowConfig.status_color,
-        agent_id: nextFlowConfig.agent_id,
-        on_failed_goto: nextFlowConfig.on_failed_goto,
-        ask_approve_to_continue: nextFlowConfig.ask_approve_to_continue
-      } : null,
-      active_session: agentSession ? {
-        id: agentSession.id,
-        agent_id: agentSession.agent_id,
-        agent_name: agentSession.agent_name,
-        last_activity_at: agentSession.last_activity_at,
-        status: agentSession.status
-      } : null
+      current_status: currentFlowConfig
+        ? {
+            id: currentFlowConfig.status_id,
+            name: currentFlowConfig.status_name,
+            color: currentFlowConfig.status_color,
+            agent_id: currentFlowConfig.agent_id,
+            on_failed_goto: currentFlowConfig.on_failed_goto,
+            ask_approve_to_continue: currentFlowConfig.ask_approve_to_continue,
+          }
+        : null,
+      next_status: nextFlowConfig
+        ? {
+            id: nextFlowConfig.status_id,
+            name: nextFlowConfig.status_name,
+            color: nextFlowConfig.status_color,
+            agent_id: nextFlowConfig.agent_id,
+            on_failed_goto: nextFlowConfig.on_failed_goto,
+            ask_approve_to_continue: nextFlowConfig.ask_approve_to_continue,
+          }
+        : null,
+      active_session: agentSession
+        ? {
+            id: agentSession.id,
+            agent_id: agentSession.agent_id,
+            agent_name: agentSession.agent_name,
+            last_activity_at: agentSession.last_activity_at,
+            status: agentSession.status,
+          }
+        : null,
     })
   } catch (error) {
     console.error('Error fetching flow status:', error)
@@ -173,22 +194,35 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const body = await request.json().catch(() => ({})) as {
+    const body = (await request.json().catch(() => ({}))) as {
       action?: 'start' | 'stop' | 'pause'
       result?: 'finished' | 'failed' | 'pause'
       notes?: string
     }
 
-    if (body.action && body.action !== 'start' && body.action !== 'stop' && body.action !== 'pause') {
+    if (
+      body.action &&
+      body.action !== 'start' &&
+      body.action !== 'stop' &&
+      body.action !== 'pause'
+    ) {
       return NextResponse.json(
         { message: 'Invalid action. Must be "start", "stop", or "pause"' },
         { status: 400 }
       )
     }
 
-    if (!body.action && body.result !== 'finished' && body.result !== 'failed' && body.result !== 'pause') {
+    if (
+      !body.action &&
+      body.result !== 'finished' &&
+      body.result !== 'failed' &&
+      body.result !== 'pause'
+    ) {
       return NextResponse.json(
-        { message: 'Invalid payload. Provide action=start|stop|pause or result=finished|failed|pause' },
+        {
+          message:
+            'Invalid payload. Provide action=start|stop|pause or result=finished|failed|pause',
+        },
         { status: 400 }
       )
     }
@@ -207,15 +241,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
     const workspaceId = session.current_workspace_id
 
-    const ticket = db.prepare(
-      'SELECT * FROM tickets WHERE id = ? AND workspace_id = ?'
-    ).get(ticketId, workspaceId) as Ticket | undefined
+    const ticket = db
+      .prepare('SELECT * FROM tickets WHERE id = ? AND workspace_id = ?')
+      .get(ticketId, workspaceId) as Ticket | undefined
 
     if (!ticket) {
-      return NextResponse.json(
-        { message: 'Ticket not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
     }
 
     if (!ticket.flow_enabled) {
@@ -226,15 +257,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.action === 'start') {
-      const currentFlowingCount = db.prepare(`
+      const currentFlowingCount = db
+        .prepare(
+          `
         SELECT COUNT(*) as count FROM tickets WHERE workspace_id = ? AND flowing_status = 'flowing'
-      `).get(workspaceId) as { count: number }
+      `
+        )
+        .get(workspaceId) as { count: number }
 
-      const onflowlimitSetting = db.prepare(`
+      const onflowlimitSetting = db
+        .prepare(
+          `
         SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
-      `).get(workspaceId) as { setting_value: string } | undefined
+      `
+        )
+        .get(workspaceId) as { setting_value: string } | undefined
 
-      const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 5
+      const onflowlimit = onflowlimitSetting?.setting_value
+        ? parseInt(onflowlimitSetting.setting_value)
+        : 5
 
       if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
         const now = new Date().toISOString()
