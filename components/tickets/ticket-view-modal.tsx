@@ -2,9 +2,8 @@
 
 import React, { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/modal'
-import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket, useWorkspacePrompts } from '@/lib/query/hooks'
+import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket, useWorkspacePrompts, useUpdateTicket } from '@/lib/query/hooks'
 import { AuditLogPanel } from './audit-log-panel'
-import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
 
 interface TicketViewModalProps {
   isOpen: boolean
@@ -18,6 +17,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
   const { data: ticket, isLoading: isTicketLoading } = useTicket(ticketId)
   const { data: comments = [], isLoading: isCommentsLoading } = useTicketComments(ticketId)
   const { mutateAsync: addComment, isPending: isAddingComment } = useAddTicketComment()
+  const { mutateAsync: updateTicket } = useUpdateTicket()
   const { data: flowRuntimeStatus } = useTicketFlowStatus(ticketId)
   const { mutateAsync: startFlow, isPending: isStartingFlow } = useStartTicketFlow()
   const { mutateAsync: stopFlow, isPending: isStoppingFlow } = useStopTicketFlow()
@@ -70,21 +70,33 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
     }
     setIsAutoFormatLoading(true)
     try {
-      const promptFormats = workspacePrompts.map(p => ({
-        name: p.name,
-        description: p.description,
-      }))
-      const prompt = buildAutoTicketConverterPrompt({
-        targetText: ticket.description,
-        promptFormats,
+      const response = await fetch('/api/tickets/prompt-convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticketId,
+          mode: 'auto',
+          targetText: ticket.description,
+        }),
       })
-      await addComment({ 
-        ticketId, 
-        content: '**Auto-Formatted:**\n\n' + prompt 
+
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.message || 'Failed to generate auto format')
+      }
+
+      const convertedText = data?.convertedText
+      if (!convertedText || typeof convertedText !== 'string') {
+        throw new Error('Prompt converter returned empty text')
+      }
+
+      await updateTicket({
+        id: ticketId,
+        description: convertedText,
       })
     } catch (error) {
       console.error('Auto format error:', error)
-      alert('Failed to generate auto format')
+      alert(error instanceof Error ? error.message : 'Failed to generate auto format')
     } finally {
       setIsAutoFormatLoading(false)
     }

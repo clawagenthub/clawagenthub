@@ -1,0 +1,162 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { ensureDatabase } from '@/lib/db/middleware.js'
+import { getUserFromSession } from '@/lib/auth/session.js'
+import { getDatabase } from '@/lib/db/index.js'
+import { getGatewayManager } from '@/lib/gateway/manager'
+import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
+import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
+import { findClientForAgent } from '@/app/api/tickets/[ticketId]/flow/lib/find-client'
+
+function extractResponseText(response: any): string {
+  const message = response?.message ?? response
+  const content = message?.content
+
+  if (typeof content === 'string') return content.trim()
+  if (typeof message === 'string') return message.trim()
+
+  if (Array.isArray(content)) {
+    return content
+      .filter((block: any) => block?.type === 'text' && typeof block?.text === 'string')
+      .map((block: any) => block.text)
+      .join('\n')
+      .trim()
+  }
+
+  if (typeof message?.text === 'string') return message.text.trim()
+  return ''
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await ensureDatabase()
+
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('session_token')?.value
+    if (!sessionToken) {
+      return NextResponse.json({ message: 'Unauthorized - No session found' }, { status: 401 })
+    }
+
+    const user = getUserFromSession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ message: 'Unauthorized - Invalid session' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { ticketId, mode, targetText, selectedFormat } = body as {
+      ticketId?: string
+      mode?: 'auto' | 'selected'
+      targetText?: string
+      selectedFormat?: { name: string; description: string }
+    }
+
+    if (!targetText?.trim()) {
+      return NextResponse.json({ message: 'targetText is required' }, { status: 400 })
+    }
+
+    const db = getDatabase()
+    const session = db.prepare('SELECT current_workspace_id FROM sessions WHERE token = ?').get(sessionToken) as { current_workspace_id: string | null } | undefined
+    if (!session?.current_workspace_id) {
+      return NextResponse.json({ message: 'No workspace selected' }, { status: 400 })
+    }
+
+    const workspaceId = session.current_workspace_id
+
+    const member = db.prepare('SELECT id FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id) as { id: string } | undefined
+    if (!member) {
+      return NextResponse.json({ message: 'Not a member of this workspace' }, { status: 403 })
+    }
+
+    if (ticketId) {
+      const ticket = db.prepare('SELECT id FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as { id: string } | undefined
+      if (!ticket) {
+        return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
+      }
+    }
+
+    const settingsRows = db.prepare('SELECT setting_key, setting_value FROM workspace_settings WHERE workspace_id = ?').all(workspaceId) as Array<{ setting_key: string; setting_value: string | null }>
+    const settings = Object.fromEntries(settingsRows.map((row) => [row.setting_key, row.setting_value])) as Record<string, string | null>
+
+    const promptConverterAgentId = settings.prompt_converter_agent_id || null
+    const promptConverterGatewayId = settings.prompt_converter_gateway_id || null
+    const autoPromptTemplate = settings.auto_prompt_template || undefined
+    const selectedPromptTemplate = settings.selected_prompt_template || undefined
+
+    let effectiveAgentId = promptConverterAgentId
+    let effectiveGatewayId = promptConverterGatewayId
+
+    if (!effectiveAgentId || !effectiveGatewayId) {
+      const userSettings = db.prepare('SELECT summarizer_agent_id, summarizer_gateway_id FROM user_settings WHERE user_id = ?').get(user.id) as { summarizer_agent_id: string | null; summarizer_gateway_id: string | null } | undefined
+      effectiveAgentId = effectiveAgentId || userSettings?.summarizer_agent_id || null
+      effectiveGatewayId = effectiveGatewayId || userSettings?.summarizer_gateway_id || null
+    }
+
+    if (!effectiveAgentId) {
+      return NextResponse.json({ message: 'No prompt converter agent configured. Please select one in Settings → Prompt Templates.' }, { status: 400 })
+    }
+
+    const manager = getGatewayManager()
+    let client = effectiveGatewayId ? manager.getClient(effectiveGatewayId) : undefined
+
+    if ((!client || !client.isConnected()) && effectiveAgentId) {
+      const match = await findClientForAgent(workspaceId, effectiveAgentId)
+      if (match) {
+        client = match.client
+        effectiveGatewayId = match.gatewayId
+      }
+    }
+
+    if (!client || !client.isConnected()) {
+      return NextResponse.json({ message: 'Prompt converter agent gateway is not connected' }, { status: 503 })
+    }
+
+    let prompt: string
+    if (mode === 'selected') {
+      if (!selectedFormat?.name?.trim()) {
+        return NextResponse.json({ message: 'selectedFormat is required for selected mode' }, { status: 400 })
+      }
+      prompt = buildSelectedTicketConverterPrompt(
+        {
+          targetText: targetText.trim(),
+          selectedFormat: {
+            name: selectedFormat.name,
+            description: selectedFormat.description || '',
+          },
+        },
+        selectedPromptTemplate
+      )
+    } else {
+      const promptRows = db.prepare('SELECT name, description FROM workspace_prompts WHERE workspace_id = ? ORDER BY created_at ASC').all(workspaceId) as Array<{ name: string; description: string | null }>
+      if (!promptRows.length) {
+        return NextResponse.json({ message: 'No prompt formats available. Add prompts in Settings → Default Prompts.' }, { status: 400 })
+      }
+      prompt = buildAutoTicketConverterPrompt(
+        {
+          targetText: targetText.trim(),
+          promptFormats: promptRows.map((row) => ({ name: row.name, description: row.description || '' })),
+        },
+        autoPromptTemplate
+      )
+    }
+
+    const agentSessionKey = `agent:${effectiveAgentId}:main`
+    const response = await client.sendChatMessageAndWait(agentSessionKey, prompt)
+
+    if (response.error) {
+      return NextResponse.json({ message: response.error }, { status: 502 })
+    }
+
+    const convertedText = extractResponseText(response)
+    if (!convertedText) {
+      return NextResponse.json({ message: 'Agent returned an empty response' }, { status: 502 })
+    }
+
+    return NextResponse.json({ convertedText, prompt, agentId: effectiveAgentId, gatewayId: effectiveGatewayId })
+  } catch (error) {
+    console.error('[Ticket Prompt Convert API] Error:', error)
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

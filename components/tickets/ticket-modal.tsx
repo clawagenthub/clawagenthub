@@ -21,6 +21,7 @@ import {
   useWorkspacePrompts,
   useTickets,
 } from '@/lib/query/hooks'
+import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import type { TicketCreationStatus, TicketFlowMode } from '@/lib/db/schema'
 import {
   loadDraftFromStorage,
@@ -573,18 +574,38 @@ export function TicketModal({
                   }
                   setIsAutoPromptLoading(true)
                   try {
-                    const promptFormats = workspacePrompts.map(p => ({
-                      name: p.name,
-                      description: p.description,
-                    }))
-                    const prompt = buildAutoTicketConverterPrompt({
-                      targetText: description,
-                      promptFormats,
+                    const response = await fetch('/api/tickets/prompt-convert', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        ticketId: draftTicketId || initialData?.id,
+                        mode: 'auto',
+                        targetText: description,
+                      }),
                     })
-                    setDescription(description.trim() + '\n\n---\n' + prompt)
+
+                    const data = await response.json().catch(() => null)
+                    if (!response.ok) {
+                      throw new Error(data?.message || 'Failed to generate auto prompt')
+                    }
+
+                    const convertedText = data?.convertedText
+                    if (!convertedText || typeof convertedText !== 'string') {
+                      throw new Error('Prompt converter returned empty text')
+                    }
+
+                    setDescription(convertedText)
+
+                    const activeTicketId = draftTicketId || initialData?.id
+                    if (activeTicketId) {
+                      await updateTicket({
+                        id: activeTicketId,
+                        description: convertedText,
+                      })
+                    }
                   } catch (error) {
                     console.error('Auto prompt error:', error)
-                    alert('Failed to generate auto prompt')
+                    alert(error instanceof Error ? error.message : 'Failed to generate auto prompt')
                   } finally {
                     setIsAutoPromptLoading(false)
                   }
