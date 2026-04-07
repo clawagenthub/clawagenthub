@@ -4,7 +4,9 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerAgentForFlowStart } from '../../[ticketId]/flow/route.js'
+import { triggerAgentForFlowStart } from '../../[ticketId]/flow/lib/trigger-agent.js'
+
+// Start first availableSlots tickets, rest go to waiting_to_flow
 
 /**
  * POST /api/tickets/flow/bulk-start
@@ -58,24 +60,50 @@ export async function POST(request: NextRequest) {
     }
     const workspaceId = session.current_workspace_id
 
-    const currentFlowingCount = db.prepare(`
+    const currentFlowingCount = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM tickets WHERE workspace_id = ? AND flowing_status = 'flowing'
-    `).get(workspaceId) as { count: number }
+    `
+      )
+      .get(workspaceId) as { count: number }
 
-    const onflowlimitSetting = db.prepare(`
+    const onflowlimitSetting = db
+      .prepare(
+        `
       SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
-    `).get(workspaceId) as { setting_value: string } | undefined
+    `
+      )
+      .get(workspaceId) as { setting_value: string } | undefined
 
-    const onflowlimit = onflowlimitSetting?.setting_value ? parseInt(onflowlimitSetting.setting_value) : 5
+    const onflowlimit = onflowlimitSetting?.setting_value
+      ? parseInt(onflowlimitSetting.setting_value)
+      : 5
 
-    const eligibleTickets = db.prepare(`
+    // Calculate how many slots are available (excluding currently flowing tickets)
+    const availableSlots = Math.max(0, onflowlimit - currentFlowingCount.count)
+
+    console.log(
+      '[bulk-start] onflowlimit:',
+      onflowlimit,
+      'currentFlowing:',
+      currentFlowingCount.count,
+      'availableSlots:',
+      availableSlots
+    )
+
+    const eligibleTickets = db
+      .prepare(
+        `
       SELECT id, title, flow_enabled, creation_status, flowing_status
       FROM tickets
       WHERE workspace_id = ?
         AND id IN (${ticketIds.map(() => '?').join(',')})
         AND flow_enabled = 1
         AND creation_status = 'active'
-    `).all(workspaceId, ...ticketIds) as Array<{
+    `
+      )
+      .all(workspaceId, ...ticketIds) as Array<{
       id: string
       title: string
       flow_enabled: number
@@ -94,109 +122,105 @@ export async function POST(request: NextRequest) {
         title: string
         status: 'started' | 'skipped' | 'failed' | 'waiting'
         error?: string
-      }>
+      }>,
     }
 
+    // Start first onflowlimit tickets, rest go to waiting_to_flow
+    let startedCount = 0
     for (const ticket of eligibleTickets) {
-      if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
-        const now = new Date().toISOString()
-        db.prepare(`
+      const now = new Date().toISOString()
+      const oldStatus = ticket.flowing_status || 'stopped'
+
+      if (startedCount < availableSlots) {
+        // Start this ticket - set to flowing
+        db.prepare(
+          `
           UPDATE tickets
           SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
           WHERE id = ?
-        `).run('waiting_to_flow', now, now, ticket.id)
+        `
+        ).run('flowing', now, now, ticket.id)
 
         const auditLogId = generateUserId()
-        db.prepare(`
+        db.prepare(
+          `
           INSERT INTO ticket_audit_logs (
             id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          auditLogId,
-          ticket.id,
-          'flow_waiting',
-          user.id,
-          'user',
-          JSON.stringify({ flowing_status: ticket.flowing_status || 'stopped' }),
-          JSON.stringify({ flowing_status: 'waiting_to_flow', reason: `Max concurrent flowing tickets (${onflowlimit}) reached` }),
-          now
-        )
-
-        results.skipped++
-        results.details.push({
-          ticketId: ticket.id,
-          title: ticket.title,
-          status: 'waiting',
-          error: `Ticket queued - max concurrent flowing tickets (${onflowlimit}) reached`
-        })
-        continue
-      }
-
-      if (ticket.flowing_status === 'flowing') {
-        results.skipped++
-        results.details.push({
-          ticketId: ticket.id,
-          title: ticket.title,
-          status: 'skipped',
-          error: 'Flow already running'
-        })
-        continue
-      }
-
-      try {
-        const now = new Date().toISOString()
-        db.prepare(`
-          UPDATE tickets
-          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
-          WHERE id = ?
-        `).run('flowing', now, now, ticket.id)
-
-        const auditLogId = generateUserId()
-        db.prepare(`
-          INSERT INTO ticket_audit_logs (
-            id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+        `
+        ).run(
           auditLogId,
           ticket.id,
           'flow_started',
           user.id,
           'user',
-          JSON.stringify({ flowing_status: ticket.flowing_status || 'stopped' }),
-          JSON.stringify({ flowing_status: 'flowing' }),
+          JSON.stringify({ flowing_status: oldStatus }),
+          JSON.stringify({ flowing_status: 'flowing', reason: 'Bulk start' }),
           now
         )
 
-        // Trigger OpenClaw agent in background after DB update
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        triggerAgentForFlowStart({
+        results.started++
+
+        // Trigger the agent for this ticket
+        await triggerAgentForFlowStart({
           ticketId: ticket.id,
           workspaceId,
           userId: user.id,
           sessionToken,
         })
 
-        results.started++
-        currentFlowingCount.count++
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,
-          status: 'started'
+          status: 'started',
         })
-      } catch (error) {
-        results.failed++
+
+        startedCount++
+      } else {
+        // Set to waiting_to_flow - cron will handle starting
+        db.prepare(
+          `
+          UPDATE tickets
+          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
+          WHERE id = ?
+        `
+        ).run('waiting_to_flow', now, now, ticket.id)
+
+        const auditLogId = generateUserId()
+        db.prepare(
+          `
+          INSERT INTO ticket_audit_logs (
+            id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        ).run(
+          auditLogId,
+          ticket.id,
+          'flow_waiting',
+          user.id,
+          'user',
+          JSON.stringify({ flowing_status: oldStatus }),
+          JSON.stringify({
+            flowing_status: 'waiting_to_flow',
+            reason: 'Bulk start - queued, limit reached',
+          }),
+          now
+        )
+
         results.details.push({
           ticketId: ticket.id,
           title: ticket.title,
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          status: 'waiting',
+          error: `Ticket queued (limit ${onflowlimit} reached)`,
         })
       }
     }
 
+    results.eligible = eligibleTickets.length
+
     return NextResponse.json({
       success: true,
-      results
+      results,
     })
   } catch (error) {
     console.error('Error in bulk-start flow:', error)

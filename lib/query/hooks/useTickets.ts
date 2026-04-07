@@ -20,6 +20,9 @@ export interface TicketWithRelations {
   creation_status: TicketCreationStatus
   created_at: string
   updated_at: string
+  is_sub_ticket: boolean
+  parent_ticket_id: string | null
+  waiting_finished_ticket_id: string | null
   status: {
     id: string
     name: string
@@ -160,6 +163,9 @@ export function useCreateTicket() {
       flow_enabled?: boolean
       flow_mode?: TicketFlowMode
       creation_status?: TicketCreationStatus
+      isSubTicket?: boolean
+      parentTicketId?: string
+      waitingFinishedTicketId?: string
       flow_configs?: Array<{
         status_id: string
         flow_order: number
@@ -204,6 +210,9 @@ export function useUpdateTicket() {
       flow_enabled?: boolean
       flow_mode?: TicketFlowMode
       creation_status?: TicketCreationStatus
+      isSubTicket?: boolean
+      parentTicketId?: string | null
+      waitingFinishedTicketId?: string | null
     }) => {
       const res = await fetch(`/api/tickets/${params.id}`, {
         method: 'PATCH',
@@ -216,6 +225,9 @@ export function useUpdateTicket() {
           flow_enabled: params.flow_enabled,
           flow_mode: params.flow_mode,
           creation_status: params.creation_status,
+          isSubTicket: params.isSubTicket,
+          parentTicketId: params.parentTicketId,
+          waitingFinishedTicketId: params.waitingFinishedTicketId,
         }),
       })
       if (!res.ok) {

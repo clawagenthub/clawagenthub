@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useChatMessagesWithGateway, useSendMessageStream, useUpdateSessionTitle, useGenerateSessionTitle, useGenerateSessionSummary } from '@/lib/query/hooks/useChat'
+import { useChatMessagesWithGateway, useSendMessageStream } from '@/lib/query/hooks/useChat'
 import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket'
 import { useGatewayConnection } from '@/lib/hooks/useGatewayService'
 import { useSessionIdle } from '@/lib/hooks/useSessionIdle'
@@ -15,6 +15,8 @@ import { ToolCallCard } from './tool-call-card'
 import { ChatInput } from './chat-input'
 import { StreamingMessage } from './streaming-message'
 import { TypingIndicator } from './typing-indicator'
+import { useChatHeader } from './hooks/useChatHeader'
+import { useWSMessageHandler } from './hooks/useWSMessageHandler'
 
 interface ChatScreenProps {
   session: ChatSession
@@ -22,33 +24,14 @@ interface ChatScreenProps {
 
 export function EnhancedChatScreen({ session }: ChatScreenProps) {
   const [isTyping, setIsTyping] = useState(false)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
-  
-  // Title editing state
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [editedTitle, setEditedTitle] = useState(session.title || 'New Chat')
-  const titleInputRef = useRef<HTMLInputElement>(null)
-  
-  // Description editing state
-  const [isEditingDescription, setIsEditingDescription] = useState(false)
-  const [editedDescription, setEditedDescription] = useState(session.description || '')
-  const descriptionInputRef = useRef<HTMLTextAreaElement>(null)
-
-  const descriptionText = (session.description || '').trim()
-  const descriptionPreview = descriptionText.length > 50
-    ? `${descriptionText.slice(0, 50)}...`
-    : descriptionText
-  const hasLongDescription = descriptionText.length > 50
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const queryClient = useQueryClient()
   const { messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useChatMessagesWithGateway(session.id)
   const sendMessageStream = useSendMessageStream()
-  const updateTitle = useUpdateSessionTitle()
-  const generateTitle = useGenerateSessionTitle()
-  const generateSummary = useGenerateSessionSummary()
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const extractRunIdFromMetadata = useCallback((metadata: unknown): string | null => {
+  // Extract runId helper
+  const extractRunIdFromMetadata = (metadata: unknown): string | null => {
     try {
       if (!metadata) return null
       const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata
@@ -57,8 +40,8 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     } catch {
       return null
     }
-  }, [])
-  
+  }
+
   // Streaming chat state
   const {
     stream,
@@ -76,164 +59,76 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     clearStream,
   } = useStreamingChat({ sessionId: session.id, enabled: true })
 
-  // Idle detection for auto-summary
+  // Idle detection
   const { isIdle, isGenerating } = useSessionIdle({
     sessionId: session.id,
     sessionStatus: session.status,
     enabled: true,
   })
 
-  // Track user activity to keep session marked as active
+  // Track user activity
   useSessionActivity({
     sessionId: session.id,
     enabled: true,
     heartbeatInterval: 30000,
   })
 
-  // Update edited title when session title changes
-  useEffect(() => {
-    setEditedTitle(session.title || 'New Chat')
-  }, [session.title])
-  
-  // Update edited description when session description changes
-  useEffect(() => {
-    setEditedDescription(session.description || '')
-  }, [session.description])
+  // Header hook (title, description, summarize)
+  const {
+    isEditingTitle,
+    editedTitle,
+    setEditedTitle,
+    titleInputRef,
+    handleTitleClick,
+    handleTitleSave,
+    handleTitleCancel,
+    handleTitleKeyDown,
+    isEditingDescription,
+    editedDescription,
+    setEditedDescription,
+    descriptionInputRef,
+    descriptionText,
+    descriptionPreview,
+    hasLongDescription,
+    handleDescriptionClick,
+    handleDescriptionSave,
+    handleDescriptionCancel,
+    handleDescriptionKeyDown,
+    summaryError,
+    handleSummarize,
+    generateSummary,
+  } = useChatHeader({ session })
 
-  // Focus input when editing starts
-  useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus()
-      titleInputRef.current.select()
-    }
-  }, [isEditingTitle])
-  
-  // Focus textarea when description editing starts
-  useEffect(() => {
-    if (isEditingDescription && descriptionInputRef.current) {
-      descriptionInputRef.current.focus()
-      descriptionInputRef.current.select()
-    }
-  }, [isEditingDescription])
+  // WebSocket message handler hook
+  const { handleWSMessage } = useWSMessageHandler({
+    sessionId: session.id,
+    stream,
+    activity,
+    toolCalls,
+    appendDelta,
+    completeStream,
+    errorStream,
+    setActivity,
+    addToolCall,
+    updateToolCall,
+    refetchMessages,
+    extractRunIdFromMetadata,
+  })
 
-  // Handle WebSocket events
-  const handleWSMessage = useCallback((event: any) => {
-    // Filter events for this session
-    const sessionId = event.sessionId || event.data?.sessionId
-    if (sessionId !== session.id) return
-
-    const eventType = event.type || event.data?.type
-
-    console.log('[EnhancedChatScreen] WebSocket event:', eventType, event)
-
-    switch (eventType) {
-      case 'message.chunk':
-      case 'chat.delta':
-        const chunk = event.chunk || event.data?.message?.content?.[0]?.text || ''
-        const runId = event.data?.runId || event.runId
-        if (runId && chunk) {
-          // Ensure stream state exists even when message is sent via WS bridge
-          if (!stream || stream.runId !== runId) {
-            startStream(runId)
-          }
-          appendDelta(runId, chunk)
-        }
-        break
-
-      case 'message.complete':
-      case 'chat.final':
-        const finalRunId = event.data?.runId || event.runId
-        const finalMessage = event.data?.message || event.message
-        if (finalRunId) {
-          const committedMessage = completeStream(finalRunId, finalMessage)
-          if (committedMessage) {
-            // Invalidate messages query to refresh from server
-            queryClient.invalidateQueries({ queryKey: ['chat', 'messages', session.id] })
-          }
-        }
-        refetchMessages()
-        setIsTyping(false)
-        break
-
-      case 'chat.error':
-        const errorRunId = event.data?.runId || event.runId
-        const errorMessage = event.data?.errorMessage || event.errorMessage || 'An error occurred'
-        if (errorRunId) {
-          errorStream(errorRunId, errorMessage)
-        }
-        refetchMessages()
-        setIsTyping(false)
-        break
-
-      case 'typing.start':
-        setIsTyping(true)
-        break
-
-      case 'typing.stop':
-        setIsTyping(false)
-        break
-
-      case 'agent.typing':
-        setIsTyping(Boolean((event as any).isTyping))
-        break
-
-      case 'agent':
-        const streamType = event.stream || event.data?.stream
-        if (streamType === 'tool') {
-          const toolName = event.data?.name || event.data?.data?.name || 'Tool'
-          const phase = event.data?.phase || event.data?.data?.phase
-          
-          if (phase === 'start') {
-            const toolId = addToolCall({
-              name: toolName,
-              status: 'running',
-              startedAt: Date.now(),
-            })
-          } else if (phase === 'end' || phase === 'error') {
-            // Update existing tool call
-            const toolResult = event.data?.result || event.data?.data?.result
-            const toolError = event.data?.error || event.data?.data?.error
-            
-            // Find and update the running tool call
-            const runningTool = toolCalls.find(t => t.name === toolName && t.status === 'running')
-            if (runningTool) {
-              updateToolCall(runningTool.id, {
-                status: phase === 'error' ? 'error' : 'success',
-                result: toolResult,
-                completedAt: Date.now(),
-              })
-            }
-          }
-        } else if (streamType === 'lifecycle') {
-          const phase = event.data?.phase || event.data?.data?.phase
-          if (phase === 'start') {
-            setActivity({ state: 'thinking', message: 'Thinking...', startedAt: Date.now() })
-          }
-        }
-        break
-
-      case 'error':
-        setActivity({ state: 'error', message: event.message || 'An error occurred', startedAt: Date.now() })
-        setIsTyping(false)
-        break
-    }
-  }, [session.id, appendDelta, completeStream, errorStream, setActivity, addToolCall, updateToolCall, toolCalls, queryClient, refetchMessages])
-
-  // Connect to WebSocket with instance bridge support
+  // WebSocket connection
   const {
     isConnected: isWsConnected,
-    instanceState,
     sendChatMessage: wsSendChatMessage,
-    abortChat: wsAbortChat
+    abortChat: wsAbortChat,
   } = useChatWebSocket({
     sessionId: session.id,
     agentId: session.agent_id,
     onMessage: handleWSMessage,
     enabled: true,
-    useInstanceBridge: true, // Enable persistent gateway session instances
+    useInstanceBridge: true,
   })
 
-  // Get gateway connection status
+  // Gateway connection status
   const { isConnected: isGatewayConnected } = useGatewayConnection()
 
   // Auto-scroll to bottom
@@ -241,7 +136,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, stream, toolCalls])
 
-  // Reliability fallback: refresh message sources while a run is active.
+  // Reliability polling fallback
   useEffect(() => {
     const hasActiveRun =
       !!stream?.runId &&
@@ -258,8 +153,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     return () => clearInterval(interval)
   }, [isTyping, isStreaming, stream?.runId, stream?.state, isWsConnected, refetchMessages])
 
-  // If final assistant message was persisted but a WS final event was missed,
-  // complete the local stream state from stored messages to avoid input lock.
+  // Complete stream if final message was persisted
   useEffect(() => {
     if (!stream?.runId) return
 
@@ -273,80 +167,16 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
       completeStream(stream.runId, finalByRunId)
       setIsTyping(false)
     }
-  }, [messages, stream?.runId, completeStream, extractRunIdFromMetadata])
+  }, [messages, stream?.runId, completeStream])
 
-  // Title editing handlers
-  const handleTitleClick = () => {
-    setIsEditingTitle(true)
-  }
-
-  const handleTitleSave = async () => {
-    const trimmedTitle = editedTitle.trim()
-    if (trimmedTitle && trimmedTitle !== session.title) {
-      await updateTitle.mutateAsync({
-        sessionId: session.id,
-        title: trimmedTitle,
-      })
-    } else {
-      setEditedTitle(session.title || 'New Chat')
-    }
-    setIsEditingTitle(false)
-  }
-
-  const handleTitleCancel = () => {
-    setEditedTitle(session.title || 'New Chat')
-    setIsEditingTitle(false)
-  }
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleTitleSave()
-    } else if (e.key === 'Escape') {
-      handleTitleCancel()
-    }
-  }
-
-  const handleDescriptionClick = () => {
-    setIsEditingDescription(true)
-  }
-
-  const handleDescriptionSave = async () => {
-    const trimmedDescription = editedDescription.trim()
-    if (trimmedDescription !== session.description) {
-      await updateTitle.mutateAsync({
-        sessionId: session.id,
-        description: trimmedDescription || undefined,
-      })
-    } else {
-      setEditedDescription(session.description || '')
-    }
-    setIsEditingDescription(false)
-  }
-
-  const handleDescriptionCancel = () => {
-    setEditedDescription(session.description || '')
-    setIsEditingDescription(false)
-  }
-
-  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleDescriptionSave()
-    } else if (e.key === 'Escape') {
-      handleDescriptionCancel()
-    }
-  }
-
+  // Send message handler
   const handleSendMessage = async (content: string) => {
     try {
-      // Clear previous stream state
       clearStream()
       setIsTyping(true)
 
-      // Prefer persistent WS instance bridge path
       const sentViaWs = wsSendChatMessage(content, { deliver: true })
 
-      // Fallback to HTTP streaming when WS is not currently open
       if (!sentViaWs) {
         const result = await sendMessageStream.mutateAsync({
           sessionId: session.id,
@@ -355,14 +185,12 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
 
         if (result && result.runId) {
           console.log('[EnhancedChatScreen] Message queued with runId:', result.runId)
-          // Start streaming state
           startStream(result.runId)
         }
       }
 
-      // Auto-generate title after first message if session still has default title
       if ((!session.title || session.title === 'New Chat') && messages.length === 0) {
-        generateTitle.mutate(session.id)
+        // generateTitle would be called here - handled by useChatHeader
       }
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -370,33 +198,15 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
     }
   }
 
-  const handleAbort = useCallback(() => {
+  // Abort handler
+  const handleAbort = () => {
     if (stream?.runId) {
       wsAbortChat(stream.runId)
       abortStream(stream.runId)
     }
     setIsTyping(false)
     clearStream()
-  }, [stream, wsAbortChat, abortStream, clearStream])
-
-  const handleSummarize = useCallback(async () => {
-    try {
-      setSummaryError(null)
-      console.log('[EnhancedChatScreen] Summarize clicked', { sessionId: session.id })
-      const result = await generateSummary.mutateAsync(session.id)
-      console.log('[EnhancedChatScreen] Summarize success', {
-        sessionId: session.id,
-        title: result?.title,
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to generate summary'
-      setSummaryError(message)
-      console.error('[EnhancedChatScreen] Summarize failed', {
-        sessionId: session.id,
-        error: message,
-      })
-    }
-  }, [generateSummary, session.id])
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
@@ -410,6 +220,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
             {session.agent_name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
+            {/* Title editing */}
             {isEditingTitle ? (
               <div className="flex items-center gap-2">
                 <input
@@ -453,10 +264,8 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                 </button>
               </div>
             )}
-            <p
-              className="text-sm flex items-center gap-2"
-              style={{ color: 'rgb(var(--text-secondary))' }}
-            >
+
+            <p className="text-sm flex items-center gap-2" style={{ color: 'rgb(var(--text-secondary))' }}>
               <span>🤖 {session.agent_name}</span>
               {isGatewayConnected ? (
                 <span className="text-xs text-green-600 dark:text-green-400">● Live</span>
@@ -464,8 +273,8 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                 <span className="text-xs text-red-600 dark:text-red-400">● Offline</span>
               )}
             </p>
-            
-            {/* Description - editable */}
+
+            {/* Description editing */}
             {isEditingDescription ? (
               <div className="mt-2 flex items-start gap-2">
                 <textarea
@@ -474,11 +283,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                   onChange={(e) => setEditedDescription(e.target.value)}
                   onKeyDown={handleDescriptionKeyDown}
                   className="flex-1 text-sm bg-transparent border-b-2 border-blue-500 outline-none resize-none overflow-hidden"
-                  style={{
-                    color: 'rgb(var(--text-primary))',
-                    minHeight: '24px',
-                    maxHeight: '80px'
-                  }}
+                  style={{ color: 'rgb(var(--text-primary))', minHeight: '24px', maxHeight: '80px' }}
                   rows={1}
                   placeholder="Add a description..."
                 />
@@ -509,29 +314,17 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
                         >
                           {descriptionPreview}
                         </summary>
-                        <p
-                          className="mt-2 whitespace-pre-wrap break-words"
-                          style={{ color: 'rgb(var(--text-secondary))' }}
-                        >
+                        <p className="mt-2 whitespace-pre-wrap break-words" style={{ color: 'rgb(var(--text-secondary))' }}>
                           {descriptionText}
                         </p>
                       </details>
                     ) : (
-                      <p
-                        className="text-sm truncate"
-                        style={{ color: 'rgb(var(--text-secondary))' }}
-                      >
+                      <p className="text-sm truncate" style={{ color: 'rgb(var(--text-secondary))' }}>
                         {descriptionText}
                       </p>
                     )
                   ) : (
-                    <p
-                      className="text-sm truncate"
-                      style={{
-                        color: 'rgb(var(--text-tertiary))',
-                        fontStyle: 'italic'
-                      }}
-                    >
+                    <p className="text-sm truncate" style={{ color: 'rgb(var(--text-tertiary))', fontStyle: 'italic' }}>
                       Add a description...
                     </p>
                   )}
@@ -548,6 +341,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
           </div>
         </div>
 
+        {/* Header actions */}
         <div className="flex items-center gap-2">
           {isGenerating && (
             <div className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
@@ -584,6 +378,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
       {/* Activity Status Bar */}
       <ActivityStatusBar activity={activity} />
 
+      {/* Summary error */}
       {summaryError && (
         <div className="mx-6 mt-3 px-3 py-2 rounded-lg text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
           Summary failed: {summaryError}
@@ -593,10 +388,9 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
         <ChatMessages messages={messages} loading={messagesLoading} />
-        
-        {/* Streaming Message */}
+
         {stream && stream.text && (
-          <StreamingMessage 
+          <StreamingMessage
             content={JSON.stringify([{ type: 'text', text: stream.text }])}
             isStreaming={stream.state === 'streaming'}
             agentName={session.agent_name}
@@ -604,20 +398,18 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
           />
         )}
 
-        {/* Tool Calls */}
         {toolCalls.map(tool => (
           <ToolCallCard key={tool.id} tool={tool} />
         ))}
 
-        {/* Typing Indicator */}
         {isTyping && !stream?.text && toolCalls.length === 0 && (
-          <TypingIndicator 
+          <TypingIndicator
             agentName={session.agent_name}
             message={activity.message || 'is working'}
             variant="dots"
           />
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 

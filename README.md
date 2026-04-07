@@ -17,6 +17,92 @@ ClawAgentHub connects to OpenClaw gateways and helps teams:
 - run flow-based ticket automation with agents
 - manage statuses that drive flow transitions
 
+## Status ID Mappings
+
+| status_id | Name        | Description                           |
+| --------- | ----------- | ------------------------------------- |
+| 1         | Open        | Ticket is created and awaiting action |
+| 2         | In Progress | Ticket is being worked on             |
+| 3         | Waiting     | Ticket is waiting on dependency       |
+| 4         | Finished    | All flow steps completed              |
+
+Note: `status_id` values are workspace-specific. The above is the default mapping
+created during initial setup. Verify with `GET /api/statuses`.
+
+## Sub-Ticket System
+
+### Overview
+
+ClawAgentHub supports hierarchical tickets with parent-child relationships and flow dependencies.
+
+### Key Concepts
+
+- **Sub-Ticket**: A ticket that belongs to a parent ticket
+- **Parent Ticket**: A ticket that may have one or more sub-tickets
+- **Flow Dependency**: A ticket can wait for another ticket to be finished before flowing
+
+### Creating Sub-Tickets
+
+When creating a ticket, set the `isSubTicket` flag and provide `parentTicketId`:
+
+```bash
+curl -X POST http://127.0.0.1:7777/api/tickets \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Sub Task",
+    "description": "This is a sub-task",
+    "statusId": 1,
+    "isSubTicket": true,
+    "parentTicketId": "parent-ticket-uuid-here"
+  }'
+```
+
+### Setting Flow Dependencies
+
+To make a ticket wait for another ticket to finish:
+
+```bash
+curl -X PATCH http://127.0.0.1:7777/api/tickets/ticket-uuid \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "waitingFinishedTicketId": "ticket-uuid-to-wait-for"
+  }'
+```
+
+### Auto-Finish Logic
+
+When all flow steps in a ticket's flow configuration are completed, the system automatically updates the ticket status to "Finished" (status_id = 4).
+
+**Variant A (Trigger):** Immediate update via SQLite trigger
+**Variant B (Service):** Controlled update via FlowAutoFinishService
+
+### Database Schema Changes
+
+The `tickets` table has three new columns:
+
+| Column                       | Type    | Description                             |
+| ---------------------------- | ------- | --------------------------------------- |
+| `is_sub_ticket`              | INTEGER | 1 if this is a sub-ticket, 0 otherwise  |
+| `parent_ticket_id`           | TEXT    | Foreign key to parent ticket (nullable) |
+| `waiting_finished_ticket_id` | TEXT    | Ticket ID this must wait for (nullable) |
+
+### API: GET /api/tickets/:id
+
+Response includes sub-ticket fields:
+
+```json
+{
+  "id": "ticket-uuid",
+  "title": "Task Title",
+  "is_sub_ticket": true,
+  "parent_ticket_id": "parent-uuid",
+  "waiting_finished_ticket_id": null,
+  ...
+}
+```
+
 ## Core Concepts
 
 ### Flow
@@ -183,12 +269,12 @@ Agents can be configured to communicate with the ClawAgentHub project API to per
 
 The API server runs alongside the dashboard. Default base URL: `http://127.0.0.1:7777/api`
 
-
 ### Required Security Settings for Agents
 
 Agents cannot communicate with the project unless these OpenClaw security settings are configured:
 
 **`openclaw.json` — controlUi section:**
+
 ```json
 "controlUi": {
   "dangerouslyAllowHostHeaderOriginFallback": true
@@ -196,6 +282,7 @@ Agents cannot communicate with the project unless these OpenClaw security settin
 ```
 
 **Environment variables:**
+
 ```bash
 NO_PROXY=localhost,127.0.0.1
 no_proxy=localhost,127.0.0.1
@@ -263,6 +350,7 @@ The session token is established when a user logs in through the dashboard UI. A
 If you see this error when trying to connect the Control UI to the OpenClaw Gateway:
 
 **Symptom:**
+
 ```
 Error: control ui requires device identity (use HTTPS or localhost secure context)
 ```
@@ -284,7 +372,6 @@ Then restart the gateway:
 ```bash
 openclaw gateway fix --doctor
 ```
-
 
 ## License
 

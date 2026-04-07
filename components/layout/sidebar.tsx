@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { WorkspaceSelector } from '@/components/workspace/workspace-selector'
-import { ThemeSwitcher } from '@/components/ui/theme-switcher'
-import { useNavigation } from '@/lib/contexts/navigation-context'
+import { SidebarNav } from './sidebar-nav'
+import { SidebarUserMenu } from './sidebar-user-menu'
 import type { WorkspaceWithRole } from '@/lib/db/schema'
 
 interface UserInfo {
@@ -17,9 +17,8 @@ interface SidebarProps {
   user: UserInfo
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user: _user }: SidebarProps) {
   const router = useRouter()
-  const { navigateTo, isActive } = useNavigation()
   const [currentWorkspace, setCurrentWorkspace] =
     useState<WorkspaceWithRole | null>(null)
   const [workspaces, setWorkspaces] = useState<WorkspaceWithRole[]>([])
@@ -34,15 +33,17 @@ export function Sidebar({ user }: SidebarProps) {
         const data = await response.json()
         setWorkspaces(data.workspaces)
 
-        // Fetch current workspace
         const currentResponse = await fetch('/api/workspaces/current')
         if (currentResponse.ok) {
           const currentData = await currentResponse.json()
           setCurrentWorkspace(currentData.workspace)
 
-          // If no current workspace but user has workspaces, set the first one
-          // Only do this on initial load to prevent loops
-          if (!currentData.workspace && data.workspaces.length > 0 && isInitialLoad && !switchingWorkspace) {
+          if (
+            !currentData.workspace &&
+            data.workspaces.length > 0 &&
+            isInitialLoad &&
+            !switchingWorkspace
+          ) {
             setSwitchingWorkspace(true)
             await handleWorkspaceChange(data.workspaces[0].id)
           }
@@ -61,11 +62,8 @@ export function Sidebar({ user }: SidebarProps) {
   }, [])
 
   const handleWorkspaceChange = async (workspaceId: string) => {
-    // Prevent infinite loop - don't switch if already switching to same workspace
-    if (currentWorkspace?.id === workspaceId) {
-      return
-    }
-    
+    if (currentWorkspace?.id === workspaceId) return
+
     try {
       const response = await fetch('/api/workspaces/switch', {
         method: 'POST',
@@ -77,7 +75,6 @@ export function Sidebar({ user }: SidebarProps) {
         const data = await response.json()
         setCurrentWorkspace(data.workspace)
         setSwitchingWorkspace(false)
-        // Only refresh if not initial load (user manually switched)
         if (!isInitialLoad) {
           router.refresh()
         }
@@ -112,17 +109,17 @@ export function Sidebar({ user }: SidebarProps) {
       >
         <div className="animate-pulse">
           <div
-            className="h-12 rounded mb-4"
+            className="mb-4 h-12 rounded"
             style={{ backgroundColor: `rgb(var(--bg-tertiary))` }}
-          ></div>
+          />
           <div
-            className="h-8 rounded mb-2"
+            className="mb-2 h-8 rounded"
             style={{ backgroundColor: `rgb(var(--bg-tertiary))` }}
-          ></div>
+          />
           <div
             className="h-8 rounded"
             style={{ backgroundColor: `rgb(var(--bg-tertiary))` }}
-          ></div>
+          />
         </div>
       </aside>
     )
@@ -130,15 +127,14 @@ export function Sidebar({ user }: SidebarProps) {
 
   return (
     <aside
-      className="w-64 border-r flex flex-col"
+      className="flex w-64 flex-col border-r"
       style={{
         backgroundColor: `rgb(var(--sidebar-bg))`,
         borderColor: `rgb(var(--border-color))`,
       }}
     >
-      {/* Workspace Selector */}
       <div
-        className="p-4 border-b"
+        className="border-b p-4"
         style={{ borderColor: `rgb(var(--border-color))` }}
       >
         <WorkspaceSelector
@@ -149,185 +145,8 @@ export function Sidebar({ user }: SidebarProps) {
         />
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
-          <li>
-            <button
-              onClick={() => navigateTo('dashboard')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('dashboard') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('dashboard') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('dashboard')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('dashboard')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">📊</span>
-              <span>Dashboard</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateTo('chat')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('chat') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('chat') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('chat')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('chat')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">💬</span>
-              <span>Chat</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateTo('statuses')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('statuses') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('statuses') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('statuses')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('statuses')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">🏷️</span>
-              <span>Statuses</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateTo('skills')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('skills') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('skills') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('skills')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('skills')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">🎯</span>
-              <span>Skills</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateTo('settings')}
-              className={`flex items-center w-full px-4 py-2 rounded-lg transition-all ${
-                isActive('settings') ? 'font-semibold' : ''
-              }`}
-              style={{
-                color: `rgb(var(--text-primary))`,
-                backgroundColor: isActive('settings') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive('settings')) {
-                  e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive('settings')) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              <span className="mr-3">⚙️</span>
-              <span>Settings</span>
-            </button>
-          </li>
-        </ul>
-      </nav>
-
-      {/* User Section */}
-      <div
-        className="border-t p-4"
-        style={{ borderColor: `rgb(var(--border-color))` }}
-      >
-        <button
-          onClick={() => navigateTo('profile')}
-          className={`flex items-center w-full px-4 py-2 mb-2 rounded-lg transition-all ${
-            isActive('profile') ? 'font-semibold' : ''
-          }`}
-          style={{
-            color: `rgb(var(--text-primary))`,
-            backgroundColor: isActive('profile') ? `rgb(var(--sidebar-active, var(--accent-primary, 59 130 246 / 0.1)))` : 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            if (!isActive('profile')) {
-              e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isActive('profile')) {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }
-          }}
-        >
-          <span className="mr-3">👤</span>
-          <span>Profile</span>
-        </button>
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center px-4 py-2 mb-3 rounded-lg transition-colors"
-          style={{ color: `rgb(var(--text-primary))` }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = `rgb(var(--sidebar-hover))`
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent'
-          }}
-        >
-          <span className="mr-3">🚪</span>
-          <span>Logout</span>
-        </button>
-
-        {/* Theme Switcher */}
-        <div className="flex justify-center pt-2">
-          <ThemeSwitcher />
-        </div>
-      </div>
+      <SidebarNav />
+      <SidebarUserMenu onLogout={handleLogout} />
     </aside>
   )
 }

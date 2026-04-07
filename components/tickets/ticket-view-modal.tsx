@@ -10,9 +10,10 @@ interface TicketViewModalProps {
   ticketId: string | null
   onClose: () => void
   onSwitchToEdit: () => void
+  onViewParent?: (parentTicketId: string) => void
 }
 
-export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: TicketViewModalProps) {
+export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onViewParent }: TicketViewModalProps) {
   const { data: ticket, isLoading: isTicketLoading } = useTicket(ticketId)
   const { data: comments = [], isLoading: isCommentsLoading } = useTicketComments(ticketId)
   const { mutateAsync: addComment, isPending: isAddingComment } = useAddTicketComment()
@@ -42,6 +43,11 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
   }, [comments, ticket?.audit_logs])
+
+  async function handleViewParent() {
+    if (!ticket?.parent_ticket_id) return
+    onViewParent?.(ticket.parent_ticket_id)
+  }
 
   async function handleAddComment() {
     if (!ticketId || !commentInput.trim()) return
@@ -171,6 +177,31 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit }: T
                   {getFlowFailureReason()}
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sub-Ticket Parent Navigation */}
+        {ticket?.is_sub_ticket && ticket?.parent_ticket_id && (
+          <div
+            className="p-3 rounded-lg border"
+            style={{
+              borderColor: 'rgb(var(--border-color))',
+              backgroundColor: 'rgb(var(--bg-secondary))'
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: `rgb(var(--text-secondary))` }}>
+                Sub-ticket of:
+              </span>
+              <button
+                type="button"
+                onClick={handleViewParent}
+                className="text-sm font-medium underline cursor-pointer"
+                style={{ color: `rgb(var(--accent-primary, 59 130 246))` }}
+              >
+                View Parent Ticket →
+              </button>
             </div>
           </div>
         )}

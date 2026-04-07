@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, status_id, assigned_to, flow_enabled, flow_configs, creation_status, flow_mode } = body
+    const { title, description, status_id, assigned_to, flow_enabled, flow_configs, creation_status, flow_mode, isSubTicket, parentTicketId, waitingFinishedTicketId } = body
 
     // Validate inputs
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
@@ -223,8 +223,9 @@ export async function POST(request: NextRequest) {
     db.prepare(
       `INSERT INTO tickets (
         id, workspace_id, ticket_number, title, description, status_id,
-        created_by, assigned_to, flow_enabled, flow_mode, creation_status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        created_by, assigned_to, flow_enabled, flow_mode, creation_status, created_at, updated_at,
+        is_sub_ticket, parent_ticket_id, waiting_finished_ticket_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       ticketId,
       session.current_workspace_id,
@@ -238,7 +239,10 @@ export async function POST(request: NextRequest) {
       flow_mode === 'automatic' ? 'automatic' : 'manual',
       creation_status || 'active',
       now,
-      now
+      now,
+      isSubTicket ? 1 : 0,
+      parentTicketId || null,
+      waitingFinishedTicketId || null
     )
 
     // Update ticket sequence

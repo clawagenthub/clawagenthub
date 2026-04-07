@@ -4,38 +4,171 @@ import React, { useState, useMemo } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks'
 import { Toast } from '@/components/ui/toast'
+import { TicketCard } from './lib/ticket-card'
+import type { StartAllConfirmProps, StopAllConfirmProps } from './lib/board-types'
 
-const FLOW_BADGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  flowing: {
-    label: 'Flowing',
-    bg: 'rgba(16, 185, 129, 0.18)',
-    text: 'rgb(5, 150, 105)',
-  },
-  failed: {
-    label: 'Failed',
-    bg: 'rgba(239, 68, 68, 0.18)',
-    text: 'rgb(220, 38, 38)',
-  },
-  waiting: {
-    label: 'Waiting',
-    bg: 'rgba(245, 158, 11, 0.18)',
-    text: 'rgb(217, 119, 6)',
-  },
-  stopped: {
-    label: 'Stopped',
-    bg: 'rgba(107, 114, 128, 0.18)',
-    text: 'rgb(75, 85, 99)',
-  },
-  completed: {
-    label: 'Completed',
-    bg: 'rgba(59, 130, 246, 0.18)',
-    text: 'rgb(37, 99, 235)',
-  },
-  waiting_to_flow: {
-    label: 'Waiting To Flow',
-    bg: 'rgba(139, 92, 246, 0.18)',
-    text: 'rgb(124, 58, 237)',
-  },
+function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
+  return (
+    <div
+      className="mb-4 p-3 rounded-lg border"
+      style={{
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderColor: 'rgb(16, 185, 129)',
+      }}
+    >
+      <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+        Start flow for {count} eligible ticket{count === 1 ? '' : 's'}?
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="px-3 py-1 text-xs rounded-md"
+          style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
+        >
+          Start All
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1 text-xs rounded-md"
+          style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function StopAllConfirm({ count, onConfirm, onCancel }: StopAllConfirmProps) {
+  return (
+    <div
+      className="mb-4 p-3 rounded-lg border"
+      style={{
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderColor: 'rgb(239, 68, 68)',
+      }}
+    >
+      <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+        Stop flow for {count} flowing ticket{count === 1 ? '' : 's'}?
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="px-3 py-1 text-xs rounded-md"
+          style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
+        >
+          Stop All
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1 text-xs rounded-md"
+          style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ColumnHeader({
+  activeTicketsForSelection,
+  title,
+  color,
+  draftCount,
+  selectedCount,
+  isAllSelected,
+  isSomeSelected,
+  eligibleForFlowStart,
+  eligibleForFlowStop,
+  showStopAll,
+  isBulkStartingFlow,
+  isBulkStoppingFlow,
+  onSelectAll,
+  onStartAllClick,
+  onStopAllClick,
+}: {
+  activeTicketsForSelection: TicketWithRelations[]
+  title: string
+  color: string
+  draftCount: number
+  selectedCount: number
+  isAllSelected: boolean
+  isSomeSelected: boolean
+  eligibleForFlowStart: TicketWithRelations[]
+  eligibleForFlowStop: TicketWithRelations[]
+  allFlowingTickets: TicketWithRelations[]
+  showStopAll: boolean
+  isBulkStartingFlow: boolean
+  isBulkStoppingFlow: boolean
+  onSelectAll: (statusId: string, selected: boolean) => void
+  onStartAllClick: () => void
+  onStopAllClick: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        {activeTicketsForSelection.length > 0 && (
+          <input
+            type="checkbox"
+            checked={isAllSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = isSomeSelected
+            }}
+            onChange={(e) => onSelectAll(id, e.target.checked)}
+            className="w-4 h-4 rounded cursor-pointer"
+            title="Select all in column"
+          />
+        )}
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+        <h3 className="font-semibold" style={{ color: `rgb(var(--text-primary))` }}>
+          {title}
+        </h3>
+        {draftCount > 0 && (
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(156, 163, 175, 0.2)', color: 'rgb(var(--text-tertiary))' }}>
+            {draftCount} draft{draftCount !== 1 ? 's' : ''}
+          </span>
+        )}
+        {selectedCount > 0 && (
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'rgb(59, 130, 246)' }}>
+            {selectedCount} selected
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {showStopAll ? (
+          <button
+            type="button"
+            onClick={onStopAllClick}
+            disabled={isBulkStoppingFlow}
+            className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
+            style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
+            title="Stop Flow for all flowing tickets"
+          >
+            {isBulkStoppingFlow ? 'Stopping...' : `■ Stop All (${eligibleForFlowStop.length})`}
+          </button>
+        ) : eligibleForFlowStart.length > 0 && (
+          <button
+            type="button"
+            onClick={onStartAllClick}
+            disabled={isBulkStartingFlow}
+            className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
+            style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
+            title="Start Flow for all eligible tickets"
+          >
+            {isBulkStartingFlow ? 'Starting...' : `▶ Start All (${eligibleForFlowStart.length})`}
+          </button>
+        )}
+        <button type="button" className="transition-colors" style={{ color: `rgb(var(--text-tertiary))` }}>
+          ⋮
+        </button>
+      </div>
+    </div>
+  )
 }
 
 interface BoardColumnProps {
@@ -51,7 +184,7 @@ interface BoardColumnProps {
   draggedTicketId?: string | null
   selectedTicketIds?: string[]
   onTicketSelect?: (ticketId: string, selected: boolean) => void
-  onSelectAll?: (selected: boolean) => void
+  onSelectAll?: (statusId: string, selected: boolean) => void
   isAllSelected?: boolean
   isSomeSelected?: boolean
   selectedCount?: number
@@ -107,8 +240,7 @@ export function BoardColumn({
   const allFlowingTickets = visibleTickets.filter(
     t => t.flow_enabled && t.creation_status === 'active'
   )
-  const showStopAll = allFlowingTickets.length > 0 && 
-    allFlowingTickets.every(t => t.flowing_status === 'flowing')
+  const showStopAll = allFlowingTickets.length > 0 && allFlowingTickets.every(t => t.flowing_status === 'flowing')
 
   const handleStartFlowAll = async () => {
     if (eligibleForFlowStart.length === 0) return
@@ -144,265 +276,49 @@ export function BoardColumn({
         borderColor: `rgb(var(--border-color))`,
       }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {activeTicketsForSelection.length > 0 && (
-            <input
-              type="checkbox"
-              checked={isAllSelected}
-              ref={(el) => {
-                if (el) el.indeterminate = isSomeSelected
-              }}
-              onChange={(e) => onSelectAll?.(e.target.checked)}
-              className="w-4 h-4 rounded cursor-pointer"
-              title="Select all in column"
-            />
-          )}
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-          <h3
-            className="font-semibold"
-            style={{ color: `rgb(var(--text-primary))` }}
-          >
-            {title}
-          </h3>
-          {draftCount > 0 && (
-            <span
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{
-                backgroundColor: 'rgba(156, 163, 175, 0.2)',
-                color: 'rgb(var(--text-tertiary))',
-              }}
-            >
-              {draftCount} draft{draftCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          {selectedCount > 0 && (
-            <span
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                color: 'rgb(59, 130, 246)',
-              }}
-            >
-              {selectedCount} selected
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {showStopAll ? (
-            <button
-              type="button"
-              onClick={() => setShowStopAllConfirm(true)}
-              disabled={isBulkStoppingFlow}
-              className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: 'rgb(239, 68, 68)',
-                color: 'white',
-              }}
-              title="Stop Flow for all flowing tickets"
-            >
-              {isBulkStoppingFlow ? 'Stopping...' : `■ Stop All (${eligibleForFlowStop.length})`}
-            </button>
-          ) : eligibleForFlowStart.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowStartAllConfirm(true)}
-              disabled={isBulkStartingFlow}
-              className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: 'rgb(16, 185, 129)',
-                color: 'white',
-              }}
-              title="Start Flow for all eligible tickets"
-            >
-              {isBulkStartingFlow ? 'Starting...' : `▶ Start All (${eligibleForFlowStart.length})`}
-            </button>
-          )}
-          <button
-            type="button"
-            className="transition-colors"
-            style={{ color: `rgb(var(--text-tertiary))` }}
-          >
-            ⋮
-          </button>
-        </div>
-      </div>
+      <ColumnHeader
+        activeTicketsForSelection={activeTicketsForSelection}
+        title={title}
+        color={color}
+        draftCount={draftCount}
+        selectedCount={selectedCount}
+        isAllSelected={isAllSelected}
+        isSomeSelected={isSomeSelected}
+        eligibleForFlowStart={eligibleForFlowStart}
+        eligibleForFlowStop={eligibleForFlowStop}
+        allFlowingTickets={allFlowingTickets}
+        showStopAll={showStopAll}
+        isBulkStartingFlow={isBulkStartingFlow}
+        isBulkStoppingFlow={isBulkStoppingFlow}
+        onSelectAll={onSelectAll ?? (() => {})}
+        onStartAllClick={() => setShowStartAllConfirm(true)}
+        onStopAllClick={() => setShowStopAllConfirm(true)}
+      />
 
       {showStartAllConfirm && (
-        <div
-          className="mb-4 p-3 rounded-lg border"
-          style={{
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            borderColor: 'rgb(16, 185, 129)',
-          }}
-        >
-          <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
-            Start flow for {eligibleForFlowStart.length} eligible ticket{eligibleForFlowStart.length === 1 ? '' : 's'}?
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleStartFlowAll}
-              className="px-3 py-1 text-xs rounded-md"
-              style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
-            >
-              Start All
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowStartAllConfirm(false)}
-              className="px-3 py-1 text-xs rounded-md"
-              style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <StartAllConfirm count={eligibleForFlowStart.length} onConfirm={handleStartFlowAll} onCancel={() => setShowStartAllConfirm(false)} />
       )}
-
       {showStopAllConfirm && (
-        <div
-          className="mb-4 p-3 rounded-lg border"
-          style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderColor: 'rgb(239, 68, 68)',
-          }}
-        >
-          <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
-            Stop flow for {eligibleForFlowStop.length} flowing ticket{eligibleForFlowStop.length === 1 ? '' : 's'}?
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleStopFlowAll}
-              className="px-3 py-1 text-xs rounded-md"
-              style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
-            >
-              Stop All
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowStopAllConfirm(false)}
-              className="px-3 py-1 text-xs rounded-md"
-              style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <StopAllConfirm count={eligibleForFlowStop.length} onConfirm={handleStopFlowAll} onCancel={() => setShowStopAllConfirm(false)} />
       )}
 
       <div className="space-y-2 min-h-[200px] max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
         {visibleTickets.length === 0 ? (
-          <p
-            className="text-sm text-center py-8"
-            style={{ color: `rgb(var(--text-secondary))` }}
-          >
-            {showDrafts && draftCount > 0 
-              ? `No active tickets. ${draftCount} draft ticket${draftCount !== 1 ? 's' : ''} hidden.`
-              : 'No tickets'}
+          <p className="text-sm text-center py-8" style={{ color: `rgb(var(--text-secondary))` }}>
+            {showDrafts && draftCount > 0 ? `No active tickets. ${draftCount} draft ticket${draftCount !== 1 ? 's' : ''} hidden.` : 'No tickets'}
           </p>
         ) : (
           visibleTickets.map((ticket) => (
-            <div
+            <TicketCard
               key={ticket.id}
-              draggable={true}
-              onDragStart={(e) => {
-                e.stopPropagation()
-                onTicketDragStart?.(ticket.id)
-              }}
-              className="p-3 rounded-lg border cursor-move transition-all hover:shadow-md"
-              onDoubleClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onTicketDoubleClick?.(ticket)
-              }}
-              style={{
-                backgroundColor: `rgb(var(--bg-primary))`,
-                borderColor: selectedTicketIds.includes(ticket.id)
-                  ? 'rgb(59, 130, 246)'
-                  : ticket.creation_status === 'draft'
-                    ? 'rgba(156, 163, 175, 0.5)'
-                    : `rgb(var(--border-color))`,
-                borderStyle: ticket.creation_status === 'draft' ? 'dashed' : 'solid',
-                opacity: draggedTicketId === ticket.id ? 0.5 : (ticket.creation_status === 'draft' ? 0.8 : 1),
-                borderWidth: selectedTicketIds.includes(ticket.id) ? '2px' : '1px',
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                {ticket.creation_status === 'active' && (
-                  <input
-                    type="checkbox"
-                    checked={selectedTicketIds.includes(ticket.id)}
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      onTicketSelect?.(ticket.id, e.target.checked)
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-1 w-4 h-4 rounded cursor-pointer flex-shrink-0"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: `rgb(var(--text-tertiary))` }}
-                    >
-                      #{ticket.ticket_number}
-                    </span>
-                    {ticket.creation_status === 'draft' && (
-                      <span
-                        className="text-xs px-1.5 py-0.5 rounded"
-                        style={{
-                          backgroundColor: 'rgba(156, 163, 175, 0.3)',
-                          color: 'rgb(var(--text-tertiary))',
-                        }}
-                      >
-                        DRAFT
-                      </span>
-                    )}
-                    {ticket.flow_enabled && ticket.creation_status === 'active' && (
-                      <span
-                        className="text-xs px-1.5 py-0.5 rounded"
-                        style={{
-                          backgroundColor: FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.bg || 'rgba(107, 114, 128, 0.18)',
-                          color: FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.text || 'rgb(75, 85, 99)',
-                        }}
-                      >
-                        {FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.label || 'Stopped'}
-                      </span>
-                    )}
-                  </div>
-                  <h4
-                    className="text-sm font-medium mt-1 truncate"
-                    style={{ color: `rgb(var(--text-primary))` }}
-                  >
-                    {ticket.title}
-                  </h4>
-                  {ticket.description && (
-                    <p
-                      className="text-xs mt-1 line-clamp-2"
-                      style={{ color: `rgb(var(--text-secondary))` }}
-                    >
-                      {ticket.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2">
-                    {ticket.assigned_to_user && (
-                      <span
-                        className="text-xs truncate"
-                        style={{ color: `rgb(var(--text-tertiary))` }}
-                      >
-                        {ticket.assigned_to_user.email}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+              ticket={ticket}
+              isSelected={selectedTicketIds.includes(ticket.id)}
+              isDragging={draggedTicketId === ticket.id}
+              selectedTicketIds={selectedTicketIds}
+              onSelect={onTicketSelect}
+              onDoubleClick={onTicketDoubleClick}
+              onDragStart={onTicketDragStart}
+            />
           ))
         )}
       </div>

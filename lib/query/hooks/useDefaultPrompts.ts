@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DEFAULT_PROMPTS } from '@/lib/utils/default-prompts'
+import { DEFAULT_PROMPTS } from '@/lib/utils/prompts'
 
 const WORKSPACE_SETTINGS_KEY = 'workspace-settings'
 

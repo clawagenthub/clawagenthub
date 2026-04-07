@@ -163,6 +163,9 @@ export interface Ticket {
   last_flow_check_at: string | null
   completed_at: string | null
   creation_status: TicketCreationStatus
+  is_sub_ticket: boolean
+  parent_ticket_id: string | null
+  waiting_finished_ticket_id: string | null
   created_at: string
   updated_at: string
 }
@@ -179,6 +182,9 @@ export interface TicketInsert {
   flowing_status?: TicketFlowingStatus
   flow_mode?: TicketFlowMode
   creation_status?: TicketCreationStatus
+  is_sub_ticket?: boolean
+  parent_ticket_id?: string | null
+  waiting_finished_ticket_id?: string | null
 }
 
 export interface TicketUpdate {
@@ -193,6 +199,9 @@ export interface TicketUpdate {
   last_flow_check_at?: string | null
   completed_at?: string | null
   creation_status?: TicketCreationStatus
+  is_sub_ticket?: boolean
+  parent_ticket_id?: string | null
+  waiting_finished_ticket_id?: string | null
 }
 
 // Ticket flow configuration (ticket-specific overrides)

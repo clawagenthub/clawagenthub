@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Modal } from './modal'
-import { DEFAULT_PROMPTS } from '@/lib/utils/default-prompts'
+import { DEFAULT_PROMPTS } from '@/lib/utils/prompts'
 import type { WorkspacePrompt } from '@/lib/query/hooks/useDefaultPrompts'
 
 interface LoadDefaultPromptsModalProps {

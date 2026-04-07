@@ -53,40 +53,41 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify ticket exists in workspace
-    const ticket = db.prepare(
-      'SELECT id FROM tickets WHERE id = ? AND workspace_id = ?'
-    ).get(ticketId, session.current_workspace_id) as { id: string } | undefined
+    const ticket = db
+      .prepare('SELECT id FROM tickets WHERE id = ? AND workspace_id = ?')
+      .get(ticketId, session.current_workspace_id) as { id: string } | undefined
 
     if (!ticket) {
-      return NextResponse.json(
-        { message: 'Ticket not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
     }
 
     // Get comments
-    const comments = db.prepare(`
+    const comments = db
+      .prepare(
+        `
       SELECT tc.*, u.email as author_email
       FROM ticket_comments tc
       LEFT JOIN users u ON tc.created_by = u.id
       WHERE tc.ticket_id = ?
       ORDER BY tc.created_at ASC
-    `).all(ticketId) as (TicketComment & {
+    `
+      )
+      .all(ticketId) as (TicketComment & {
       author_email: string
     })[]
 
     return NextResponse.json({
-      comments: comments.map(comment => ({
+      comments: comments.map((comment) => ({
         id: comment.id,
         content: comment.content,
         created_by: {
           id: comment.created_by,
-          email: comment.author_email
+          email: comment.author_email,
         },
         created_at: comment.created_at,
         updated_at: comment.updated_at,
-        is_agent_completion_signal: comment.is_agent_completion_signal
-      }))
+        is_agent_completion_signal: comment.is_agent_completion_signal,
+      })),
     })
   } catch (error) {
     console.error('Error fetching comments:', error)
@@ -129,14 +130,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { content, is_agent_completion_signal } = body
 
     // Validate content
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    if (
+      !content ||
+      typeof content !== 'string' ||
+      content.trim().length === 0
+    ) {
       return NextResponse.json(
         { message: 'Comment content is required' },
         { status: 400 }
       )
     }
 
-    if (content.length > 10000) {
+    if (content.length > 100000) {
       return NextResponse.json(
         { message: 'Comment must be 10000 characters or less' },
         { status: 400 }
@@ -158,15 +163,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify ticket exists in workspace
-    const ticket = db.prepare(
-      'SELECT id, status_id FROM tickets WHERE id = ? AND workspace_id = ?'
-    ).get(ticketId, session.current_workspace_id) as { id: string; status_id: string } | undefined
+    const ticket = db
+      .prepare(
+        'SELECT id, status_id FROM tickets WHERE id = ? AND workspace_id = ?'
+      )
+      .get(ticketId, session.current_workspace_id) as
+      | { id: string; status_id: string }
+      | undefined
 
     if (!ticket) {
-      return NextResponse.json(
-        { message: 'Ticket not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
     }
 
     const commentId = generateUserId()
@@ -204,28 +210,35 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
 
     // Get the created comment
-    const comment = db.prepare(`
+    const comment = db
+      .prepare(
+        `
       SELECT tc.*, u.email as author_email
       FROM ticket_comments tc
       LEFT JOIN users u ON tc.created_by = u.id
       WHERE tc.id = ?
-    `).get(commentId) as (TicketComment & {
+    `
+      )
+      .get(commentId) as TicketComment & {
       author_email: string
-    })
+    }
 
-    return NextResponse.json({
-      comment: {
-        id: comment.id,
-        content: comment.content,
-        created_by: {
-          id: comment.created_by,
-          email: comment.author_email
+    return NextResponse.json(
+      {
+        comment: {
+          id: comment.id,
+          content: comment.content,
+          created_by: {
+            id: comment.created_by,
+            email: comment.author_email,
+          },
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          is_agent_completion_signal: comment.is_agent_completion_signal,
         },
-        created_at: comment.created_at,
-        updated_at: comment.updated_at,
-        is_agent_completion_signal: comment.is_agent_completion_signal
-      }
-    }, { status: 201 })
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating comment:', error)
     return NextResponse.json(

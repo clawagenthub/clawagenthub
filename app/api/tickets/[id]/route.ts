@@ -187,7 +187,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
-    const { title, description, status_id, assigned_to, flow_enabled, creation_status, flow_mode } = body
+    const { title, description, status_id, assigned_to, flow_enabled, creation_status, flow_mode, isSubTicket, parentTicketId, waitingFinishedTicketId } = body
 
     const db = getDatabase()
 
@@ -298,6 +298,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       values.push(creation_status)
       oldValues.creation_status = existingTicket.creation_status || 'active'
       newValues.creation_status = creation_status
+    }
+
+    if (isSubTicket !== undefined) {
+      updates.push('is_sub_ticket = ?')
+      values.push(isSubTicket ? 1 : 0)
+      oldValues.is_sub_ticket = existingTicket.is_sub_ticket
+      newValues.is_sub_ticket = isSubTicket ? 1 : 0
+    }
+
+    if (parentTicketId !== undefined) {
+      updates.push('parent_ticket_id = ?')
+      values.push(parentTicketId || null)
+      oldValues.parent_ticket_id = existingTicket.parent_ticket_id
+      newValues.parent_ticket_id = parentTicketId
+    }
+
+    if (waitingFinishedTicketId !== undefined) {
+      updates.push('waiting_finished_ticket_id = ?')
+      values.push(waitingFinishedTicketId || null)
+      oldValues.waiting_finished_ticket_id = existingTicket.waiting_finished_ticket_id
+      newValues.waiting_finished_ticket_id = waitingFinishedTicketId
     }
 
     if (updates.length === 0) {

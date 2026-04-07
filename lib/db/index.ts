@@ -71,6 +71,7 @@ export function runMigrations(): void {
     '029_add_skills_tables.sql',
     '030_add_skills_path_columns.sql',
     '031_update_flowing_status_check.sql',
+    '033_add_sub_ticket_columns.sql',
   ]
 
   for (const file of migrationFiles) {
@@ -88,17 +89,24 @@ export function runMigrations(): void {
 
       try {
         db.exec(sql)
-        db.prepare('INSERT INTO migrations (name) VALUES (?)').run(migrationName)
+        db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
+          migrationName
+        )
         console.info(`✓ Migration ${migrationName} applied`)
       } catch (error: any) {
         // Handle idempotent-safe errors (column/table already exists)
         const errorMessage = error?.message || String(error)
         if (
           errorMessage.includes('duplicate column name') ||
-          errorMessage.includes('table') && errorMessage.includes('already exists')
+          (errorMessage.includes('table') &&
+            errorMessage.includes('already exists'))
         ) {
-          console.info(`ℹ️  Migration ${migrationName}: Object already exists, marking as applied`)
-          db.prepare('INSERT INTO migrations (name) VALUES (?)').run(migrationName)
+          console.info(
+            `ℹ️  Migration ${migrationName}: Object already exists, marking as applied`
+          )
+          db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
+            migrationName
+          )
           console.info(`✓ Migration ${migrationName} marked as applied`)
         } else {
           // Re-throw unexpected errors

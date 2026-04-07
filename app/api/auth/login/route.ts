@@ -3,12 +3,14 @@ import { getDatabase } from '@/lib/db/index.js'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifyPassword } from '@/lib/auth/password.js'
 import { createSession } from '@/lib/auth/session.js'
+import { generateUserId } from '@/lib/auth/token.js'
+import { seedDefaultStatuses } from '@/lib/db/seeder.js'
 import type { User } from '@/lib/db/schema.js'
 
 export async function POST(request: NextRequest) {
   const timestamp = new Date().toISOString()
   console.log(`\n🔐 [LOGIN API ${timestamp}] POST /api/auth/login`)
-  
+
   try {
     // Ensure database is initialized
     await ensureDatabase()
@@ -48,7 +50,9 @@ export async function POST(request: NextRequest) {
 
     const validPassword = await verifyPassword(password, user.password_hash)
 
-    console.log(`   ${validPassword ? '✅' : '❌'} Password verification: ${validPassword}`)
+    console.log(
+      `   ${validPassword ? '✅' : '❌'} Password verification: ${validPassword}`
+    )
 
     if (!validPassword) {
       console.log(`   ❌ Invalid password for: ${email}`)
@@ -60,7 +64,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`   ✅ Creating session for user: ${user.id}`)
     const session = createSession(user.id, origin)
-    console.log(`   ✅ Session created - Token: ${session.token.substring(0, 10)}...`)
+    console.log(
+      `   ✅ Session created - Token: ${session.token.substring(0, 10)}...`
+    )
     console.log(`   ✅ Session expires: ${session.expires_at}`)
     console.log(`   ✅ Session origin stored: ${origin || 'none'}`)
 
@@ -90,6 +96,45 @@ export async function POST(request: NextRequest) {
     console.log(`      - path: /`)
 
     console.log(`   ✅ Login successful for: ${email}`)
+
+    // Auto-create workspace for new users if they don't have one
+    const workspaces = db
+      .prepare(
+        `SELECT w.id FROM workspaces w
+       INNER JOIN workspace_members wm ON w.id = wm.workspace_id
+       WHERE wm.user_id = ?`
+      )
+      .all(user.id) as { id: string }[]
+
+    if (workspaces.length === 0) {
+      console.log(`   🌐 No workspace found, creating default workspace...`)
+      const workspaceId = generateUserId()
+      const memberId = generateUserId()
+      const now = new Date().toISOString()
+
+      // Create default workspace
+      db.prepare(
+        `INSERT INTO workspaces (id, name, owner_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`
+      ).run(workspaceId, 'Default Workspace', user.id, now, now)
+
+      // Add user as owner
+      db.prepare(
+        `INSERT INTO workspace_members (id, workspace_id, user_id, role, joined_at)
+         VALUES (?, ?, ?, 'owner', ?)`
+      ).run(memberId, workspaceId, user.id, now)
+
+      // Seed default statuses
+      seedDefaultStatuses(workspaceId)
+
+      // Set as current workspace
+      db.prepare(
+        `UPDATE sessions SET current_workspace_id = ? WHERE token = ?`
+      ).run(workspaceId, session.token)
+
+      console.log(`   ✅ Default workspace created: ${workspaceId}`)
+    }
+
     return response
   } catch (error) {
     console.error(`   ❌ Login error:`, error)
