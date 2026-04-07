@@ -10,6 +10,8 @@ import { GatewayCard } from '@/components/gateway/gateway-card'
 import { AddGatewayModal } from '@/components/gateway/add-gateway-modal'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
+import { DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE } from '@/lib/utils/prompts/autoTicketConverterPrompt'
+import { DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
 import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
@@ -63,6 +65,8 @@ function SettingsContent({ user }: PageContentProps) {
   const [promptTemplatesMessage, setPromptTemplatesMessage] = useState('')
   const [autoPromptTemplate, setAutoPromptTemplate] = useState('')
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState('')
+  const [autoPromptTemplateLoadMessage, setAutoPromptTemplateLoadMessage] = useState('')
+  const [selectedPromptTemplateLoadMessage, setSelectedPromptTemplateLoadMessage] = useState('')
 
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab | null
@@ -728,7 +732,20 @@ function SettingsContent({ user }: PageContentProps) {
             </div>
 
             <div className="space-y-2 mt-4">
-              <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Auto Prompt Template (Optional)</label>
+              <div className="flex items-center justify-between">
+                <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Auto Prompt Template (Optional)</label>
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-sm transition-colors"
+                  style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                  onClick={() => {
+                    setAutoPromptTemplate(DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE)
+                    setAutoPromptTemplateLoadMessage('Default loaded')
+                    setTimeout(() => setAutoPromptTemplateLoadMessage(''), 2000)
+                  }}
+                >
+                  {autoPromptTemplateLoadMessage || 'Load Default Template'}
+                </button>
+              </div>
               <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for Auto Prompt feature. Leave empty to use default. Variables: {'{$targetText}'}, {'{$promptFormats}'}</p>
               <textarea
                 className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
@@ -740,7 +757,20 @@ function SettingsContent({ user }: PageContentProps) {
             </div>
 
             <div className="space-y-2 mt-4">
-              <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Selected Prompt Template (Optional)</label>
+              <div className="flex items-center justify-between">
+                <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Selected Prompt Template (Optional)</label>
+                <button
+                  className="px-3 py-1.5 rounded-lg border text-sm transition-colors"
+                  style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                  onClick={() => {
+                    setSelectedPromptTemplate(DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE)
+                    setSelectedPromptTemplateLoadMessage('Default loaded')
+                    setTimeout(() => setSelectedPromptTemplateLoadMessage(''), 2000)
+                  }}
+                >
+                  {selectedPromptTemplateLoadMessage || 'Load Default Template'}
+                </button>
+              </div>
               <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Custom template for specific format conversion. Leave empty to use default. Variables: {'{$targetText}'}, {'{$selectedFormat}'}</p>
               <textarea
                 className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
