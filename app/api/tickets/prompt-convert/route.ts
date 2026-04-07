@@ -6,6 +6,7 @@ import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
 import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
+import { DEFAULT_PROMPTS } from '@/lib/utils/prompts'
 import { findClientForAgent } from '@/app/api/tickets/[ticketId]/flow/lib/find-client'
 
 function extractResponseText(response: any): string {
@@ -126,14 +127,29 @@ export async function POST(request: NextRequest) {
         selectedPromptTemplate
       )
     } else {
-      const promptRows = db.prepare('SELECT name, description FROM workspace_prompts WHERE workspace_id = ? ORDER BY created_at ASC').all(workspaceId) as Array<{ name: string; description: string | null }>
-      if (!promptRows.length) {
-        return NextResponse.json({ message: 'No prompt formats available. Add prompts in Settings → Default Prompts.' }, { status: 400 })
+      // Get prompts from workspace_settings table (key: workspace_prompts)
+      // This is stored as JSON, not as a separate database table
+      const workspacePromptsJson = settings.workspace_prompts || null
+      let promptFormats: Array<{ name: string; description: string }> = []
+
+      if (workspacePromptsJson) {
+        try {
+          const parsed = JSON.parse(workspacePromptsJson) as Array<{ name: string; description: string }>
+          promptFormats = parsed.map((p) => ({ name: p.name, description: p.description || '' }))
+        } catch {
+          promptFormats = []
+        }
       }
+
+      // Fall back to DEFAULT_PROMPTS if no custom prompts set
+      if (promptFormats.length === 0) {
+        promptFormats = DEFAULT_PROMPTS.map((p) => ({ name: p.name, description: p.description }))
+      }
+
       prompt = buildAutoTicketConverterPrompt(
         {
           targetText: targetText.trim(),
-          promptFormats: promptRows.map((row) => ({ name: row.name, description: row.description || '' })),
+          promptFormats,
         },
         autoPromptTemplate
       )
