@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     db.prepare(`
       INSERT INTO chat_sessions (
         id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       chatSessionId,
       auth.workspaceId,
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       agentId,
       agentName,
       sessionKey,
+      'idle',
       now,
       now,
       now

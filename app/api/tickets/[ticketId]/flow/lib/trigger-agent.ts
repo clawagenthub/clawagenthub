@@ -193,7 +193,7 @@ export async function triggerAgentForFlowStart(args: {
     db.prepare(`
       INSERT INTO chat_sessions (
         id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       newChatSessionId,
       workspaceId,
@@ -202,6 +202,7 @@ export async function triggerAgentForFlowStart(args: {
       effectiveAgentId,
       clientMatch.agentName || 'Agent',
       sessionKey,
+      'idle',
       now,
       now,
       now

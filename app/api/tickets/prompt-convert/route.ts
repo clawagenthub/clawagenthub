@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { randomUUID } from 'crypto'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
@@ -155,7 +156,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const agentSessionKey = `agent:${effectiveAgentId}:main`
+    // Generate new UUID session for each auto-prompt request (like status flow does)
+    const newSessionId = randomUUID()
+    const agentSessionKey = `agent:${effectiveAgentId}:${newSessionId}`
+    
+    // Create session in database for history tracking
+    const now = new Date().toISOString()
+    const agentName = client.getAgentName?.() || 'Prompt Converter'
+    db.prepare(`
+      INSERT INTO chat_sessions (
+        id, workspace_id, user_id, gateway_id, agent_id, agent_name,
+        session_key, status, last_activity_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      newSessionId,
+      workspaceId,
+      user.id,
+      effectiveGatewayId,
+      effectiveAgentId,
+      agentName,
+      agentSessionKey,
+      'idle',
+      now,
+      now,
+      now
+    )
+    
     const response = await client.sendChatMessageAndWait(agentSessionKey, prompt)
 
     if (response.error) {
