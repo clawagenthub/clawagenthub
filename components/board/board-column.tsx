@@ -2,30 +2,35 @@
 
 import React, { useState, useMemo } from 'react'
 import type { TicketWithRelations } from '@/lib/query/hooks'
-import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks'
+import {
+  useBulkStartTicketFlow,
+  useBulkStopTicketFlow,
+} from '@/lib/query/hooks'
 import { Toast } from '@/components/ui/toast'
 import { TicketCard } from './lib/ticket-card'
-import type { StartAllConfirmProps, StopAllConfirmProps } from './lib/board-types'
+import type {
+  StartAllConfirmProps,
+  StopAllConfirmProps,
+} from './lib/board-types'
 import logger, { logCategories } from '@/lib/logger/index.js'
-
 
 function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
   return (
     <div
-      className="mb-4 p-3 rounded-lg border"
+      className="mb-4 rounded-lg border p-3"
       style={{
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderColor: 'rgb(16, 185, 129)',
       }}
     >
-      <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+      <p className="mb-2 text-sm" style={{ color: `rgb(var(--text-primary))` }}>
         Start flow for {count} eligible ticket{count === 1 ? '' : 's'}?
       </p>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onConfirm}
-          className="px-3 py-1 text-xs rounded-md"
+          className="rounded-md px-3 py-1 text-xs"
           style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
         >
           Start All
@@ -33,8 +38,11 @@ function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1 text-xs rounded-md"
-          style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+          className="rounded-md px-3 py-1 text-xs"
+          style={{
+            backgroundColor: 'rgb(var(--border-color))',
+            color: 'rgb(var(--text-primary))',
+          }}
         >
           Cancel
         </button>
@@ -46,20 +54,20 @@ function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
 function StopAllConfirm({ count, onConfirm, onCancel }: StopAllConfirmProps) {
   return (
     <div
-      className="mb-4 p-3 rounded-lg border"
+      className="mb-4 rounded-lg border p-3"
       style={{
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderColor: 'rgb(239, 68, 68)',
       }}
     >
-      <p className="text-sm mb-2" style={{ color: `rgb(var(--text-primary))` }}>
+      <p className="mb-2 text-sm" style={{ color: `rgb(var(--text-primary))` }}>
         Stop flow for {count} flowing ticket{count === 1 ? '' : 's'}?
       </p>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onConfirm}
-          className="px-3 py-1 text-xs rounded-md"
+          className="rounded-md px-3 py-1 text-xs"
           style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
         >
           Stop All
@@ -67,8 +75,11 @@ function StopAllConfirm({ count, onConfirm, onCancel }: StopAllConfirmProps) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1 text-xs rounded-md"
-          style={{ backgroundColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+          className="rounded-md px-3 py-1 text-xs"
+          style={{
+            backgroundColor: 'rgb(var(--border-color))',
+            color: 'rgb(var(--text-primary))',
+          }}
         >
           Cancel
         </button>
@@ -88,6 +99,7 @@ function ColumnHeader({
   isSomeSelected,
   eligibleForFlowStart,
   eligibleForFlowStop,
+  allFlowingTickets,
   showStopAll,
   isBulkStartingFlow,
   isBulkStoppingFlow,
@@ -105,6 +117,7 @@ function ColumnHeader({
   isSomeSelected: boolean
   eligibleForFlowStart: TicketWithRelations[]
   eligibleForFlowStop: TicketWithRelations[]
+  allFlowingTickets: TicketWithRelations[]
   showStopAll: boolean
   isBulkStartingFlow: boolean
   isBulkStoppingFlow: boolean
@@ -113,7 +126,7 @@ function ColumnHeader({
   onStopAllClick: () => void
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="mb-4 flex items-center justify-between">
       <div className="flex items-center gap-2">
         {activeTicketsForSelection.length > 0 && (
           <input
@@ -123,21 +136,39 @@ function ColumnHeader({
               if (el) el.indeterminate = isSomeSelected
             }}
             onChange={(e) => onSelectAll(statusId, e.target.checked)}
-            className="w-4 h-4 rounded cursor-pointer"
+            className="h-4 w-4 cursor-pointer rounded"
             title="Select all in column"
           />
         )}
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-        <h3 className="font-semibold" style={{ color: `rgb(var(--text-primary))` }}>
+        <div
+          className="h-3 w-3 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+        <h3
+          className="font-semibold"
+          style={{ color: `rgb(var(--text-primary))` }}
+        >
           {title}
         </h3>
         {draftCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(156, 163, 175, 0.2)', color: 'rgb(var(--text-tertiary))' }}>
+          <span
+            className="rounded-full px-2 py-0.5 text-xs"
+            style={{
+              backgroundColor: 'rgba(156, 163, 175, 0.2)',
+              color: 'rgb(var(--text-tertiary))',
+            }}
+          >
             {draftCount} draft{draftCount !== 1 ? 's' : ''}
           </span>
         )}
         {selectedCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'rgb(59, 130, 246)' }}>
+          <span
+            className="rounded-full px-2 py-0.5 text-xs"
+            style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              color: 'rgb(59, 130, 246)',
+            }}
+          >
             {selectedCount} selected
           </span>
         )}
@@ -148,25 +179,35 @@ function ColumnHeader({
             type="button"
             onClick={onStopAllClick}
             disabled={isBulkStoppingFlow}
-            className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
+            className="rounded-md px-2 py-1 text-xs transition-colors disabled:opacity-50"
             style={{ backgroundColor: 'rgb(239, 68, 68)', color: 'white' }}
             title="Stop Flow for all flowing tickets"
           >
-            {isBulkStoppingFlow ? 'Stopping...' : `■ Stop All (${eligibleForFlowStop.length})`}
+            {isBulkStoppingFlow
+              ? 'Stopping...'
+              : `■ Stop All (${eligibleForFlowStop.length})`}
           </button>
-        ) : eligibleForFlowStart.length > 0 && (
-          <button
-            type="button"
-            onClick={onStartAllClick}
-            disabled={isBulkStartingFlow}
-            className="px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-50"
-            style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
-            title="Start Flow for all eligible tickets"
-          >
-            {isBulkStartingFlow ? 'Starting...' : `▶ Start All (${eligibleForFlowStart.length})`}
-          </button>
+        ) : (
+          eligibleForFlowStart.length > 0 && (
+            <button
+              type="button"
+              onClick={onStartAllClick}
+              disabled={isBulkStartingFlow}
+              className="rounded-md px-2 py-1 text-xs transition-colors disabled:opacity-50"
+              style={{ backgroundColor: 'rgb(16, 185, 129)', color: 'white' }}
+              title="Start Flow for all eligible tickets"
+            >
+              {isBulkStartingFlow
+                ? 'Starting...'
+                : `▶ Start All (${eligibleForFlowStart.length})`}
+            </button>
+          )
         )}
-        <button type="button" className="transition-colors" style={{ color: `rgb(var(--text-tertiary))` }}>
+        <button
+          type="button"
+          className="transition-colors"
+          style={{ color: `rgb(var(--text-tertiary))` }}
+        >
           ⋮
         </button>
       </div>
@@ -191,6 +232,7 @@ interface BoardColumnProps {
   isAllSelected?: boolean
   isSomeSelected?: boolean
   selectedCount?: number
+  allFlowingTickets?: TicketWithRelations[]
 }
 
 export function BoardColumn({
@@ -210,15 +252,21 @@ export function BoardColumn({
   isAllSelected = false,
   isSomeSelected = false,
   selectedCount = 0,
+  allFlowingTickets = [],
 }: BoardColumnProps) {
-  const { mutateAsync: bulkStartFlow, isPending: isBulkStartingFlow } = useBulkStartTicketFlow()
-  const { mutateAsync: bulkStopFlow, isPending: isBulkStoppingFlow } = useBulkStopTicketFlow()
+  const { mutateAsync: bulkStartFlow, isPending: isBulkStartingFlow } =
+    useBulkStartTicketFlow()
+  const { mutateAsync: bulkStopFlow, isPending: isBulkStoppingFlow } =
+    useBulkStopTicketFlow()
   const [showStartAllConfirm, setShowStartAllConfirm] = useState(false)
   const [showStopAllConfirm, setShowStopAllConfirm] = useState(false)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [toast, setToast] = useState<{
+    message: string
+    type: 'success' | 'error' | 'info'
+  } | null>(null)
 
   const visibleTickets = useMemo(() => {
-    const filtered = tickets.filter(ticket => {
+    const filtered = tickets.filter((ticket) => {
       if (ticket.creation_status === 'active') return true
       return showDrafts && ticket.creation_status === 'draft'
     })
@@ -229,22 +277,26 @@ export function BoardColumn({
     })
   }, [tickets, showDrafts])
 
-  const draftCount = tickets.filter(t => t.creation_status === 'draft').length
-  const activeTicketsForSelection = visibleTickets.filter(t => t.creation_status === 'active')
+  const draftCount = tickets.filter((t) => t.creation_status === 'draft').length
+  const activeTicketsForSelection = visibleTickets.filter(
+    (t) => t.creation_status === 'active'
+  )
 
   // Fix #1: exclude waiting_to_flow from eligibleForFlowStart
   const eligibleForFlowStart = visibleTickets.filter(
-    t => t.flow_enabled && 
-       t.creation_status === 'active' && 
-       t.flowing_status !== 'flowing' &&
-       t.flowing_status !== 'waiting_to_flow'
+    (t) =>
+      t.flow_enabled &&
+      t.creation_status === 'active' &&
+      t.flowing_status !== 'flowing' &&
+      t.flowing_status !== 'waiting_to_flow'
   )
 
   // Fix #2: include waiting_to_flow in eligibleForFlowStop and show Stop when ANY needs stopping
   const eligibleForFlowStop = visibleTickets.filter(
-    t => t.flow_enabled && 
-       t.creation_status === 'active' && 
-       (t.flowing_status === 'flowing' || t.flowing_status === 'waiting_to_flow')
+    (t) =>
+      t.flow_enabled &&
+      t.creation_status === 'active' &&
+      (t.flowing_status === 'flowing' || t.flowing_status === 'waiting_to_flow')
   )
 
   // Stop All takes priority - show when ANY ticket needs stopping
@@ -253,24 +305,31 @@ export function BoardColumn({
   const handleStartFlowAll = async () => {
     if (eligibleForFlowStart.length === 0) return
     try {
-      const ticketIds = eligibleForFlowStart.map(t => t.id)
+      const ticketIds = eligibleForFlowStart.map((t) => t.id)
       await bulkStartFlow(ticketIds)
       setShowStartAllConfirm(false)
     } catch (error) {
       logger.error('Failed to start flow for all tickets:', error)
-      setToast({ message: error instanceof Error ? error.message : 'Failed to start flow', type: 'error' })
+      setToast({
+        message:
+          error instanceof Error ? error.message : 'Failed to start flow',
+        type: 'error',
+      })
     }
   }
 
   const handleStopFlowAll = async () => {
     if (eligibleForFlowStop.length === 0) return
     try {
-      const ticketIds = eligibleForFlowStop.map(t => t.id)
+      const ticketIds = eligibleForFlowStop.map((t) => t.id)
       await bulkStopFlow(ticketIds)
       setShowStopAllConfirm(false)
     } catch (error) {
       logger.error('Failed to stop flow for all tickets:', error)
-      setToast({ message: error instanceof Error ? error.message : 'Failed to stop flow', type: 'error' })
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to stop flow',
+        type: 'error',
+      })
     }
   }
 
@@ -278,7 +337,7 @@ export function BoardColumn({
     <div
       onDragOver={onTicketDragOver}
       onDrop={(e) => onTicketDrop?.(e, id)}
-      className="w-full h-full rounded-lg p-4 border-2 transition-all"
+      className="h-full w-full rounded-lg border-2 p-4 transition-all"
       style={{
         backgroundColor: `rgb(var(--bg-secondary))`,
         borderColor: `rgb(var(--border-color))`,
@@ -295,6 +354,7 @@ export function BoardColumn({
         isSomeSelected={isSomeSelected}
         eligibleForFlowStart={eligibleForFlowStart}
         eligibleForFlowStop={eligibleForFlowStop}
+        allFlowingTickets={allFlowingTickets}
         showStopAll={showStopAll}
         isBulkStartingFlow={isBulkStartingFlow}
         isBulkStoppingFlow={isBulkStoppingFlow}
@@ -304,16 +364,29 @@ export function BoardColumn({
       />
 
       {showStartAllConfirm && (
-        <StartAllConfirm count={eligibleForFlowStart.length} onConfirm={handleStartFlowAll} onCancel={() => setShowStartAllConfirm(false)} />
+        <StartAllConfirm
+          count={eligibleForFlowStart.length}
+          onConfirm={handleStartFlowAll}
+          onCancel={() => setShowStartAllConfirm(false)}
+        />
       )}
       {showStopAllConfirm && (
-        <StopAllConfirm count={eligibleForFlowStop.length} onConfirm={handleStopFlowAll} onCancel={() => setShowStopAllConfirm(false)} />
+        <StopAllConfirm
+          count={eligibleForFlowStop.length}
+          onConfirm={handleStopFlowAll}
+          onCancel={() => setShowStopAllConfirm(false)}
+        />
       )}
 
-      <div className="space-y-2 min-h-[200px] max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
+      <div className="max-h-[calc(100vh-16rem)] min-h-[200px] space-y-2 overflow-y-auto pr-1">
         {visibleTickets.length === 0 ? (
-          <p className="text-sm text-center py-8" style={{ color: `rgb(var(--text-secondary))` }}>
-            {showDrafts && draftCount > 0 ? `No active tickets. ${draftCount} draft ticket${draftCount !== 1 ? 's' : ''} hidden.` : 'No tickets'}
+          <p
+            className="py-8 text-center text-sm"
+            style={{ color: `rgb(var(--text-secondary))` }}
+          >
+            {showDrafts && draftCount > 0
+              ? `No active tickets. ${draftCount} draft ticket${draftCount !== 1 ? 's' : ''} hidden.`
+              : 'No tickets'}
           </p>
         ) : (
           visibleTickets.map((ticket) => (
@@ -330,7 +403,13 @@ export function BoardColumn({
           ))
         )}
       </div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   )
 }

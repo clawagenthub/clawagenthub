@@ -1,11 +1,7 @@
 import '@/app/globals.css'
 import { ThemeProvider } from '@/lib/contexts/theme-context'
 import { QueryProvider } from '@/lib/query/provider'
-
-export const metadata = {
-  title: 'ClawAgentHub - Authentication Dashboard',
-  description: 'Secure authentication system with PocketBase-style setup',
-}
+import { metadata } from '@/lib/metadata'
 
 export default function RootLayout({
   children,

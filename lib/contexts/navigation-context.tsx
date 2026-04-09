@@ -9,14 +9,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-
-export type AppRoute = 'dashboard' | 'chat' | 'statuses' | 'skills' | 'profile' | 'settings'
-
-interface NavigationContextValue {
-  currentRoute: AppRoute
-  navigateTo: (route: AppRoute) => void
-  isActive: (route: AppRoute) => boolean
-}
+import { AppRoute, NavigationContextValue } from '@/lib/types/navigation-types'
 
 const NavigationContext = createContext<NavigationContextValue | undefined>(undefined)
 

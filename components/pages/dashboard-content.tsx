@@ -488,6 +488,9 @@ export function DashboardPageContent({ user }: PageContentProps) {
                     isAllSelected={isAllSelectedInColumnLocal(status.id)}
                     isSomeSelected={isSomeSelectedInColumnLocal(status.id)}
                     selectedCount={getColumnSelectedCountLocal(status.id)}
+                    allFlowingTickets={filteredTickets.filter(
+                      (t) => t.flowing_status === 'flowing'
+                    )}
                   />
                 </div>
               ))

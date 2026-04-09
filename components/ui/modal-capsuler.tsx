@@ -1,19 +1,7 @@
 'use client'
 
-import React, { useEffect, ReactNode } from 'react'
-
-export type ModalSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs'
-
-interface ModalCapsulerProps {
-  isOpen: boolean
-  onClose: () => void
-  size?: ModalSize
-  children: ReactNode
-  dismissible?: boolean
-  className?: string
-  showBackdrop?: boolean
-  backdropBlur?: boolean
-}
+import React, { useEffect } from 'react'
+import { ModalCapsulerProps, ModalCapsulerWithHeaderProps, ModalSize } from '@/lib/types/modal-types'
 
 const sizeStyles: Record<ModalSize, { width: string; height: string; maxHeight: string }> = {
   xl: { width: '80%', height: '80%', maxHeight: '80vh' },
@@ -104,16 +92,6 @@ export function ModalCapsuler({
   )
 }
 
-// Wrapper component that includes header with close button
-interface ModalCapsulerWithHeaderProps extends Omit<ModalCapsulerProps, 'children'> {
-  title: string
-  subtitle?: string
-  children: ReactNode
-  showCloseButton?: boolean
-  headerClassName?: string
-  contentClassName?: string
-}
-
 export function ModalCapsulerWithHeader({
   isOpen,
   onClose,
@@ -182,16 +160,3 @@ export function ModalCapsulerWithHeader({
   )
 }
 
-// Convenience function to create modal with specific size
-export function createModal(size: ModalSize) {
-  return function ModalComponent(props: Omit<ModalCapsulerProps, 'size'>) {
-    return <ModalCapsuler {...props} size={size} />
-  }
-}
-
-// Pre-sized modal components
-export const ModalXL = createModal('xl')
-export const ModalLG = createModal('lg')
-export const ModalMD = createModal('md')
-export const ModalSM = createModal('sm')
-export const ModalXS = createModal('xs')
