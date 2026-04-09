@@ -4,7 +4,7 @@ import {
   initLokiClient,
   getLokiClient,
 } from './loki-client.js'
-import { formatMessage, type LogOptions, type LoggerApi } from './shared.js'
+import { formatMessage, type LogOptions, type LoggerApi, type ErrorMetadata } from './shared.js'
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'debug'
 const NODE_ENV = process.env.NODE_ENV || 'development'
@@ -28,7 +28,8 @@ async function sendToLoki(
   level: string,
   category: string,
   message: string,
-  retention: LogOptions['retention']
+  retention: LogOptions['retention'],
+  errorMetadata?: ErrorMetadata | null
 ): Promise<void> {
   if (!LOKI_ENABLED || !loki) return
 
@@ -43,6 +44,7 @@ async function sendToLoki(
       service: LOKI_SERVICE_NAME,
     },
     retentionClass: retention ?? 'short',
+    errorMetadata,
   }
 
   await loki.push([entry])
@@ -53,14 +55,15 @@ class ServerLogger implements LoggerApi {
     level: 'info' | 'error' | 'warn' | 'debug' | 'trace',
     opts: LogOptions,
     message: string,
-    args: unknown[]
+    args: unknown[],
+    errorMetadata?: ErrorMetadata | null
   ): void {
     const formattedMessage = formatMessage(message, args)
     pinoLogger[level](
       { category: opts.category },
       `${opts.category} ${formattedMessage}`
     )
-    sendToLoki(level, opts.category, formattedMessage, opts.retention).catch(
+    sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata).catch(
       () => {}
     )
   }

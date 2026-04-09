@@ -1,10 +1,12 @@
 import type { RetentionClass } from './shared.js'
+import type { ErrorMetadata } from './shared.js'
 
 export interface LokiLogEntry {
   timestamp: number
   message: string
   labels: Record<string, string>
   retentionClass?: RetentionClass
+  errorMetadata?: ErrorMetadata
 }
 
 export interface LokiClientOptions {
@@ -96,7 +98,17 @@ export class LokiClient {
       if (!streams[labelKey]) {
         streams[labelKey] = { stream: labels, values: [] }
       }
-      streams[labelKey].values.push([String(log.timestamp), log.message])
+
+      // Build message with optional error metadata for Grafana queries
+      let message = log.message
+      if (log.errorMetadata) {
+        const meta = log.errorMetadata
+        const sourceInfo = meta.source.file
+          ? ` (${meta.source.function || 'unknown'}@${meta.source.file}:${meta.source.line}:${meta.source.column})`
+          : ''
+        message = `${message}${sourceInfo} | error_name=${meta.name} error_msg=${meta.message} error_stack=${meta.stack || 'none'} error_ts=${meta.timestamp}`
+      }
+      streams[labelKey].values.push([String(log.timestamp), message])
     }
 
     const payload = {

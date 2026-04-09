@@ -1,5 +1,20 @@
 export type RetentionClass = 'short' | 'medium' | 'long'
 
+export interface ErrorSource {
+  file: string | null
+  line: number | null
+  column: number | null
+  function: string | null
+}
+
+export interface ErrorMetadata {
+  name: string
+  message: string
+  stack: string | undefined
+  source: ErrorSource
+  timestamp: string
+}
+
 export enum logCategories {
   WAITING_TO_FLOW_SERVICE = '[WaitingToFlowService]',
   FLOW_AUTO_FINISH = '[FlowAutoFinish]',

@@ -4,7 +4,9 @@ import {
   type LogOptions,
   type LoggerApi,
   type RetentionClass,
+  type ErrorMetadata,
 } from './shared.js'
+import { extractErrorMetadataDeep } from './error-metadata.js'
 
 type LoggerMethod = 'info' | 'error' | 'warn' | 'debug' | 'verbose' | 'silly'
 
@@ -28,7 +30,11 @@ class UniversalLogger implements LoggerApi {
     optsOrMessage: LogOptions | string,
     messageOrArg: unknown,
     args: unknown[]
-  ): { opts: LogOptions; message: string; args: unknown[] } {
+  ): { opts: LogOptions; message: string; args: unknown[]; errorMetadata: ErrorMetadata | null } {
+    // Extract error metadata from the arguments
+    const errorMetadata = extractErrorMetadataDeep(messageOrArg)
+      || extractErrorMetadataDeep(args)
+
     if (
       optsOrMessage &&
       typeof optsOrMessage === 'object' &&
@@ -37,13 +43,14 @@ class UniversalLogger implements LoggerApi {
       const opts = optsOrMessage as LogOptions
 
       if (typeof messageOrArg === 'string') {
-        return { opts, message: messageOrArg, args }
+        return { opts, message: messageOrArg, args, errorMetadata }
       }
 
       return {
         opts,
         message: String(messageOrArg ?? ''),
         args,
+        errorMetadata,
       }
     }
 
@@ -51,6 +58,7 @@ class UniversalLogger implements LoggerApi {
       opts: { category: logCategories.SYSTEM },
       message: String(optsOrMessage ?? ''),
       args: [messageOrArg, ...args].filter((v) => v !== undefined),
+      errorMetadata,
     }
   }
 
@@ -76,7 +84,8 @@ class UniversalLogger implements LoggerApi {
         serverLogger[method](
           normalized.opts,
           normalized.message,
-          ...normalized.args
+          ...normalized.args,
+          normalized.errorMetadata
         )
       })
       .catch(() => {
@@ -116,5 +125,5 @@ class UniversalLogger implements LoggerApi {
 const logger = new UniversalLogger()
 
 export { logCategories }
-export type { RetentionClass }
+export type { RetentionClass, ErrorMetadata, ErrorSource }
 export default logger
