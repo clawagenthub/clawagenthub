@@ -474,7 +474,11 @@ export function TicketModal({
       }
 
       const result = onSubmit(payload, switchToView)
-      const maybeTicket = result instanceof Promise ? await result : null
+      const submitPromise = result instanceof Promise ? result : Promise.resolve(result)
+      const maybeTicket = await Promise.all([
+        submitPromise,
+        new Promise(resolve => setTimeout(resolve, 150))
+      ]).then(([ticket]) => ticket)
 
       const resolvedTicketId = maybeTicket?.id || submitTicketId
       if (resolvedTicketId && descriptionAttachments.length > 0) {
