@@ -8,8 +8,22 @@ import logger, { logCategories } from '@/lib/logger/index.js'
  * Find a connected client for the specified agent
  */
 export async function findClientForAgent(workspaceId: string, agentId: string): Promise<AgentClientMatch | null> {
-  const db = getDatabase()
-  const manager = getGatewayManager()
+  let db
+  try {
+    db = getDatabase()
+  } catch (err) {
+    logger.error(`[findClientForAgent] Database not available:`, err)
+    return null
+  }
+
+  let manager
+  try {
+    manager = getGatewayManager()
+  } catch (err) {
+    logger.error(`[findClientForAgent] Gateway manager not available:`, err)
+    return null
+  }
+
   const gateways = db.prepare(
     'SELECT id, name FROM gateways WHERE workspace_id = ? ORDER BY created_at ASC'
   ).all(workspaceId) as Array<{ id: string; name: string }>

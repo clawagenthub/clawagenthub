@@ -69,7 +69,7 @@ function ReactiveDashboardContent({ user, noPadding }: ReactiveDashboardLayoutPr
         className={`flex-1 flex flex-col overflow-hidden ${mainPadding}`}
         style={{ color: `rgb(var(--text-primary))` }}
       >
-        <PageContent {...pageContentProps} />
+        <PageContent key={router.asPath} {...pageContentProps} />
       </main>
     </div>
   )

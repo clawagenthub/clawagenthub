@@ -23,7 +23,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const sessionToken = request.cookies.get('session_token')?.value
+  // Extract sessionToken from URL path pattern for compound routes
+  // Pattern: /api/tickets/{ticketId}_{sessionToken}/action
+  let sessionToken = request.cookies.get('session_token')?.value
+  
+  if (!sessionToken && pathname.startsWith('/api/tickets/')) {
+    // Try to extract session from compound URL pattern: /api/tickets/{ticketId}_{sessionToken}/...
+    const compoundMatch = pathname.match(/\/api\/tickets\/[a-zA-Z0-9_-]+_([a-zA-Z0-9_-]+)\//)
+    if (compoundMatch) {
+      sessionToken = compoundMatch[1]
+    }
+  }
+  
   logger.info({ category: logCategories.MIDDLEWARE }, 'Session token present: %s', String(!!sessionToken))
   if (sessionToken) {
     logger.debug({ category: logCategories.MIDDLEWARE }, 'Token preview: %s...', sessionToken.substring(0, 10))
