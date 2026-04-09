@@ -133,12 +133,12 @@ export async function POST(request: NextRequest) {
       // Get prompts from workspace_settings table (key: workspace_prompts)
       // This is stored as JSON, not as a separate database table
       const workspacePromptsJson = settings.workspace_prompts || null
-      let promptFormats: Array<{ name: string; description: string }> = []
+      let promptFormats: Array<{ name: string; description: string; value: string }> = []
 
       if (workspacePromptsJson) {
         try {
-          const parsed = JSON.parse(workspacePromptsJson) as Array<{ name: string; description: string }>
-          promptFormats = parsed.map((p) => ({ name: p.name, description: p.description || '' }))
+          const parsed = JSON.parse(workspacePromptsJson) as Array<{ name: string; description: string; value: string }>
+          promptFormats = parsed.map((p) => ({ name: p.name, description: p.description || '', value: p.value || '' }))
         } catch {
           promptFormats = []
         }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
       // Fall back to DEFAULT_PROMPTS if no custom prompts set
       if (promptFormats.length === 0) {
-        promptFormats = DEFAULT_PROMPTS.map((p) => ({ name: p.name, description: p.description }))
+        promptFormats = DEFAULT_PROMPTS.map((p) => ({ name: p.name, description: p.description, value: p.value }))
       }
 
       prompt = buildAutoTicketConverterPrompt(

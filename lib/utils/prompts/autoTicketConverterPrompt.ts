@@ -11,6 +11,7 @@ export interface AutoTicketConverterPromptParams {
   promptFormats: Array<{
     name: string
     description: string
+    value: string
   }>
 }
 
@@ -34,15 +35,19 @@ export function buildAutoTicketConverterPrompt(
   template: string = DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE
 ): string {
   const { targetText, promptFormats } = params
-  
-  const formatsText = promptFormats
-    .map((format, index) => `${index + 1}. **${format.name}**
-   ${format.description}`)
-    .join('\n\n')
+
+  // Serialize as JSON array with renamed keys (description -> desc)
+  const formatsJson = JSON.stringify(
+    promptFormats.map((format) => ({
+      name: format.name,
+      desc: format.description,
+      value: format.value,
+    }))
+  )
 
   return template
     .replace('{$targetText}', targetText)
-    .replace('{$promptFormats}', formatsText)
+    .replace('{$promptFormats}', formatsJson)
 }
 
 /**
