@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function POST(request: NextRequest) {

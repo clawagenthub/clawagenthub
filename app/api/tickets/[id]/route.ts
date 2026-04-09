@@ -5,7 +5,7 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import type { Ticket, TicketAuditLog, TicketFlowConfig } from '@/lib/db/schema.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 interface RouteParams {

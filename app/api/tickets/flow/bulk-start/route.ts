@@ -5,7 +5,7 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { triggerAgentForFlowStart } from '../../[ticketId]/flow/lib/trigger-agent'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // Start first availableSlots tickets, rest go to waiting_to_flow

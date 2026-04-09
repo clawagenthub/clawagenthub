@@ -3,7 +3,7 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getWebSocketManager } from '@/lib/websocket/manager'
 import type { SessionStatus } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function PATCH(

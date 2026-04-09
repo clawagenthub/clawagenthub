@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { GatewayClient } from '@/lib/gateway/client'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // Common localhost URLs to try (only localhost and 127.0.0.1)

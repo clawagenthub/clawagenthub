@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const timestamp = new Date().toISOString()
   logger.debug(`\n👤 [AUTH ME API ${timestamp}] GET /api/auth/me`)
   

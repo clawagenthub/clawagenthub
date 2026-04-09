@@ -6,7 +6,7 @@ import { getDatabase } from '@/lib/db/index'
 import { triggerAgentForFlowStart } from './lib/trigger-agent'
 import { processFlowPost } from './lib/process-post'
 import type { Ticket } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 interface RouteParams {

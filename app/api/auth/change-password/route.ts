@@ -5,7 +5,7 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifyPassword, hashPassword, validatePassword } from '@/lib/auth/password.js'
 import { getUserFromSession, deleteUserSessions, createSession } from '@/lib/auth/session.js'
 import type { User } from '@/lib/db/schema.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function POST(request: NextRequest) {

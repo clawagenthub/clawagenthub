@@ -1,7 +1,7 @@
 import type { AgentClientMatch } from './flow-types.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 /**

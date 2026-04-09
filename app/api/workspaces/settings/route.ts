@@ -4,7 +4,7 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // GET /api/workspaces/settings - Fetch all settings for current workspace

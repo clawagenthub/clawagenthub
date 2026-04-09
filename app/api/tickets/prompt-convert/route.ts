@@ -9,7 +9,7 @@ import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketCo
 import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import { DEFAULT_PROMPTS } from '@/lib/utils/prompts'
 import { findClientForAgent } from '@/app/api/tickets/[ticketId]/flow/lib/find-client'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 function extractResponseText(response: any): string {

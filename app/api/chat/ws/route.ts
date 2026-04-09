@@ -6,7 +6,7 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace } from '@/lib/auth/api-auth'
 import { getSessionStatusTracker } from '@/lib/session/status-tracker'
 import { getInstanceManager } from '@/lib/gateway/instance-manager'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // WebSocket server instance

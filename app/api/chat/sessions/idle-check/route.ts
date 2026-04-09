@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 /**

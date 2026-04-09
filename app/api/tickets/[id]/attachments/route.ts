@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { storeAttachments, type StoredAttachmentInput } from '@/lib/attachments'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function POST(

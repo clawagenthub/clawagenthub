@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getStreamingChatService } from '@/lib/streaming/chat-service'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 /**

@@ -3,7 +3,7 @@ import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { AgentInfo } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 function modelHasImageRecognition(model: unknown): boolean {

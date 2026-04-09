@@ -2,7 +2,8 @@
 
 import React from 'react'
 import { Modal } from '@/components/ui/modal'
-import { StatusForm, STATUS_COLORS } from './status-form'
+import { StatusForm } from './status-form'
+import { STATUS_COLORS } from '@/lib/types/status-form-types'
 import type { Status } from '@/lib/db/schema'
 
 interface StatusModalProps {

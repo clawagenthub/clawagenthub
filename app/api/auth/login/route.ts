@@ -6,7 +6,7 @@ import { createSession } from '@/lib/auth/session.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { seedDefaultStatuses } from '@/lib/db/seeder.js'
 import type { User } from '@/lib/db/schema.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function POST(request: NextRequest) {

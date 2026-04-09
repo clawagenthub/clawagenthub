@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { createSuperuser } from '@/lib/setup/index.js'
 import { setupSchema, validateSetupPasswords } from '@/lib/utils/validation.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 export async function POST(request: NextRequest) {

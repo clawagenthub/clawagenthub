@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 interface AgentToolRequest {

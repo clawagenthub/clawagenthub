@@ -3,10 +3,10 @@ import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatSession } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const db = getDatabase()
     const body = await request.json()
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const db = getDatabase()
 

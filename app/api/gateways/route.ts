@@ -3,7 +3,7 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { GatewayClient } from '@/lib/gateway/client'
 import type { Gateway } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // GET /api/gateways - List all gateways for the current workspace

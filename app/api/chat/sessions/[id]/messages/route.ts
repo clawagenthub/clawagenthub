@@ -5,7 +5,7 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { storeAttachments, type StoredAttachmentInput } from '@/lib/attachments'
 import type { ChatMessage, ChatContentBlock } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 /**

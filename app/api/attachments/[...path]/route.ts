@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 // Serve files from temp/photos directory

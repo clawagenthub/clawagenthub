@@ -4,7 +4,7 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatMessage } from '@/lib/db/schema'
 import { mergeMessages, getStats } from './lib/message-merge'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from "@/lib/logger/index.js"
 
 
 /**
