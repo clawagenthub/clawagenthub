@@ -8,10 +8,59 @@ IF roled defined on task_todo, you must do do it your part of your agent.
 If you think on this ticket your service not needed do nothing just add comment why is not needed.
 
 You are {$agentId}.
-Your responsible status as a agent: {$currentStatusName} 
+Your responsible status as a agent: {$currentStatusName}
 Status objective/description: {$currentStatusDescription}
 Status instructions override: {$statusInstructions}
 Temp file path: {$tempPath}
+
+FLOW CONFIGURATION:
+$name = "{$flowName}"  // Flow configuration name
+$flowMode = {$flowMode}  // "automatic" | "manual"
+$statusId = {$currentStatusId}  // Current status ID (1=waiting, 2=finished)
+
+$flowConfig = {$flowConfigArray}
+  // Array of flow step configurations:
+  // [
+  //   {
+  //     statusId: string,           // Status ID for this step
+  //     statusName: string,         // Human-readable status name
+  //     flowOrder: number,          // Sequence order (1, 2, 3...)
+  //     agentId: string,            // Agent responsible for this step
+  //     onFailedGoto: string | null, // Status to goto on failure, null=stop
+  //     askApproveToContinue: boolean // Pause for manual approval
+  //   }
+  // ]
+
+STATUS ID MAPPINGS:
+| status_id           | Name            | Description                         |
+| ------------------- | --------------- | ----------------------------------- |
+| waiting             | Waiting         | Initial flow state                  |
+| finished            | Finished        | Flow step completed                 |
+| flowing             | Flowing         | Currently executing flow step        |
+| failed              | Failed          | Flow step failed                    |
+| waiting_to_flow     | Waiting to Flow | Waiting to start flow               |
+| stopped             | Stopped         | Flow stopped                        |
+| completed           | Completed       | Entire flow completed               |
+
+API AUTHENTICATION:
+- Session token from cookie: Cookie: session_token=<token>
+- OpenClaw gateway token: Authorization: Bearer <token>
+
+TICKET API ENDPOINTS (Session-Token Based):
+1) POST /api/{$sessionToken}/ticket/create - Create ticket
+   body: { "title": "...", "description": "...", "statusId": 1, "flowEnabled": true, "flowMode": "automatic" }
+2) GET /api/{$sessionToken}/ticket/details?ticketId={$ticketId} - Get ticket details
+3) PATCH /api/{$sessionToken}/ticket/update - Update ticket
+   body: { "ticketId": "...", "statusId": 2 }
+4) DELETE /api/{$sessionToken}/ticket/delete?ticketId={$ticketId} - Delete ticket
+
+FLOW CONTROL ENDPOINTS:
+5) POST /api/{$sessionToken}/ticket/{$ticketId}/finished - Complete current step
+   body: { "notes": "Completed step. Summary: ..." }
+6) POST /api/{$sessionToken}/ticket/{$ticketId}/failed - Mark step failed
+   body: { "notes": "Failed. Blocker: ...", "onFailedGoto": "1" }
+7) POST /api/{$sessionToken}/ticket/{$ticketId}/pause - Pause flow
+   body: { "notes": "Paused for input. Question: ..." }
 
 Task:
 {$ticketJson}
@@ -38,17 +87,22 @@ Session Token : {$sessionToken}
      "content": "[Agent {$agentId}] Status={$currentStatusName} | I implemented X, validated Y, next step is Z.",
      "is_agent_completion_signal": false
    }
-5) POST /api/tickets/{$ticketId}_{$sessionToken}/finished
+5) POST /api/tickets/{$ticketId}_{$sessionToken}/next
+   body example:
+   {
+     "notes": "Advanced to next stage. Summary: <current stage outcome>."
+   }
+6) POST /api/tickets/{$ticketId}_{$sessionToken}/finished
    body example:
    {
      "notes": "Completed this status. Summary: <what you did>, Evidence: <tests/checks>, Handoff: <next status context>."
    }
-6) POST /api/tickets/{$ticketId}_{$sessionToken}/failed
+7) POST /api/tickets/{$ticketId}_{$sessionToken}/failed
    body example:
    {
      "notes": "Failed on this status. Blocker: <reason>. Attempted: <what you tried>. Needs: <what is required>."
    }
-7) POST /api/tickets/{$ticketId}_{$sessionToken}/pause
+8) POST /api/tickets/{$ticketId}_{$sessionToken}/pause
    body example:
    {
      "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
@@ -59,23 +113,23 @@ Note: every ticket when created needs to check is flow confugration needed?,
 Is this ticket subticket of some ticket ?
 is this ticket flow is automatic or manual ?
 Is this needs to start immedately or not ? if not status should be waiting if start immediately status should be waiting to flow.
-8) GET /api/tickets -> get all tickets for current workspace
-9) POST /api/tickets -> create a new ticket
+9) GET /api/tickets -> get all tickets for current workspace
+10) POST /api/tickets -> create a new ticket
    body example:
    {
      "title": "Ticket title",
      "description": "Ticket description",
      "statusId": 1
    }
-10) GET /api/tickets/{$ticketId} -> get ticket details by ID
-11) PATCH /api/tickets/{$ticketId} -> update ticket fields
+11) GET /api/tickets/{$ticketId} -> get ticket details by ID
+12) PATCH /api/tickets/{$ticketId} -> update ticket fields
    body example:
    {
      "title": "Updated title",
      "description": "Updated description",
      "statusId": 2
    }
-12) DELETE /api/tickets/{$ticketId} -> delete a ticket
+13) DELETE /api/tickets/{$ticketId} -> delete a ticket
 
 Execution policy:
 - Perform work for this status using your skills.
