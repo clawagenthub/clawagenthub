@@ -18,6 +18,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface Status {
   id: string
@@ -284,7 +286,7 @@ export function StatusFlowBuilder({
   disabled = false,
 }: StatusFlowBuilderProps) {
   const buildItemsFromConfigs = (configs: FlowConfig[]) => {
-    console.log('[StatusFlowBuilder] buildItemsFromConfigs input', {
+    logger.debug('[StatusFlowBuilder] buildItemsFromConfigs input', {
       statusesCount: statuses.length,
       configsCount: configs.length,
       configStatusIds: configs.map(c => c.status_id),
@@ -295,7 +297,7 @@ export function StatusFlowBuilder({
       configs.some(c => c.status_id === s.id && c.is_included !== false)
     )
 
-    console.log('[StatusFlowBuilder] matched statuses for configs', {
+    logger.debug('[StatusFlowBuilder] matched statuses for configs', {
       matchedCount: includedStatuses.length,
       matchedStatusIds: includedStatuses.map(s => s.id),
     })
@@ -322,7 +324,7 @@ export function StatusFlowBuilder({
 
   useEffect(() => {
     const nextItems = buildItemsFromConfigs(initialConfigs)
-    console.log('[StatusFlowBuilder] syncing local items from props', {
+    logger.debug('[StatusFlowBuilder] syncing local items from props', {
       nextItemsCount: nextItems.length,
       nextItemStatusIds: nextItems.map(item => item.status.id),
     })
@@ -330,7 +332,7 @@ export function StatusFlowBuilder({
   }, [statuses, initialConfigs])
 
   useEffect(() => {
-    console.log('[StatusFlowBuilder] items state changed', {
+    logger.debug('[StatusFlowBuilder] items state changed', {
       itemsCount: items.length,
       itemStatusIds: items.map(item => item.status.id),
     })

@@ -1,5 +1,5 @@
-import type { IncomingMessage } from 'http'
 import type { WebSocket } from 'ws'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 interface Client {
   ws: WebSocket
@@ -16,14 +16,14 @@ class WebSocketManager {
       userId,
       subscribedSessions: new Set(),
     })
-    console.log(`[WSManager] Client ${clientId} connected (user: ${userId})`)
+    logger.info({ category: logCategories.WS_MANAGER }, 'Client %s connected (user: %s)', clientId, userId)
   }
 
   removeClient(clientId: string) {
     const client = this.clients.get(clientId)
     if (client) {
       this.clients.delete(clientId)
-      console.log(`[WSManager] Client ${clientId} disconnected`)
+      logger.info({ category: logCategories.WS_MANAGER }, 'Client %s disconnected', clientId)
     }
   }
 
@@ -31,7 +31,7 @@ class WebSocketManager {
     const client = this.clients.get(clientId)
     if (client) {
       client.subscribedSessions.add(sessionId)
-      console.log(`[WSManager] Client ${clientId} subscribed to session ${sessionId}`)
+      logger.info({ category: logCategories.WS_MANAGER }, 'Client %s subscribed to session %s', clientId, sessionId)
     }
   }
 
@@ -39,7 +39,7 @@ class WebSocketManager {
     const client = this.clients.get(clientId)
     if (client) {
       client.subscribedSessions.delete(sessionId)
-      console.log(`[WSManager] Client ${clientId} unsubscribed from session ${sessionId}`)
+      logger.info({ category: logCategories.WS_MANAGER }, 'Client %s unsubscribed from session %s', clientId, sessionId)
     }
   }
 
@@ -52,13 +52,13 @@ class WebSocketManager {
           client.ws.send(JSON.stringify(message))
           sentCount++
         } catch (error) {
-          console.error(`[WSManager] Failed to send to client ${clientId}:`, error)
+          logger.error({ category: logCategories.WS_MANAGER }, 'Failed to send to client %s: %s', clientId, String(error))
         }
       }
     }
     
     if (sentCount > 0) {
-      console.log(`[WSManager] Broadcast to ${sentCount} clients for session ${sessionId}`)
+      logger.debug({ category: logCategories.WS_MANAGER }, 'Broadcast to %s clients for session %s', sentCount, sessionId)
     }
   }
 
@@ -71,7 +71,6 @@ class WebSocketManager {
   }
 }
 
-// Singleton instance
 let wsManager: WebSocketManager | null = null
 
 export function getWebSocketManager(): WebSocketManager {

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { AgentSelector } from './agent-selector'
 import { useCreateSession } from '@/lib/query/hooks/useChat'
 import { useGatewayAgents, useGatewayConnection } from '@/lib/hooks/useGatewayService'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export function NewChatPanel({ onStartChat }: { onStartChat: (sessionId: string) => void }) {
   // Use GatewayService hooks for agents and connection status
@@ -21,7 +23,7 @@ export function NewChatPanel({ onStartChat }: { onStartChat: (sessionId: string)
       
       onStartChat(session.id)
     } catch (error) {
-      console.error('Failed to create session:', error)
+      logger.error('Failed to create session:', error)
     }
   }
 

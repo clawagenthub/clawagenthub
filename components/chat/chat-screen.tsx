@@ -7,6 +7,8 @@ import { TypingIndicator } from './typing-indicator'
 import { useChatMessages, useSendMessage } from '@/lib/query/hooks/useChat'
 import { useChatWebSocket, type WSEvent } from '@/lib/hooks/useChatWebSocket'
 import type { ChatSession, MCPActivity } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface ChatScreenProps {
   session: ChatSession
@@ -62,7 +64,7 @@ export function ChatScreen({ session }: ChatScreenProps) {
         content,
       })
     } catch (error) {
-      console.error('Failed to send message:', error)
+      logger.error('Failed to send message:', error)
       alert('Failed to send message')
     }
   }

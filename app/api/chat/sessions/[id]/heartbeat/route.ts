@@ -3,6 +3,8 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getWebSocketManager } from '@/lib/websocket/manager'
 import type { SessionStatus } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * POST /api/chat/sessions/[id]/heartbeat
@@ -14,14 +16,14 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('[Heartbeat API] Received heartbeat for session:', params.id)
+    logger.debug('[Heartbeat API] Received heartbeat for session:', params.id)
     const db = getDatabase()
     const sessionId = params.id
 
     // Use global auth utility
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      console.error('[Heartbeat API] Auth failed')
+      logger.error('[Heartbeat API] Auth failed')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
 
@@ -34,11 +36,11 @@ export async function POST(
       } | undefined
 
     if (!chatSession) {
-      console.error('[Heartbeat API] Session not found:', sessionId)
+      logger.error('[Heartbeat API] Session not found:', sessionId)
       return NextResponse.json({ error: 'Chat session not found' }, { status: 404 })
     }
 
-    console.log('[Heartbeat API] Current session status:', chatSession.status)
+    logger.debug('[Heartbeat API] Current session status:', chatSession.status)
 
     const now = new Date().toISOString()
 
@@ -49,7 +51,7 @@ export async function POST(
       WHERE id = ?
     `).run(now, now, sessionId)
 
-    console.log('[Heartbeat API] Updated session to active, changes:', result.changes)
+    logger.debug('[Heartbeat API] Updated session to active, changes:', result.changes)
 
     // Broadcast status update via WebSocket
     const manager = getWebSocketManager()
@@ -59,14 +61,14 @@ export async function POST(
       status: 'active',
     })
 
-    console.log('[Heartbeat API] Heartbeat successful for session:', sessionId, 'status=active')
+    logger.debug('[Heartbeat API] Heartbeat successful for session:', sessionId, 'status=active')
     return NextResponse.json({
       success: true,
       status: 'active',
       last_activity_at: now
     })
   } catch (error) {
-    console.error('[Chat API] Error updating session heartbeat:', error)
+    logger.error('[Chat API] Error updating session heartbeat:', error)
     return NextResponse.json(
       { error: 'Failed to update session heartbeat' },
       { status: 500 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface UseSessionActivityOptions {
   sessionId: string | null
@@ -23,27 +25,27 @@ export function useSessionActivity({
    */
   const sendHeartbeat = useCallback(async () => {
     if (!sessionId || !enabled) {
-      console.log('[useSessionActivity] sendHeartbeat skipped - no sessionId or disabled')
+      logger.debug({ category: logCategories.SESSION_HEARTBEAT }, '[useSessionActivity] sendHeartbeat skipped - no sessionId or disabled')
       return
     }
 
     const now = Date.now()
     // Debounce: don't send more frequently than every 5 seconds
     if (now - lastHeartbeatRef.current < 5000) {
-      console.log('[useSessionActivity] sendHeartbeat skipped - debounce (5s)')
+      logger.debug({ category: logCategories.SESSION_HEARTBEAT }, '[useSessionActivity] sendHeartbeat skipped - debounce (5s)')
       return
     }
 
-    console.log('[useSessionActivity] Sending heartbeat to server for session:', sessionId)
+    logger.debug('[useSessionActivity] Sending heartbeat to server for session:', sessionId)
     try {
       const response = await fetch(`/api/chat/sessions/${sessionId}/heartbeat`, {
         method: 'POST',
         credentials: 'include',
       })
-      console.log('[useSessionActivity] Heartbeat response status:', response.status)
+      logger.debug('[useSessionActivity] Heartbeat response status:', response.status)
       lastHeartbeatRef.current = now
     } catch (error) {
-      console.error('[useSessionActivity] Failed to send heartbeat:', error)
+      logger.error('[useSessionActivity] Failed to send heartbeat:', error)
     }
   }, [sessionId, enabled])
 
@@ -66,11 +68,11 @@ export function useSessionActivity({
 
   useEffect(() => {
     if (!enabled || !sessionId) {
-      console.log('[useSessionActivity] Hook disabled or no sessionId')
+      logger.debug({ category: logCategories.SESSION_HEARTBEAT }, '[useSessionActivity] Hook disabled or no sessionId')
       return
     }
 
-    console.log('[useSessionActivity] Hook enabled for session:', sessionId)
+    logger.debug('[useSessionActivity] Hook enabled for session:', sessionId)
 
     // Track user activity events
     const events = [
@@ -88,12 +90,12 @@ export function useSessionActivity({
     // Send periodic heartbeat even without user activity
     // This ensures the session stays active if the user is just reading
     const periodicHeartbeat = setInterval(() => {
-      console.log('[useSessionActivity] Periodic heartbeat triggered')
+      logger.debug({ category: logCategories.SESSION_HEARTBEAT }, '[useSessionActivity] Periodic heartbeat triggered')
       sendHeartbeat()
     }, heartbeatInterval)
 
     // Send initial heartbeat when hook mounts
-    console.log('[useSessionActivity] Sending initial heartbeat on mount')
+    logger.debug({ category: logCategories.SESSION_HEARTBEAT }, '[useSessionActivity] Sending initial heartbeat on mount')
     sendHeartbeat()
 
     return () => {

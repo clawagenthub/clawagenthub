@@ -3,6 +3,8 @@ import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { AgentInfo } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 function modelHasImageRecognition(model: unknown): boolean {
   if (!model) return false
@@ -16,7 +18,7 @@ function modelHasImageRecognition(model: unknown): boolean {
 }
 
 export async function GET(request: Request) {
-  console.log('[API /api/chat/agents] Starting request')
+  logger.debug('[API /api/chat/agents] Starting request')
   
   try {
     const db = getDatabase()
@@ -26,11 +28,11 @@ export async function GET(request: Request) {
     const auth = await getUserWithWorkspace()
     
     if (!auth) {
-      console.log('[API /api/chat/agents] No valid session or workspace')
+      logger.debug('[API /api/chat/agents] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
     
-    console.log('[API /api/chat/agents] Authenticated:', {
+    logger.debug('[API /api/chat/agents] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -44,7 +46,7 @@ export async function GET(request: Request) {
       workspace_id: string
     }>
 
-    console.log('[API /api/chat/agents] Found gateways:', {
+    logger.debug('[API /api/chat/agents] Found gateways:', {
       count: gateways.length,
       gateways: gateways.map(g => ({ id: g.id, name: g.name }))
     })
@@ -53,24 +55,24 @@ export async function GET(request: Request) {
 
     // Fetch agents from each connected gateway
     for (const gateway of gateways) {
-      console.log(`[API /api/chat/agents] Processing gateway: ${gateway.name} (${gateway.id})`)
+      logger.debug(`[API /api/chat/agents] Processing gateway: ${gateway.name} (${gateway.id})`)
       
       try {
         const client = manager.getClient(gateway.id)
-        console.log(`[API /api/chat/agents] Gateway ${gateway.name} client:`, {
+        logger.debug(`[API /api/chat/agents] Gateway ${gateway.name} client:`, {
           hasClient: !!client,
           isConnected: client?.isConnected()
         })
         
         if (!client || !client.isConnected()) {
-          console.log(`[API /api/chat/agents] Gateway ${gateway.id} not connected, skipping`)
+          logger.debug(`[API /api/chat/agents] Gateway ${gateway.id} not connected, skipping`)
           continue
         }
 
-        console.log(`[API /api/chat/agents] Calling listAgents() for gateway ${gateway.name}`)
+        logger.debug(`[API /api/chat/agents] Calling listAgents() for gateway ${gateway.name}`)
         const gatewayAgents = await client.listAgents()
         
-        console.log(`[API /api/chat/agents] Gateway ${gateway.name} returned agents:`, {
+        logger.debug(`[API /api/chat/agents] Gateway ${gateway.name} returned agents:`, {
           count: gatewayAgents.length,
           agents: gatewayAgents
         })
@@ -87,11 +89,11 @@ export async function GET(request: Request) {
               imageRecognition: agent.capabilities?.imageRecognition ?? modelHasImageRecognition(agent.model),
             },
           }
-          console.log(`[API /api/chat/agents] Adding agent:`, agentInfo)
+          logger.debug(`[API /api/chat/agents] Adding agent:`, agentInfo)
           agents.push(agentInfo)
         }
       } catch (error) {
-        console.error(`[API /api/chat/agents] Error fetching agents from gateway ${gateway.id}:`, {
+        logger.error(`[API /api/chat/agents] Error fetching agents from gateway ${gateway.id}:`, {
           error,
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined
@@ -100,14 +102,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // console.log('[API /api/chat/agents] Final agents list:', {
+    // logger.debug('[API /api/chat/agents] Final agents list:', {
     //   count: agents.length,
     //   agents
     // })
     
     return NextResponse.json({ agents })
   } catch (error) {
-    console.error('[API /api/chat/agents] Fatal error:', {
+    logger.error('[API /api/chat/agents] Fatal error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

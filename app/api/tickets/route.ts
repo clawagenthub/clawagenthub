@@ -5,6 +5,7 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateTicketId, generateUserId } from '@/lib/auth/token.js'
 import type { Ticket, TicketFlowConfig, Status } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 /**
  * GET /api/tickets
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ tickets: transformedTickets })
   } catch (error) {
-    console.error('Error fetching tickets:', error)
+    logger.error({ category: logCategories.API_TICKETS }, 'Error fetching tickets', { error })
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -326,7 +327,7 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating ticket:', error)
+    logger.error({ category: logCategories.API_TICKETS }, 'Error creating ticket', { error })
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -9,9 +9,10 @@
 import Database from 'better-sqlite3'
 import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
-const IDLE_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
-const CHECK_INTERVAL_MS = 30 * 1000 // Check every 30 seconds
+const IDLE_TIMEOUT_MS = 2 * 60 * 1000
+const CHECK_INTERVAL_MS = 30 * 1000
 
 interface TicketWithFlow {
   id: string
@@ -39,26 +40,25 @@ interface FlowConfig {
 }
 
 class IdleTimeoutService {
-  private intervalId: NodeJS.Timeout | null = null
+  private intervalId: ReturnType<typeof setInterval> | null = null
   private isRunning = false
 
   start() {
     if (this.isRunning) {
-      console.log('[IdleTimeoutService] Already running')
+      logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Already running')
       return
     }
 
-    console.log('[IdleTimeoutService] Starting idle timeout detection service')
+    logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Starting idle timeout detection service')
     this.isRunning = true
     this.intervalId = setInterval(() => {
       this.checkIdleTickets().catch(error => {
-        console.error('[IdleTimeoutService] Error checking idle tickets:', error)
+        logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Error checking idle tickets: %s', String(error))
       })
     }, CHECK_INTERVAL_MS)
 
-    // Run once immediately on start
     this.checkIdleTickets().catch(error => {
-      console.error('[IdleTimeoutService] Error in initial check:', error)
+      logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Error in initial check: %s', String(error))
     })
   }
 
@@ -68,17 +68,16 @@ class IdleTimeoutService {
       this.intervalId = null
     }
     this.isRunning = false
-    console.log('[IdleTimeoutService] Stopped idle timeout detection service')
+    logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Stopped idle timeout detection service')
   }
 
   private async checkIdleTickets() {
-    console.log('[IdleTimeoutService] Checking for idle tickets...')
+    logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Checking for idle tickets...')
     
     const db = getDatabase()
     const manager = getGatewayManager()
 
     try {
-      // Get all tickets with flow enabled and an assigned agent
       const tickets = db
         .prepare(`
           SELECT t.* 
@@ -90,19 +89,18 @@ class IdleTimeoutService {
         `)
         .all() as TicketWithFlow[]
 
-      console.log(`[IdleTimeoutService] Found ${tickets.length} tickets with active flow`)
+      logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Found %s tickets with active flow', tickets.length)
 
       for (const ticket of tickets) {
         await this.checkTicketIdle(ticket, db, manager)
       }
     } catch (error) {
-      console.error('[IdleTimeoutService] Error fetching tickets:', error)
+      logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Error fetching tickets: %s', String(error))
     }
   }
 
-  private async checkTicketIdle(ticket: TicketWithFlow, db: Database.Database, manager: ReturnType<typeof getGatewayManager>) {
+  private async checkTicketIdle(ticket: TicketWithFlow, db: Database.Database, _manager: ReturnType<typeof getGatewayManager>) {
     try {
-      // Get the current flow config for this ticket
       const flowConfigs = db
         .prepare(`
           SELECT * FROM ticket_flow_configs
@@ -113,34 +111,29 @@ class IdleTimeoutService {
         .all(ticket.id) as FlowConfig[]
 
       if (flowConfigs.length === 0) {
-        console.log(`[IdleTimeoutService] Ticket ${ticket.id} has no flow configs`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s has no flow configs', ticket.id)
         return
       }
 
-      // Find current status in flow
       const currentFlowIndex = flowConfigs.findIndex(fc => fc.status_id === ticket.status_id)
       if (currentFlowIndex === -1) {
-        console.log(`[IdleTimeoutService] Ticket ${ticket.id} current status not in flow`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s current status not in flow', ticket.id)
         return
       }
 
-      // Check if there's a next status
       if (currentFlowIndex >= flowConfigs.length - 1) {
-        console.log(`[IdleTimeoutService] Ticket ${ticket.id} is at last status in flow`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s is at last status in flow', ticket.id)
         return
       }
 
-      // Check if current status requires approval
       const currentFlowConfig = flowConfigs[currentFlowIndex]
       if (currentFlowConfig.ask_approve_to_continue) {
-        console.log(`[IdleTimeoutService] Ticket ${ticket.id} requires approval to continue`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s requires approval to continue', ticket.id)
         return
       }
 
-      // Get the most recent message from the agent in this ticket's session
       const sessionKey = `agent:${ticket.current_agent_id}:main`
       
-      // Find the chat session for this agent
       const chatSession = db
         .prepare(`
           SELECT * FROM chat_sessions
@@ -154,11 +147,10 @@ class IdleTimeoutService {
         .get(ticket.workspace_id, ticket.current_gateway_id, ticket.current_agent_id, sessionKey) as { id: string; updated_at: string } | undefined
 
       if (!chatSession) {
-        console.log(`[IdleTimeoutService] No chat session found for ticket ${ticket.id}`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'No chat session found for ticket %s', ticket.id)
         return
       }
 
-      // Get the last message from the agent
       const lastMessage = db
         .prepare(`
           SELECT * FROM chat_messages
@@ -170,23 +162,22 @@ class IdleTimeoutService {
         .get(chatSession.id) as ChatMessage | undefined
 
       if (!lastMessage) {
-        console.log(`[IdleTimeoutService] No messages from agent for ticket ${ticket.id}`)
+        logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'No messages from agent for ticket %s', ticket.id)
         return
       }
 
-      // Check if the last message is old enough
       const lastMessageTime = new Date(lastMessage.created_at).getTime()
       const now = Date.now()
       const idleTime = now - lastMessageTime
 
-      console.log(`[IdleTimeoutService] Ticket ${ticket.id} idle time: ${Math.round(idleTime / 1000)}s`)
+      logger.debug({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s idle time: %ss', ticket.id, String(Math.round(idleTime / 1000)))
 
       if (idleTime >= IDLE_TIMEOUT_MS) {
-        console.log(`[IdleTimeoutService] Ticket ${ticket.id} is idle, advancing flow...`)
+        logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Ticket %s is idle, advancing flow...', ticket.id)
         await this.advanceTicketFlow(ticket, flowConfigs, currentFlowIndex, db)
       }
     } catch (error) {
-      console.error(`[IdleTimeoutService] Error checking ticket ${ticket.id}:`, error)
+      logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Error checking ticket %s: %s', ticket.id, String(error))
     }
   }
 
@@ -200,17 +191,15 @@ class IdleTimeoutService {
       const nextFlowConfig = flowConfigs[currentIndex + 1]
       const now = new Date().toISOString()
 
-      // Get the next status details
       const nextStatus = db
         .prepare('SELECT * FROM statuses WHERE id = ?')
         .get(nextFlowConfig.status_id) as { id: string; name: string } | undefined
 
       if (!nextStatus) {
-        console.error(`[IdleTimeoutService] Next status ${nextFlowConfig.status_id} not found`)
+        logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Next status %s not found', nextFlowConfig.status_id)
         return
       }
 
-      // Update ticket status
       db.prepare(`
         UPDATE tickets
         SET status_id = ?,
@@ -226,7 +215,6 @@ class IdleTimeoutService {
         ticket.id
       )
 
-      // Record flow history
       db.prepare(`
         INSERT INTO ticket_flow_history (
           id, ticket_id, from_status_id, to_status_id,
@@ -242,7 +230,6 @@ class IdleTimeoutService {
         now
       )
 
-      // Create audit log entry
       db.prepare(`
         INSERT INTO ticket_audit_logs (
           id, ticket_id, event_type, user_id, old_value, new_value, created_at
@@ -257,7 +244,6 @@ class IdleTimeoutService {
         now
       )
 
-      // Add system comment about automatic flow advancement
       db.prepare(`
         INSERT INTO ticket_comments (
           id, ticket_id, user_id, content, is_system_comment, created_at
@@ -271,9 +257,9 @@ class IdleTimeoutService {
         now
       )
 
-      console.log(`[IdleTimeoutService] Successfully advanced ticket ${ticket.id} to ${nextStatus.name}`)
+      logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Successfully advanced ticket %s to %s', ticket.id, nextStatus.name)
     } catch (error) {
-      console.error(`[IdleTimeoutService] Error advancing ticket ${ticket.id}:`, error)
+      logger.error({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Error advancing ticket %s: %s', ticket.id, String(error))
     }
   }
 
@@ -282,7 +268,6 @@ class IdleTimeoutService {
   }
 }
 
-// Singleton instance
 let serviceInstance: IdleTimeoutService | null = null
 
 export function getIdleTimeoutService(): IdleTimeoutService {
@@ -292,8 +277,7 @@ export function getIdleTimeoutService(): IdleTimeoutService {
   return serviceInstance
 }
 
-// Start the service when the module is imported (only on server)
 if (typeof window === 'undefined') {
-  console.log('[IdleTimeoutService] Initializing on server start')
+  logger.info({ category: logCategories.IDLE_TIMEOUT_SERVICE }, 'Initializing on server start')
   getIdleTimeoutService().start()
 }

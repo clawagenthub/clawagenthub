@@ -1,28 +1,29 @@
 import { getDatabase } from '@/lib/db'
 import { triggerWaitingTickets } from './waiting-to-flow-trigger.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 const CHECK_INTERVAL_MS = 10 * 1000
 
 class WaitingToFlowService {
-  private intervalId: NodeJS.Timeout | null = null
+  private intervalId: ReturnType<typeof setInterval> | null = null
   private isRunning = false
 
   start() {
     if (this.isRunning) {
-      console.log('[WaitingToFlowService] Already running')
+      logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Already running')
       return
     }
 
-    console.log('[WaitingToFlowService] Starting waiting-to-flow cron service')
+    logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Starting waiting-to-flow cron service')
     this.isRunning = true
     this.intervalId = setInterval(() => {
       this.checkWaitingToFlow().catch(error => {
-        console.error('[WaitingToFlowService] Error checking waiting tickets:', error)
+        logger.error({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Error checking waiting tickets: %s', String(error))
       })
     }, CHECK_INTERVAL_MS)
 
     this.checkWaitingToFlow().catch(error => {
-      console.error('[WaitingToFlowService] Error in initial check:', error)
+      logger.error({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Error in initial check: %s', String(error))
     })
   }
 
@@ -32,26 +33,26 @@ class WaitingToFlowService {
       this.intervalId = null
     }
     this.isRunning = false
-    console.log('[WaitingToFlowService] Stopped waiting-to-flow cron service')
+    logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Stopped waiting-to-flow cron service')
   }
 
   private async checkWaitingToFlow() {
-    console.log('[WaitingToFlowService] Running check for waiting tickets...')
+    logger.debug({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Running check for waiting tickets...')
     try {
       const db = getDatabase()
       const workspaces = db.prepare('SELECT id FROM workspaces').all() as Array<{ id: string }>
 
-      console.log(`[WaitingToFlowService] Found ${workspaces.length} workspaces`)
+      logger.debug({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Found %s workspaces', String(workspaces.length))
 
       for (const workspace of workspaces) {
         try {
           await triggerWaitingTickets(workspace.id)
         } catch (error) {
-          console.error(`[WaitingToFlowService] Error processing workspace ${workspace.id}:`, error)
+          logger.error({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Error processing workspace %s: %s', workspace.id, String(error))
         }
       }
     } catch (error) {
-      console.error('[WaitingToFlowService] Error fetching workspaces:', error)
+      logger.error({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Error fetching workspaces: %s', String(error))
     }
   }
 }
@@ -66,6 +67,6 @@ export function getWaitingToFlowService(): WaitingToFlowService {
 }
 
 if (typeof window === 'undefined') {
-  console.log('[WaitingToFlowService] Initializing on server start')
+  logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Initializing on server start')
   getWaitingToFlowService().start()
 }

@@ -6,6 +6,8 @@
 
 import type { EventFrame, ResponseFrame } from './protocol.js'
 import type { PendingRequest } from './session-types.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export interface MessageHandlers {
   handleChatEvent: (frame: EventFrame) => void
@@ -90,7 +92,7 @@ export function parseGatewayMessage(data: WebSocket.Data): Record<string, unknow
   try {
     return JSON.parse(data.toString())
   } catch {
-    console.error('[SessionInstance] Failed to parse gateway message')
+    logger.error('[SessionInstance] Failed to parse gateway message')
     return null
   }
 }

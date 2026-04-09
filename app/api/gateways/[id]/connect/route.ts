@@ -5,6 +5,8 @@ import { getUserFromSession, getSessionOrigin } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager.js'
 import type { Gateway } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(
   request: NextRequest,
@@ -71,7 +73,7 @@ export async function POST(
 
     // Get origin from session
     const origin = getSessionOrigin(sessionToken)
-    console.log('[API:Connect] Session origin:', origin)
+    logger.debug('[API:Connect] Session origin:', origin)
 
     // Attempt to connect
     const manager = getGatewayManager()
@@ -111,7 +113,7 @@ export async function POST(
       )
     }
   } catch (error) {
-    console.error('Error connecting gateway:', error)
+    logger.error('Error connecting gateway:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -37,6 +37,7 @@ import type {
   InstanceErrorEvent,
   InstanceAgentTypingEvent,
 } from './protocol.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 import type {
   ClientConnection,
   SessionInstanceOptions,
@@ -87,33 +88,22 @@ export class GatewaySessionInstance {
       onIdle: () => this.stop(),
     })
 
-    console.log('[SessionInstance] Created', {
-      sessionId: this.sessionId,
-      agentId: this.agentId,
-      sessionKey: this.sessionKey,
-      gatewayId: this.gatewayId,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Created: %s %s %s %s', this.sessionId, this.agentId, this.sessionKey, this.gatewayId)
   }
 
   async start(): Promise<void> {
     if (this.stateMachine.isActive()) {
-      console.log('[SessionInstance] Already connected/connecting', {
-        sessionId: this.sessionId,
-        state: this.stateMachine.state,
-      })
+      logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Already connected/connecting: %s %s', this.sessionId, this.state)
       return
     }
-    console.log('[SessionInstance] Starting', {
-      sessionId: this.sessionId,
-      sessionKey: this.sessionKey,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Starting: %s %s', this.sessionId, this.sessionKey)
     this.stateMachine.transition('connecting')
     await this.connectToGateway()
     this.idleTimer.schedule()
   }
 
   stop(): void {
-    console.log('[SessionInstance] Stopping', { sessionId: this.sessionId })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Stopping: %s', this.sessionId)
     this.stateMachine.transition('stopped')
     this.disconnectFromGateway()
     this.idleTimer.clear()
@@ -142,12 +132,7 @@ export class GatewaySessionInstance {
     }
     this.clients.set(clientId, client)
     this.idleTimer.updateActivity()
-    console.log('[SessionInstance] Client added', {
-      sessionId: this.sessionId,
-      clientId,
-      userId,
-      clientCount: this.clients.size,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client added: %s %s', this.sessionId, clientCount)
 
     if (sinceSeq !== undefined) this.sendBufferedEvents(client)
     sendToClient(client, {
@@ -161,11 +146,7 @@ export class GatewaySessionInstance {
     const client = this.clients.get(clientId)
     if (!client) return
     this.clients.delete(clientId)
-    console.log('[SessionInstance] Client removed', {
-      sessionId: this.sessionId,
-      clientId,
-      remainingClients: this.clients.size,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client removed: %s %s', this.sessionId, remainingClients)
     if (this.clients.size === 0) this.idleTimer.schedule()
   }
 
@@ -179,10 +160,11 @@ export class GatewaySessionInstance {
   ): Promise<void> {
     const client = this.clients.get(clientId)
     if (!client) {
-      console.warn('[SessionInstance] Client not found for message', {
-        sessionId: this.sessionId,
-        clientId,
-      })
+      logger.warn(
+        { category: logCategories.GATEWAY_INSTANCE },
+        '[SessionInstance] Client not found for message: %s',
+        sessionId
+      )
       return
     }
     this.idleTimer.updateActivity()
@@ -205,35 +187,28 @@ export class GatewaySessionInstance {
 
   private async connectToGateway(): Promise<void> {
     const origin = this.origin || determineOrigin(this.gatewayUrl)
-    console.log('[SessionInstance] Connecting to gateway', {
-      sessionId: this.sessionId,
-      url: this.gatewayUrl,
-      origin,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Connecting to gateway: %s %s', this.sessionId, url)
 
     return new Promise((resolve, reject) => {
       this.connectResolve = resolve
       this.connectReject = reject
 
       const callbacks = {
-        onOpen: () =>
-          console.log('[SessionInstance] Gateway WebSocket opened', {
-            sessionId: this.sessionId,
-          }),
+        onOpen: () => {
+          logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Gateway WebSocket opened: %s', this.sessionId)
+        },
         onMessage: (data: WebSocket.Data) => {
           const parsed = parseGatewayMessage(data)
           if (parsed) this.onGatewayMessage(parsed)
         },
         onClose: () => {
-          console.log('[SessionInstance] Gateway WebSocket closed', {
-            sessionId: this.sessionId,
-          })
+          logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Gateway WebSocket closed: %s', this.sessionId)
           this.gatewayAuthenticated = false
           this.stateMachine.transition('disconnected')
           this.scheduleReconnect()
         },
         onError: (err: Error) => {
-          console.error('[SessionInstance] Gateway WebSocket error:', err)
+          logger.error({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Gateway WebSocket error: %s', String(err))
           if (!this.gatewayAuthenticated) reject(err)
         },
       }
@@ -326,9 +301,7 @@ export class GatewaySessionInstance {
         this.gatewayAuthenticated = true
         this.connectedAt = new Date()
         this.stateMachine.transition('connected')
-        console.log('[SessionInstance] Connected to gateway', {
-          sessionId: this.sessionId,
-        })
+        logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Connected to gateway: %s', this.sessionId)
         this.connectResolve?.()
       }
     }
@@ -470,15 +443,7 @@ export class GatewaySessionInstance {
     content: string,
     options?: Record<string, unknown>
   ): Promise<void> {
-    console.log('[SessionInstance] Sending chat message', {
-      sessionId: this.sessionId,
-      sessionKey: this.sessionKey,
-      contentLength: content.length,
-      hasAttachments: Boolean(options?.attachments),
-      attachmentsCount: options?.attachments
-        ? (options.attachments as any[]).length
-        : 0,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Sending chat message: %s %s %s %s %s', this.sessionId, this.sessionKey, contentLength, hasAttachments, attachmentsCount)
 
     try {
       const result = (await this.callGateway('chat.send', {
@@ -489,11 +454,7 @@ export class GatewaySessionInstance {
         deliver: options?.deliver ?? true,
         attachments: options?.attachments,
       })) as { runId: string; status: string }
-      console.log('[SessionInstance] Chat message sent', {
-        sessionId: this.sessionId,
-        runId: result.runId,
-        status: result.status,
-      })
+      logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Chat message sent: %s %s %s', this.sessionId, runId, status)
       persistMessage({
         sessionId: this.sessionId,
         content,
@@ -501,7 +462,7 @@ export class GatewaySessionInstance {
         runId: result.runId,
       })
     } catch (error) {
-      console.error('[SessionInstance] Failed to send chat message:', error)
+      logger.error({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Failed to send chat message: %s', String(error))
       broadcastToClients(this.clients, {
         type: 'error',
         sessionId: this.sessionId,
@@ -513,14 +474,11 @@ export class GatewaySessionInstance {
   }
 
   private async abortChat(runId: string): Promise<void> {
-    console.log('[SessionInstance] Aborting chat', {
-      sessionId: this.sessionId,
-      runId,
-    })
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Aborting chat: %s', this.sessionId)
     try {
       await this.callGateway('chat.abort', { runId })
     } catch (error) {
-      console.error('[SessionInstance] Failed to abort chat:', error)
+      logger.error({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Failed to abort chat: %s', String(error))
     }
   }
 

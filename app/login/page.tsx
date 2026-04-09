@@ -4,31 +4,33 @@ import { LoginForm } from '@/components/auth/login-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 import { useLogin } from '@/lib/query/hooks'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export default function LoginPage() {
   const router = useRouter()
   const loginMutation = useLogin()
 
   const handleLogin = async (email: string, password: string) => {
-    console.log('\n🔐 [CLIENT LOGIN] Starting login process...')
-    console.log(`   📧 Email: ${email}`)
+    logger.debug('\n🔐 [CLIENT LOGIN] Starting login process...')
+    logger.debug(`   📧 Email: ${email}`)
     
     // Detect client-side origin
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:7777'
-    console.log(`   🌐 Origin: ${origin}`)
+    logger.debug(`   🌐 Origin: ${origin}`)
     
     try {
       const result = await loginMutation.mutateAsync({ email, password, origin })
       
-      console.log(`   ✅ Login successful!`)
-      console.log(`   👤 User ID: ${result.user?.id}`)
-      console.log(`   📧 Email: ${result.user?.email}`)
+      logger.debug(`   ✅ Login successful!`)
+      logger.debug(`   👤 User ID: ${result.user?.id}`)
+      logger.debug(`   📧 Email: ${result.user?.email}`)
       
       // TanStack Query automatically refetches user data
-      console.log(`   ↪️  Navigating to /dashboard...`)
+      logger.debug(`   ↪️  Navigating to /dashboard...`)
       router.push('/dashboard')
     } catch (error) {
-      console.log(`   ❌ Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      logger.debug(`   ❌ Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       throw error
     }
   }

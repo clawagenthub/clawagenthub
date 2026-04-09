@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getGatewayManager } from '@/lib/gateway/manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 type AnyRecord = Record<string, unknown>
 
@@ -150,7 +152,7 @@ export async function POST(
         history = await client.getSessionHistory(session.session_key)
       }
     } catch (error) {
-      console.error('Error fetching session history:', error)
+      logger.error('Error fetching session history:', error)
     }
 
     if (!history || (Array.isArray(history) && history.length === 0)) {
@@ -188,7 +190,7 @@ export async function POST(
           break
         }
       } catch (error) {
-        console.error('Error finding librarian agent:', error)
+        logger.error('Error finding librarian agent:', error)
       }
     }
 
@@ -247,7 +249,7 @@ ${JSON.stringify(history, null, 2)}`
       const parsedTitle = parseTitleResponse(response, session.title || 'New Chat')
       const generatedTitle = parsedTitle.title
 
-      console.log('[GenerateTitle] Parsed response', {
+      logger.debug('[GenerateTitle] Parsed response', {
         sessionId,
         responseShape: describeShape(response),
         source: parsedTitle.source,
@@ -265,7 +267,7 @@ ${JSON.stringify(history, null, 2)}`
 
       return NextResponse.json({ title: generatedTitle, method: 'librarian' })
     } catch (error) {
-      console.error('Error generating title with librarian:', error)
+      logger.error('Error generating title with librarian:', error)
       
       // Fallback to simple title generation
       const messages = Array.isArray(history) ? history : []
@@ -293,7 +295,7 @@ ${JSON.stringify(history, null, 2)}`
     }
 
   } catch (error) {
-    console.error('[API /api/chat/sessions] Error generating title:', error)
+    logger.error('[API /api/chat/sessions] Error generating title:', error)
     return NextResponse.json(
       { error: 'Failed to generate title' },
       { status: 500 }

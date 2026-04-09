@@ -3,19 +3,21 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { GatewayClient } from '@/lib/gateway/client'
 import type { Gateway } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // GET /api/gateways - List all gateways for the current workspace
 export async function GET(request: Request) {
-  console.log('[GET /api/gateways] Starting request')
+  logger.debug('[GET /api/gateways] Starting request')
   
   try {
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      console.log('[GET /api/gateways] No valid session or workspace')
+      logger.debug('[GET /api/gateways] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
     
-    console.log('[GET /api/gateways] Authenticated:', {
+    logger.debug('[GET /api/gateways] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -31,14 +33,14 @@ export async function GET(request: Request) {
       )
       .all(auth.workspaceId) as Omit<Gateway, 'auth_token' | 'workspace_id'>[]
 
-    console.log('[GET /api/gateways] Found gateways:', {
+    logger.debug('[GET /api/gateways] Found gateways:', {
       count: gateways.length,
       gateways: gateways.map(g => ({ id: g.id, name: g.name, status: g.status }))
     })
 
     return NextResponse.json({ gateways })
   } catch (error) {
-    console.error('[GET /api/gateways] Error:', {
+    logger.error('[GET /api/gateways] Error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
@@ -52,16 +54,16 @@ export async function GET(request: Request) {
 
 // POST /api/gateways - Add a new gateway
 export async function POST(request: Request) {
-  console.log('[POST /api/gateways] Starting request')
+  logger.debug('[POST /api/gateways] Starting request')
   
   try {
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      console.log('[POST /api/gateways] No valid session or workspace')
+      logger.debug('[POST /api/gateways] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
     
-    console.log('[POST /api/gateways] Authenticated:', {
+    logger.debug('[POST /api/gateways] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, url, authToken } = body
 
-    console.log('[POST /api/gateways] Request body:', {
+    logger.debug('[POST /api/gateways] Request body:', {
       name,
       url,
       hasAuthToken: !!authToken,
@@ -78,17 +80,17 @@ export async function POST(request: Request) {
 
     // Validate inputs
     if (!name || typeof name !== 'string') {
-      console.log('[POST /api/gateways] Validation failed: name missing')
+      logger.debug('[POST /api/gateways] Validation failed: name missing')
       return NextResponse.json({ error: 'Gateway name is required' }, { status: 400 })
     }
 
     if (!url || typeof url !== 'string') {
-      console.log('[POST /api/gateways] Validation failed: url missing')
+      logger.debug('[POST /api/gateways] Validation failed: url missing')
       return NextResponse.json({ error: 'Gateway URL is required' }, { status: 400 })
     }
 
     if (!authToken || typeof authToken !== 'string') {
-      console.log('[POST /api/gateways] Validation failed: authToken missing')
+      logger.debug('[POST /api/gateways] Validation failed: authToken missing')
       return NextResponse.json({ error: 'Auth token is required' }, { status: 400 })
     }
 
@@ -96,42 +98,42 @@ export async function POST(request: Request) {
     try {
       const parsedUrl = new URL(url)
       if (!['ws:', 'wss:'].includes(parsedUrl.protocol)) {
-        console.log('[POST /api/gateways] Validation failed: invalid protocol', parsedUrl.protocol)
+        logger.debug('[POST /api/gateways] Validation failed: invalid protocol', parsedUrl.protocol)
         return NextResponse.json(
           { error: 'Gateway URL must use ws:// or wss:// protocol' },
           { status: 400 }
         )
       }
-      console.log('[POST /api/gateways] URL validation passed:', {
+      logger.debug('[POST /api/gateways] URL validation passed:', {
         protocol: parsedUrl.protocol,
         host: parsedUrl.host
       })
     } catch (urlError) {
-      console.error('[POST /api/gateways] URL parsing failed:', urlError)
+      logger.error('[POST /api/gateways] URL parsing failed:', urlError)
       return NextResponse.json({ error: 'Invalid gateway URL format' }, { status: 400 })
     }
 
     // Test connection to gateway
-    console.log(`[POST /api/gateways] Testing connection to ${url}`)
+    logger.debug(`[POST /api/gateways] Testing connection to ${url}`)
     const origin = request.headers.get('origin') || 'http://localhost:3000'
-    console.log(`[POST /api/gateways] Using origin: ${origin}`)
+    logger.debug(`[POST /api/gateways] Using origin: ${origin}`)
     
     const client = new GatewayClient(url, { authToken, origin })
 
     try {
-      console.log('[POST /api/gateways] Attempting WebSocket connection...')
+      logger.debug('[POST /api/gateways] Attempting WebSocket connection...')
       await client.connect()
-      console.log(`[POST /api/gateways] Connected successfully`)
+      logger.debug(`[POST /api/gateways] Connected successfully`)
 
       // Test health endpoint
-      console.log('[POST /api/gateways] Calling health() RPC method...')
+      logger.debug('[POST /api/gateways] Calling health() RPC method...')
       const health = await client.health()
-      console.log(`[POST /api/gateways] Health check response:`, health)
+      logger.debug(`[POST /api/gateways] Health check response:`, health)
 
       await client.disconnect()
-      console.log('[POST /api/gateways] Disconnected cleanly')
+      logger.debug('[POST /api/gateways] Disconnected cleanly')
     } catch (error) {
-      console.error(`[POST /api/gateways] Connection test failed:`, {
+      logger.error(`[POST /api/gateways] Connection test failed:`, {
         error,
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
@@ -154,7 +156,7 @@ export async function POST(request: Request) {
        VALUES (?, ?, ?, ?, ?, 'connected', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     ).run(gatewayId, auth.workspaceId, name, url, authToken)
 
-    console.log(`[POST /api/gateways] Gateway ${gatewayId} saved successfully`)
+    logger.debug(`[POST /api/gateways] Gateway ${gatewayId} saved successfully`)
 
     const gateway = db
       .prepare('SELECT id, name, url, status, last_connected_at FROM gateways WHERE id = ?')
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ gateway }, { status: 201 })
   } catch (error) {
-    console.error('[POST /api/gateways] Error:', error)
+    logger.error('[POST /api/gateways] Error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to add gateway' },
       { status: error instanceof Error && error.message.includes('Unauthorized') ? 401 : 500 }
@@ -198,11 +200,11 @@ export async function DELETE(request: Request) {
     // Delete gateway
     db.prepare('DELETE FROM gateways WHERE id = ?').run(gatewayId)
 
-    console.log(`[DELETE /api/gateways] Gateway ${gatewayId} deleted`)
+    logger.debug(`[DELETE /api/gateways] Gateway ${gatewayId} deleted`)
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[DELETE /api/gateways] Error:', error)
+    logger.error('[DELETE /api/gateways] Error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete gateway' },
       { status: error instanceof Error && error.message.includes('Unauthorized') ? 401 : 500 }

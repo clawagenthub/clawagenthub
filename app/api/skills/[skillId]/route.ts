@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import type { Skill, SkillUpdate } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteParams {
   params: Promise<{ skillId: string }>
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const fullPath = join(process.cwd(), skill.path)
         skillContent = await readFile(fullPath, 'utf-8')
       } catch (error) {
-        console.error(`Error reading skill file from ${skill.path}:`, error)
+        logger.error(`Error reading skill file from ${skill.path}:`, error)
         // Fall back to skill_data from database
         skillContent = skill.skill_data
       }
@@ -107,7 +109,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error fetching skill:', error)
+    logger.error('Error fetching skill:', error)
     return NextResponse.json({ error: 'Failed to fetch skill' }, { status: 500 })
   }
 }
@@ -173,9 +175,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         const { join } = await import('path')
         const fullPath = join(process.cwd(), existingSkill.path)
         await writeFile(fullPath, skill_data, 'utf-8')
-        console.log(`Updated skill file: ${existingSkill.path}`)
+        logger.debug(`Updated skill file: ${existingSkill.path}`)
       } catch (error) {
-        console.error(`Error writing skill file to ${existingSkill.path}:`, error)
+        logger.error(`Error writing skill file to ${existingSkill.path}:`, error)
         return NextResponse.json({ error: 'Failed to update skill file' }, { status: 500 })
       }
     }
@@ -233,7 +235,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error updating skill:', error)
+    logger.error('Error updating skill:', error)
     return NextResponse.json({ error: 'Failed to update skill' }, { status: 500 })
   }
 }
@@ -297,18 +299,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         
         const fullPath = join(process.cwd(), existingSkill.path)
         await unlink(fullPath)
-        console.log(`Deleted skill file: ${existingSkill.path}`)
+        logger.debug(`Deleted skill file: ${existingSkill.path}`)
         
         // Try to remove empty parent directory
         const dirPath = dirname(fullPath)
         try {
           await rmdir(dirPath)
-          console.log(`Removed empty directory: ${dirname(existingSkill.path)}`)
+          logger.debug(`Removed empty directory: ${dirname(existingSkill.path)}`)
         } catch {
           // Directory not empty or doesn't exist, ignore
         }
       } catch (error) {
-        console.error(`Error deleting skill file ${existingSkill.path}:`, error)
+        logger.error(`Error deleting skill file ${existingSkill.path}:`, error)
         // Continue with soft delete even if file deletion fails
       }
     }
@@ -323,7 +325,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Skill deleted successfully'
     })
   } catch (error) {
-    console.error('Error deleting skill:', error)
+    logger.error('Error deleting skill:', error)
     return NextResponse.json({ error: 'Failed to delete skill' }, { status: 500 })
   }
 }

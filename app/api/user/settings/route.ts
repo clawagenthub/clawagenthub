@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { UserSettings } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/user/settings
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error('[API /api/user/settings] Error fetching settings:', error)
+    logger.error('[API /api/user/settings] Error fetching settings:', error)
     return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 })
   }
 }
@@ -136,7 +138,7 @@ export async function PUT(request: Request) {
       },
     })
   } catch (error) {
-    console.error('[API /api/user/settings] Error updating settings:', error)
+    logger.error('[API /api/user/settings] Error updating settings:', error)
     return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
   }
 }

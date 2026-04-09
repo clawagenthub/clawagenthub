@@ -5,6 +5,8 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { storeAttachments, type StoredAttachmentInput } from '@/lib/attachments'
 import type { ChatMessage, ChatContentBlock } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * Check if a model supports image/vision input
@@ -114,7 +116,7 @@ function persistAssistantFinalMessage(
        WHERE id = ?`
     ).run(now, now, sessionId)
   } catch (error) {
-    console.error('[Chat API] Failed to persist assistant final message:', {
+    logger.error('[Chat API] Failed to persist assistant final message:', {
       sessionId,
       runId,
       error,
@@ -168,7 +170,7 @@ export async function GET(
 
     return NextResponse.json({ messages: parsedMessages })
   } catch (error) {
-    console.error('[Chat API] Error fetching messages:', error)
+    logger.error('[Chat API] Error fetching messages:', error)
     return NextResponse.json(
       { error: 'Failed to fetch messages' },
       { status: 500 }
@@ -307,7 +309,7 @@ export async function POST(
       now
     )
 
-    console.log('[Chat API] User message saved to database:', userMessageId)
+    logger.debug('[Chat API] User message saved to database:', userMessageId)
 
     // Update session last activity
     db.prepare(
@@ -320,7 +322,7 @@ export async function POST(
 
     // STREAMING MODE: Return immediately after queuing the message
     if (stream) {
-      console.log('[Chat API] Streaming mode: queuing message', {
+      logger.debug('[Chat API] Streaming mode: queuing message', {
         sessionId,
         runId,
       })
@@ -364,7 +366,7 @@ export async function POST(
           5 * 60 * 1000
         )
       } catch (error) {
-        console.error('[Chat API] Error queuing message to agent:', error)
+        logger.error('[Chat API] Error queuing message to agent:', error)
         // Message was already saved, so return success even if queuing fails
         return NextResponse.json(
           {
@@ -394,7 +396,7 @@ export async function POST(
     }
 
     // LEGACY MODE: Wait for full response (backward compatible)
-    console.log('[Chat API] Legacy mode: waiting for response', { sessionId })
+    logger.debug('[Chat API] Legacy mode: waiting for response', { sessionId })
     // User message already saved above
 
     try {
@@ -410,7 +412,7 @@ export async function POST(
       )
 
       if (result.error) {
-        console.error('[Chat API] Agent returned error:', result.error)
+        logger.error('[Chat API] Agent returned error:', result.error)
         return NextResponse.json({ error: result.error }, { status: 500 })
       }
 
@@ -488,7 +490,7 @@ export async function POST(
         runId: result.runId,
       })
     } catch (error) {
-      console.error('[Chat API] Error sending message to agent:', error)
+      logger.error('[Chat API] Error sending message to agent:', error)
       return NextResponse.json(
         {
           error:
@@ -500,7 +502,7 @@ export async function POST(
       )
     }
   } catch (error) {
-    console.error('[Chat API] Error processing message:', error)
+    logger.error('[Chat API] Error processing message:', error)
     return NextResponse.json(
       { error: 'Failed to process message' },
       { status: 500 }

@@ -6,6 +6,8 @@
 
 import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 export interface PersistMessageOptions {
   sessionId: string
   content: string
@@ -37,7 +39,7 @@ export function persistMessage(options: PersistMessageOptions): void {
        WHERE id = ?`
     ).run(now, now, sessionId)
   } catch (error) {
-    console.error(`[SessionInstance] Failed to persist ${role} message:`, {
+    logger.error(`[SessionInstance] Failed to persist ${role} message:`, {
       sessionId,
       runId,
       error

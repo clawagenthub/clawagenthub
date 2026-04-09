@@ -5,6 +5,8 @@ import { EnhancedChatScreen } from './enhanced-chat-screen'
 import { EnhancedSessionsPanel } from './enhanced-sessions-panel'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ChatSession } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface EnhancedChatContainerProps {
   initialSession?: ChatSession
@@ -22,7 +24,7 @@ export function EnhancedChatContainer({ initialSession, onSessionChange }: Enhan
   // Refetch sessions when switching to sessions tab
   useEffect(() => {
     if (activeTab === 'sessions' && previousTabRef.current !== 'sessions') {
-      console.log('[EnhancedChatContainer] Switching to sessions tab - refetching sessions')
+      logger.debug('[EnhancedChatContainer] Switching to sessions tab - refetching sessions')
       queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
     }
     previousTabRef.current = activeTab

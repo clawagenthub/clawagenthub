@@ -1,5 +1,7 @@
 import { atom } from 'jotai'
 import { atomWithRefresh } from 'jotai/utils'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export interface UserInfo {
   id: string
@@ -26,7 +28,7 @@ export const userAtom = atomWithRefresh(async (get) => {
     const data = await response.json()
     return data.user as UserInfo | null
   } catch (error) {
-    console.error('[userAtom] Error fetching user:', error)
+    logger.error('[userAtom] Error fetching user:', error)
     return null
   }
 })

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function GET(request: Request) {
-  console.log('[API /api/workspaces/members] Starting request')
+  logger.debug('[API /api/workspaces/members] Starting request')
   
   try {
     const db = getDatabase()
@@ -12,11 +14,11 @@ export async function GET(request: Request) {
     const auth = await getUserWithWorkspace()
     
     if (!auth) {
-      console.log('[API /api/workspaces/members] No valid session or workspace')
+      logger.debug('[API /api/workspaces/members] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
     
-    console.log('[API /api/workspaces/members] Authenticated:', {
+    logger.debug('[API /api/workspaces/members] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -39,13 +41,13 @@ export async function GET(request: Request) {
       `)
       .all(auth.workspaceId)
 
-    console.log('[API /api/workspaces/members] Found members:', {
+    logger.debug('[API /api/workspaces/members] Found members:', {
       count: members.length
     })
     
     return NextResponse.json({ members })
   } catch (error) {
-    console.error('[API /api/workspaces/members] Fatal error:', {
+    logger.error('[API /api/workspaces/members] Fatal error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

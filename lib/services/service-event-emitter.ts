@@ -1,3 +1,5 @@
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 /**
  * ServiceEventEmitter - A lightweight event emitter for reactive state updates
  * 
@@ -62,7 +64,7 @@ export function createServiceEventEmitter<T>(
   
   const log = (...args: unknown[]) => {
     if (debug) {
-      console.log(`[${name}]`, ...args)
+      logger.debug(`[${name}]`, ...args)
     }
   }
   
@@ -75,7 +77,7 @@ export function createServiceEventEmitter<T>(
       try {
         listener(state)
       } catch (error) {
-        console.error(`[${name}] Error in subscriber:`, error)
+        logger.error(`[${name}] Error in subscriber:`, error)
       }
       
       // Return unsubscribe function
@@ -110,7 +112,7 @@ export function createServiceEventEmitter<T>(
         try {
           listener(newState)
         } catch (error) {
-          console.error(`[${name}] Error in listener:`, error)
+          logger.error(`[${name}] Error in listener:`, error)
         }
       }
     },

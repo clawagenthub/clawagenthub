@@ -9,6 +9,8 @@ import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketCo
 import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import { DEFAULT_PROMPTS } from '@/lib/utils/prompts'
 import { findClientForAgent } from '@/app/api/tickets/[ticketId]/flow/lib/find-client'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 function extractResponseText(response: any): string {
   const message = response?.message ?? response
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ convertedText, prompt, agentId: effectiveAgentId, gatewayId: effectiveGatewayId })
   } catch (error) {
-    console.error('[Ticket Prompt Convert API] Error:', error)
+    logger.error('[Ticket Prompt Convert API] Error:', error)
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

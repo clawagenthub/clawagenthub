@@ -4,6 +4,8 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatMessage } from '@/lib/db/schema'
 import { mergeMessages, getStats } from './lib/message-merge'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/chat/gateway/messages?sessionId=xxx
@@ -30,11 +32,11 @@ export async function GET(request: Request) {
     const gatewayMessages = await fetchGatewayMessages(session, request)
 
     const result = mergeMessages(localMessages, gatewayMessages, sessionId)
-    console.log('[Gateway Messages] Dedupe stats', getStats(result, sessionId))
+    logger.debug('[Gateway Messages] Dedupe stats', getStats(result, sessionId))
 
     return NextResponse.json({ messages: result.messages })
   } catch (error) {
-    console.error('[Gateway Messages] Error:', error)
+    logger.error('[Gateway Messages] Error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch messages' },
       { status: 500 }
@@ -73,12 +75,12 @@ async function fetchGatewayMessages(session: any, _request: Request): Promise<an
     try {
       const history = await client.getSessionHistory(session.session_key)
       gatewayMessages = history.messages || []
-      console.log('[Gateway Messages] Gateway messages:', gatewayMessages.length)
+      logger.debug('[Gateway Messages] Gateway messages:', gatewayMessages.length)
     } catch (error) {
-      console.error('[Gateway Messages] Failed to fetch from gateway:', error)
+      logger.error('[Gateway Messages] Failed to fetch from gateway:', error)
     }
   } else {
-    console.log('[Gateway Messages] Gateway not connected, using local messages only')
+    logger.debug('[Gateway Messages] Gateway not connected, using local messages only')
   }
 
   return gatewayMessages

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/chat/sessions/idle-check
@@ -101,7 +103,7 @@ export async function GET(request: Request) {
       count: idleSessions.length,
     })
   } catch (error) {
-    console.error('[Chat API] Error checking idle sessions:', error)
+    logger.error('[Chat API] Error checking idle sessions:', error)
     return NextResponse.json(
       { error: 'Failed to check idle sessions' },
       { status: 500 }

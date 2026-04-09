@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { GatewayClient } from '@/lib/gateway/client'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // Common localhost URLs to try (only localhost and 127.0.0.1)
 const COMMON_GATEWAY_URLS = [
@@ -28,16 +30,16 @@ interface DiscoveryResult {
  * Returns discovered gateways that can be connected to.
  */
 export async function POST(request: Request) {
-  console.log('[POST /api/gateways/discover] Starting request')
+  logger.debug('[POST /api/gateways/discover] Starting request')
   
   try {
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      console.log('[POST /api/gateways/discover] No valid session or workspace')
+      logger.debug('[POST /api/gateways/discover] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
 
-    console.log('[POST /api/gateways/discover] Authenticated:', {
+    logger.debug('[POST /api/gateways/discover] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -45,64 +47,64 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { authToken, customUrl } = body
 
-    console.log('[POST /api/gateways/discover] Discovery parameters:', {
+    logger.debug('[POST /api/gateways/discover] Discovery parameters:', {
       hasAuthToken: !!authToken,
       authTokenLength: authToken?.length,
       customUrl: customUrl || 'none (using defaults)'
     })
 
-    console.log('[POST /api/gateways/discover] Starting auto-discovery')
+    logger.debug('[POST /api/gateways/discover] Starting auto-discovery')
 
     const origin = request.headers.get('origin') || 'http://localhost:3000'
-    console.log('[POST /api/gateways/discover] Using origin:', origin)
+    logger.debug('[POST /api/gateways/discover] Using origin:', origin)
     
     const results: DiscoveryResult[] = []
 
     // URLs to try
     const urlsToTry = customUrl ? [customUrl] : COMMON_GATEWAY_URLS
-    console.log('[POST /api/gateways/discover] URLs to try:', urlsToTry)
+    logger.debug('[POST /api/gateways/discover] URLs to try:', urlsToTry)
 
     for (const url of urlsToTry) {
-      console.log(`[POST /api/gateways/discover] === Trying URL: ${url} ===`)
+      logger.debug(`[POST /api/gateways/discover] === Trying URL: ${url} ===`)
 
       // If user provided auth token, only try that
       const tokensToTry = authToken ? [authToken] : COMMON_AUTH_TOKENS
-      console.log(`[POST /api/gateways/discover] Will try ${tokensToTry.length} auth token(s)`)
+      logger.debug(`[POST /api/gateways/discover] Will try ${tokensToTry.length} auth token(s)`)
 
       for (const token of tokensToTry) {
         const tokenDisplay = token ? `${token.substring(0, 4)}****` : '(no auth)'
-        console.log(`[POST /api/gateways/discover] Attempting connection with token: ${tokenDisplay}`)
+        logger.debug(`[POST /api/gateways/discover] Attempting connection with token: ${tokenDisplay}`)
         
         try {
           const client = new GatewayClient(url, { authToken: token, origin })
 
           // Try to connect with timeout
-          console.log(`[POST /api/gateways/discover] Creating connection promise...`)
+          logger.debug(`[POST /api/gateways/discover] Creating connection promise...`)
           const connectPromise = client.connect()
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Connection timeout')), 3000)
           )
 
-          console.log(`[POST /api/gateways/discover] Racing connection vs timeout...`)
+          logger.debug(`[POST /api/gateways/discover] Racing connection vs timeout...`)
           await Promise.race([connectPromise, timeoutPromise])
 
-          console.log(`[POST /api/gateways/discover] ✓ Connected to ${url}`)
+          logger.debug(`[POST /api/gateways/discover] ✓ Connected to ${url}`)
 
           // Get health info
           let health
           try {
-            console.log(`[POST /api/gateways/discover] Calling health() RPC...`)
+            logger.debug(`[POST /api/gateways/discover] Calling health() RPC...`)
             health = await client.health()
-            console.log(`[POST /api/gateways/discover] Health response:`, health)
+            logger.debug(`[POST /api/gateways/discover] Health response:`, health)
           } catch (err) {
-            console.log(`[POST /api/gateways/discover] Health check failed:`, {
+            logger.debug(`[POST /api/gateways/discover] Health check failed:`, {
               error: err,
               message: err instanceof Error ? err.message : String(err)
             })
           }
 
           await client.disconnect()
-          console.log(`[POST /api/gateways/discover] Disconnected cleanly`)
+          logger.debug(`[POST /api/gateways/discover] Disconnected cleanly`)
 
           // Success!
           const result = {
@@ -114,7 +116,7 @@ export async function POST(request: Request) {
           }
           results.push(result)
 
-          console.log(`[POST /api/gateways/discover] ✓✓✓ Successfully discovered gateway:`, result)
+          logger.debug(`[POST /api/gateways/discover] ✓✓✓ Successfully discovered gateway:`, result)
 
           // If we found one, we can stop trying other tokens for this URL
           break
@@ -123,7 +125,7 @@ export async function POST(request: Request) {
 
           // Only log if it's not a timeout (expected for non-existent gateways)
           if (!errorMessage.includes('timeout') && !errorMessage.includes('ECONNREFUSED')) {
-            console.log(
+            logger.debug(
               `[POST /api/gateways/discover] ✗ Failed to connect to ${url} with token ${tokenDisplay}:`,
               {
                 error,
@@ -132,7 +134,7 @@ export async function POST(request: Request) {
               }
             )
           } else {
-            console.log(`[POST /api/gateways/discover] ✗ ${errorMessage} for ${url}`)
+            logger.debug(`[POST /api/gateways/discover] ✗ ${errorMessage} for ${url}`)
           }
 
           // If this is the last token to try, record the failure
@@ -143,7 +145,7 @@ export async function POST(request: Request) {
               requiresAuth: false,
               error: errorMessage,
             })
-            console.log(`[POST /api/gateways/discover] Recorded failure for ${url}`)
+            logger.debug(`[POST /api/gateways/discover] Recorded failure for ${url}`)
           }
         }
       }
@@ -152,18 +154,18 @@ export async function POST(request: Request) {
     // Filter to only successful discoveries
     const discovered = results.filter((r) => r.reachable)
 
-    console.log(`[POST /api/gateways/discover] === Discovery complete ===`)
-    console.log(`[POST /api/gateways/discover] Total attempts: ${results.length}`)
-    console.log(`[POST /api/gateways/discover] Successful: ${discovered.length}`)
-    console.log(`[POST /api/gateways/discover] Failed: ${results.length - discovered.length}`)
-    console.log(`[POST /api/gateways/discover] Discovered gateways:`, discovered)
+    logger.debug(`[POST /api/gateways/discover] === Discovery complete ===`)
+    logger.debug(`[POST /api/gateways/discover] Total attempts: ${results.length}`)
+    logger.debug(`[POST /api/gateways/discover] Successful: ${discovered.length}`)
+    logger.debug(`[POST /api/gateways/discover] Failed: ${results.length - discovered.length}`)
+    logger.debug(`[POST /api/gateways/discover] Discovered gateways:`, discovered)
 
     return NextResponse.json({
       discovered,
       allResults: results,
     })
   } catch (error) {
-    console.error('[POST /api/gateways/discover] Fatal error:', {
+    logger.error('[POST /api/gateways/discover] Fatal error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

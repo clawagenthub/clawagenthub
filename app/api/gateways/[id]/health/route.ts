@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager.js'
 import type { Gateway } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * Health check endpoint for gateway
@@ -152,7 +154,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Error checking gateway health:', error)
+    logger.error('Error checking gateway health:', error)
     return NextResponse.json(
       {
         healthy: false,

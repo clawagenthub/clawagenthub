@@ -10,18 +10,17 @@
  * - Instances are cleaned up after idle timeout
  */
 
-import { randomUUID } from 'crypto'
-import WebSocket from 'ws'
-import { GatewaySessionInstance, type ClientConnection } from './session-instance.js'
+import { GatewaySessionInstance } from './session-instance.js'
 import { getDefaultGateway, getGatewayById } from './config.js'
 import type { InstanceEvent, InstanceStatus } from './protocol.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 /** Instance entry in the manager */
-interface InstanceEntry {
+export interface InstanceEntry {
   instance: GatewaySessionInstance
   createdAt: Date
   lastUsedAt: Date
@@ -69,7 +68,6 @@ class GatewayInstanceManager {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor() {
-    // Start cleanup interval
     this.startCleanupInterval()
   }
 
@@ -80,57 +78,53 @@ class GatewayInstanceManager {
   /**
    * Get or create a session instance
    */
-  async getOrCreateInstance(options: GetInstanceOptions): Promise<GatewaySessionInstance> {
+  async getOrCreateInstance(
+    options: GetInstanceOptions
+  ): Promise<GatewaySessionInstance> {
     const { sessionId, agentId, sessionKey, gatewayId, origin } = options
 
-    // Check if instance already exists
     const existing = this.instances.get(sessionId)
     if (existing) {
       existing.lastUsedAt = new Date()
-      console.log('[InstanceManager] Reusing existing instance', {
-        sessionId,
-        agentId
-      })
+      logger.debug(
+        { category: logCategories.INSTANCE_MANAGER },
+        'Reusing existing instance for %s',
+        sessionId
+      )
       return existing.instance
     }
 
-    // Get gateway configuration
-    const gateway = gatewayId
-      ? getGatewayById(gatewayId)
-      : getDefaultGateway()
+    const gateway = gatewayId ? getGatewayById(gatewayId) : getDefaultGateway()
 
     if (!gateway) {
-      throw new Error('No gateway available. Please add and connect a gateway in settings.')
+      throw new Error(
+        'No gateway available. Please add and connect a gateway in settings.'
+      )
     }
 
-    console.log('[InstanceManager] Creating new instance', {
+    logger.debug(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Creating new instance for %s (agent: %s)',
       sessionId,
-      agentId,
-      sessionKey,
-      gatewayId: gateway.id,
-      gatewayName: gateway.name
-    })
+      agentId
+    )
 
-    // Create new instance
     const instance = new GatewaySessionInstance({
       sessionId,
       agentId,
       sessionKey,
       gateway,
-      origin
+      origin,
     })
 
-    // Set up event forwarding
     instance.onEvent((event) => this.notifyEventCallbacks(event))
 
-    // Start the instance
     await instance.start()
 
-    // Store instance
     const entry: InstanceEntry = {
       instance,
       createdAt: new Date(),
-      lastUsedAt: new Date()
+      lastUsedAt: new Date(),
     }
     this.instances.set(sessionId, entry)
 
@@ -159,15 +153,15 @@ class GatewayInstanceManager {
     const entry = this.instances.get(sessionId)
     if (!entry) return
 
-    console.log('[InstanceManager] Removing instance', { sessionId })
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Removing instance %s',
+      sessionId
+    )
 
-    // Stop the instance
     entry.instance.stop()
-
-    // Remove from map
     this.instances.delete(sessionId)
 
-    // Clean up any orphaned client mappings
     for (const [clientId, sid] of this.clientToSession.entries()) {
       if (sid === sessionId) {
         this.clientToSession.delete(clientId)
@@ -197,23 +191,21 @@ class GatewayInstanceManager {
   ): Promise<void> {
     const instance = await this.getOrCreateInstance(options)
 
-    // Update last used time
     const entry = this.instances.get(options.sessionId)
     if (entry) {
       entry.lastUsedAt = new Date()
     }
 
-    // Map client to session
     this.clientToSession.set(clientId, options.sessionId)
 
-    // Add client to instance
     instance.addClient(clientId, ws, userId, options.sinceSeq)
 
-    console.log('[InstanceManager] Client added', {
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Client %s added to session %s',
       clientId,
-      sessionId: options.sessionId,
-      agentId: options.agentId
-    })
+      options.sessionId
+    )
   }
 
   /**
@@ -230,25 +222,38 @@ class GatewayInstanceManager {
 
     this.clientToSession.delete(clientId)
 
-    console.log('[InstanceManager] Client removed', {
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Client %s removed from session %s',
       clientId,
       sessionId
-    })
+    )
   }
 
   /**
    * Handle message from a client
    */
-  async handleClientMessage(clientId: string, message: ClientManagerMessage): Promise<void> {
+  async handleClientMessage(
+    clientId: string,
+    message: ClientManagerMessage
+  ): Promise<void> {
     const sessionId = this.clientToSession.get(clientId)
     if (!sessionId) {
-      console.warn('[InstanceManager] No session found for client', { clientId })
+      logger.warn(
+        { category: logCategories.INSTANCE_MANAGER },
+        'No session found for client %s',
+        clientId
+      )
       return
     }
 
     const instance = this.getInstance(sessionId)
     if (!instance) {
-      console.warn('[InstanceManager] No instance found for session', { sessionId })
+      logger.warn(
+        { category: logCategories.INSTANCE_MANAGER },
+        'No instance found for session %s',
+        sessionId
+      )
       return
     }
 
@@ -295,7 +300,7 @@ class GatewayInstanceManager {
       activeInstances: activeCount,
       idleInstances: idleCount,
       totalClients,
-      instances: instanceStatuses
+      instances: instanceStatuses,
     }
   }
 
@@ -304,36 +309,41 @@ class GatewayInstanceManager {
   // ========================================================================
 
   private startCleanupInterval(): void {
-    // Run cleanup every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup()
-    }, 5 * 60 * 1000)
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup()
+      },
+      5 * 60 * 1000
+    )
 
-    console.log('[InstanceManager] Cleanup interval started')
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Cleanup interval started'
+    )
   }
 
   private cleanup(): void {
     const now = Date.now()
-    const idleTimeout = 30 * 60 * 1000 // 30 minutes
+    const idleTimeout = 30 * 60 * 1000
     let removedCount = 0
 
     for (const [sessionId, entry] of this.instances.entries()) {
       const status = entry.instance.getStatus()
 
-      // Remove stopped instances
       if (status.state === 'stopped') {
         this.instances.delete(sessionId)
         removedCount++
         continue
       }
 
-      // Remove idle instances (no clients and no recent activity)
       const idleTime = now - entry.lastUsedAt.getTime()
       if (status.clientCount === 0 && idleTime > idleTimeout) {
-        console.log('[InstanceManager] Removing idle instance', {
+        logger.info(
+          { category: logCategories.INSTANCE_MANAGER },
+          'Removing idle instance %s (%s min idle)',
           sessionId,
-          idleMinutes: (idleTime / (60 * 1000)).toFixed(2)
-        })
+          (idleTime / (60 * 1000)).toFixed(2)
+        )
         entry.instance.stop()
         this.instances.delete(sessionId)
         removedCount++
@@ -341,10 +351,12 @@ class GatewayInstanceManager {
     }
 
     if (removedCount > 0) {
-      console.log('[InstanceManager] Cleanup complete', {
+      logger.info(
+        { category: logCategories.INSTANCE_MANAGER },
+        'Cleanup complete: removed %s, remaining %s',
         removedCount,
-        remainingInstances: this.instances.size
-      })
+        this.instances.size
+      )
     }
   }
 
@@ -352,9 +364,11 @@ class GatewayInstanceManager {
    * Stop all instances
    */
   stopAll(): void {
-    console.log('[InstanceManager] Stopping all instances', {
-      count: this.instances.size
-    })
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Stopping all %s instances',
+      this.instances.size
+    )
 
     for (const entry of this.instances.values()) {
       entry.instance.stop()
@@ -378,7 +392,11 @@ class GatewayInstanceManager {
       try {
         callback(event)
       } catch (error) {
-        console.error('[InstanceManager] Event callback error:', error)
+        logger.error(
+          { category: logCategories.INSTANCE_MANAGER },
+          'Event callback error: %s',
+          String(error)
+        )
       }
     }
   }
@@ -396,7 +414,10 @@ let managerInstance: GatewayInstanceManager | null = null
 export function getInstanceManager(): GatewayInstanceManager {
   if (!managerInstance) {
     managerInstance = new GatewayInstanceManager()
-    console.log('[InstanceManager] Singleton created')
+    logger.info(
+      { category: logCategories.INSTANCE_MANAGER },
+      'Singleton created'
+    )
   }
   return managerInstance
 }
@@ -410,6 +431,3 @@ export function resetInstanceManager(): void {
   }
   managerInstance = null
 }
-
-// Re-export types
-export type { InstanceEntry }

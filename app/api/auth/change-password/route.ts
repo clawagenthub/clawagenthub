@@ -5,6 +5,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifyPassword, hashPassword, validatePassword } from '@/lib/auth/password.js'
 import { getUserFromSession, deleteUserSessions, createSession } from '@/lib/auth/session.js'
 import type { User } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🔐 Password change attempt for user:', user.email)
+    logger.debug('🔐 Password change attempt for user:', user.email)
 
     const { currentPassword, newPassword } = await request.json()
 
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!validCurrentPassword) {
-      console.log('❌ Invalid current password for:', user.email)
+      logger.debug('❌ Invalid current password for:', user.email)
       return NextResponse.json(
         { message: 'Current password is incorrect' },
         { status: 401 }
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Validate new password
     const validation = validatePassword(newPassword)
     if (!validation.valid) {
-      console.log('❌ New password validation failed:', validation.errors)
+      logger.debug('❌ New password validation failed:', validation.errors)
       return NextResponse.json(
         { message: 'Password does not meet requirements', errors: validation.errors },
         { status: 400 }
@@ -85,11 +87,11 @@ export async function POST(request: NextRequest) {
       "UPDATE users SET password_hash = ?, first_password_changed = 1, updated_at = datetime('now') WHERE id = ?"
     ).run(newPasswordHash, user.id)
 
-    console.log('✅ Password updated for:', user.email)
+    logger.debug('✅ Password updated for:', user.email)
 
     // Security: Invalidate all existing sessions
     deleteUserSessions(user.id)
-    console.log('🔒 All sessions invalidated for security')
+    logger.debug('🔒 All sessions invalidated for security')
 
     // Create new session
     const newSession = createSession(user.id)
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error('Password change error:', error)
+    logger.error('Password change error:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

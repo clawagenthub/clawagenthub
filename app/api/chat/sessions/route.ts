@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatSession } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: Request) {
   try {
@@ -81,7 +83,7 @@ export async function POST(request: Request) {
    
     return NextResponse.json({ session: chatSession })
   } catch (error) {
-    console.error('[Chat API] Error creating session:', error)
+    logger.error('[Chat API] Error creating session:', error)
     return NextResponse.json(
       { error: 'Failed to create chat session' },
       { status: 500 }
@@ -97,7 +99,7 @@ export async function GET(request: Request) {
    
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      console.error('[Sessions API] Auth failed or no workspace selected')
+      logger.error('[Sessions API] Auth failed or no workspace selected')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
    
@@ -119,7 +121,7 @@ export async function GET(request: Request) {
     
     return NextResponse.json({ sessions })
   } catch (error) {
-    console.error('[Chat API] Error fetching sessions:', error)
+    logger.error('[Chat API] Error fetching sessions:', error)
     return NextResponse.json(
       { error: 'Failed to fetch chat sessions' },
       { status: 500 }

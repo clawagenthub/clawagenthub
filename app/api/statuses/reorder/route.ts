@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface ReorderItem {
   id: string
@@ -9,7 +11,7 @@ interface ReorderItem {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('[API /api/statuses/reorder] Starting request')
+  logger.debug('[API /api/statuses/reorder] Starting request')
 
   try {
     const db = getDatabase()
@@ -18,11 +20,11 @@ export async function POST(request: NextRequest) {
     const auth = await getUserWithWorkspace()
 
     if (!auth) {
-      console.log('[API /api/statuses/reorder] No valid session or workspace')
+      logger.debug('[API /api/statuses/reorder] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
 
-    console.log('[API /api/statuses/reorder] Authenticated:', {
+    logger.debug('[API /api/statuses/reorder] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('[API /api/statuses/reorder] Reordering statuses:', {
+    logger.debug('[API /api/statuses/reorder] Reordering statuses:', {
       count: items.length,
       items
     })
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     updateMany(items)
 
-    console.log('[API /api/statuses/reorder] Successfully reordered statuses')
+    logger.debug('[API /api/statuses/reorder] Successfully reordered statuses')
 
     // Fetch and return updated statuses
     const updatedStatuses = db
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ statuses: updatedStatuses })
   } catch (error) {
-    console.error('[API /api/statuses/reorder] Fatal error:', {
+    logger.error('[API /api/statuses/reorder] Fatal error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * POST /api/tickets/flow/bulk-stop
@@ -146,7 +148,7 @@ export async function POST(request: NextRequest) {
       results,
     })
   } catch (error) {
-    console.error('Error in bulk-stop flow:', error)
+    logger.error('Error in bulk-stop flow:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

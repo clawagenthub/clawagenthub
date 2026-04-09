@@ -7,6 +7,8 @@ import { DeleteStatusModal } from '@/components/status/delete-status-modal'
 import { useStatuses } from '@/lib/query/hooks/useStatuses'
 import type { PageContentProps } from './index'
 import type { Status } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export function StatusesPageContent({ user }: PageContentProps) {
   const { data: statuses = [], isLoading, error } = useStatuses()
@@ -49,13 +51,13 @@ export function StatusesPageContent({ user }: PageContentProps) {
     ask_approve_to_continue?: boolean
     skill_ids?: string[]
   }) => {
-    console.log('[DEBUG] handleSubmit called with data:', data)
+    logger.debug('[DEBUG] handleSubmit called with data:', data)
     setIsSubmitting(true)
     try {
       let response
       if (editingStatus) {
         // Update existing status
-        console.log('[DEBUG] Updating status:', editingStatus.id)
+        logger.debug('[DEBUG] Updating status:', editingStatus.id)
         response = await fetch(`/api/statuses/${editingStatus.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -63,17 +65,17 @@ export function StatusesPageContent({ user }: PageContentProps) {
         })
       } else {
         // Create new status
-        console.log('[DEBUG] Creating new status')
+        logger.debug({ category: logCategories.CHAT }, '[DEBUG] Creating new status')
         response = await fetch('/api/statuses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         })
       }
-      console.log('[DEBUG] Response status:', response.status, response.statusText)
+      logger.debug('[DEBUG] Response status:', response.status, response.statusText)
       
       const responseText = await response.text()
-      console.log('[DEBUG] Response body:', responseText)
+      logger.debug('[DEBUG] Response body:', responseText)
       
       if (!response.ok) {
         const errorData = responseText ? JSON.parse(responseText) : { message: 'Unknown error' }
@@ -92,7 +94,7 @@ export function StatusesPageContent({ user }: PageContentProps) {
             body: JSON.stringify({ skill_ids: data.skill_ids }),
           })
         } catch (error) {
-          console.error('Error attaching skills to status:', error)
+          logger.error('Error attaching skills to status:', error)
           // Don't fail the whole operation if skills attachment fails
         }
       }
@@ -102,7 +104,7 @@ export function StatusesPageContent({ user }: PageContentProps) {
       // Refetch is handled by TanStack Query's invalidation
       window.location.reload() // Simple refresh to ensure data is updated
     } catch (error) {
-      console.error('Error saving status:', error)
+      logger.error('Error saving status:', error)
       alert(error instanceof Error ? error.message : 'Failed to save status')
     } finally {
       setIsSubmitting(false)
@@ -120,7 +122,7 @@ export function StatusesPageContent({ user }: PageContentProps) {
       setDeletingStatus(null)
       window.location.reload() // Simple refresh to ensure data is updated
     } catch (error) {
-      console.error('Error deleting status:', error)
+      logger.error('Error deleting status:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete status')
     } finally {
       setIsSubmitting(false)

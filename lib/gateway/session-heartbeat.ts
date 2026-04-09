@@ -1,3 +1,5 @@
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 /**
  * Gateway Session Heartbeat & Idle Management
  * 
@@ -73,7 +75,7 @@ export class IdleTimerManager {
     const idleMinutes = this.getIdleTimeMs() / (60 * 1000)
 
     if (idleMinutes >= this.idleTimeoutMinutes) {
-      console.log('[SessionInstance] Idle timeout, stopping', {
+      logger.debug('[SessionInstance] Idle timeout, stopping', {
         idleMinutes: idleMinutes.toFixed(2)
       })
       this.onIdle()

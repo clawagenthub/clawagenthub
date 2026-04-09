@@ -7,6 +7,7 @@
 import { getDatabase, initializeDatabase } from '../lib/db/index.js'
 import { hashPassword } from '../lib/auth/password.js'
 import { generateUserId } from '../lib/auth/token.js'
+import logger, { logCategories } from '../lib/logger/index.js'
 
 async function seedAdminUser() {
   const db = getDatabase()
@@ -17,9 +18,9 @@ async function seedAdminUser() {
     .get('admin@clawhub.local') as { count: number }
 
   if (existing.count > 0) {
-    console.log('⚠️  Admin user already exists')
-    console.log('   Email: admin@clawhub.local')
-    console.log('   Password: admin123')
+    logger.info({ category: logCategories.SEEDER }, '⚠️  Admin user already exists')
+    logger.info({ category: logCategories.SEEDER }, '   Email: admin@clawhub.local')
+    logger.info({ category: logCategories.SEEDER }, '   Password: admin123')
     return
   }
 
@@ -29,22 +30,22 @@ async function seedAdminUser() {
   const passwordHash = await hashPassword(password)
   const now = new Date().toISOString()
 
-  console.log('🔐 Creating admin user...')
-  console.log(`   Hashing password: ${password}`)
-  console.log(`   Hash: ${passwordHash.substring(0, 30)}...`)
+  logger.info({ category: logCategories.SEEDER }, '🔐 Creating admin user...')
+  logger.debug({ category: logCategories.SEEDER }, `Hashing password: ${password}`)
+  logger.debug({ category: logCategories.SEEDER }, `Hash: ${passwordHash.substring(0, 30)}...`)
 
   db.prepare(
     `INSERT INTO users (id, email, password_hash, is_superuser, created_at, updated_at)
      VALUES (?, ?, ?, 1, ?, ?)`
   ).run(userId, email, passwordHash, now, now)
 
-  console.log('✅ Admin user created successfully!')
+  logger.info({ category: logCategories.SEEDER }, '✅ Admin user created successfully!')
 
   // Create Admin Workspace
   const workspaceId = generateUserId() // Reuse the same ID generator
   const workspaceName = 'Admin Workspace'
 
-  console.log('\n🏢 Creating Admin Workspace...')
+  logger.info({ category: logCategories.SEEDER }, '🏢 Creating Admin Workspace...')
   db.prepare(
     `INSERT INTO workspaces (id, name, owner_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)`
@@ -57,18 +58,14 @@ async function seedAdminUser() {
      VALUES (?, ?, ?, 'owner', ?)`
   ).run(memberId, workspaceId, userId, now)
 
-  console.log('✅ Admin Workspace created successfully!')
-  console.log(`   Workspace: ${workspaceName}`)
-  console.log(`   Owner: ${email}`)
+  logger.info({ category: logCategories.SEEDER }, '✅ Admin Workspace created successfully!', { workspace: workspaceName, owner: email })
 
-  console.log('\n📝 Login credentials:')
-  console.log(`   Email: ${email}`)
-  console.log(`   Password: ${password}`)
-  console.log('\n⚠️  Change this password in production!')
+  logger.info({ category: logCategories.SEEDER }, '📝 Login credentials:', { email, password })
+  logger.warn({ category: logCategories.SEEDER }, '⚠️  Change this password in production!')
 }
 
 async function main() {
-  console.log('🌱 Seeding database...\n')
+  logger.info({ category: logCategories.SEEDER }, '🌱 Seeding database...')
 
   try {
     // Ensure database is initialized
@@ -76,10 +73,9 @@ async function main() {
 
     await seedAdminUser()
 
-    console.log('\n✨ Database seeding complete!')
+    logger.info({ category: logCategories.SEEDER }, '✨ Database seeding complete!')
   } catch (error) {
-    console.error('\n❌ Database seeding failed:')
-    console.error(error)
+    logger.error({ category: logCategories.SEEDER }, '❌ Database seeding failed', { error })
     process.exit(1)
   }
 }

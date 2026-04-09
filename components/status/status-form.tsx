@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { useAgents, useStatuses } from '@/lib/query/hooks'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // Predefined color palette for status colors
 export const STATUS_COLORS = [
@@ -125,7 +127,7 @@ export function StatusForm({
       const data = await response.json()
       setAvailableSkills(data.skills || [])
     } catch (error) {
-      console.error('Error fetching skills:', error)
+      logger.error('Error fetching skills:', error)
       setSkillsError('Failed to load skills')
     } finally {
       setIsLoadingSkills(false)
@@ -144,7 +146,7 @@ export function StatusForm({
       const data = await response.json()
       setSelectedSkills(data.skills || [])
     } catch (error) {
-      console.error('Error fetching status skills:', error)
+      logger.error('Error fetching status skills:', error)
       setSelectedSkills([])
     }
   }

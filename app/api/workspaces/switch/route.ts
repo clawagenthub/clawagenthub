@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import type { Workspace } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
       workspace,
     })
   } catch (error) {
-    console.error('Error switching workspace:', error)
+    logger.error('Error switching workspace:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

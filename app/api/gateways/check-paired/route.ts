@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager.js'
 import type { Gateway } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
       status: 'disconnected'
     })
   } catch (error) {
-    console.error('Error checking gateway pairing:', error)
+    logger.error('Error checking gateway pairing:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

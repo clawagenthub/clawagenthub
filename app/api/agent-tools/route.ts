@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getGatewayManager } from '@/lib/gateway/manager'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface AgentToolRequest {
   ticketId: string
@@ -26,7 +28,7 @@ interface AgentToolResponse {
 }
 
 export async function POST(request: Request) {
-  console.log('[API /api/agent-tools] Starting request')
+  logger.debug('[API /api/agent-tools] Starting request')
   
   try {
     const db = getDatabase()
@@ -36,11 +38,11 @@ export async function POST(request: Request) {
     const auth = await getUserWithWorkspace()
     
     if (!auth) {
-      console.log('[API /api/agent-tools] No valid session or workspace')
+      logger.debug('[API /api/agent-tools] No valid session or workspace')
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
     
-    console.log('[API /api/agent-tools] Authenticated:', {
+    logger.debug('[API /api/agent-tools] Authenticated:', {
       userId: auth.user.id,
       workspaceId: auth.workspaceId
     })
@@ -138,7 +140,7 @@ export async function POST(request: Request) {
           )
       }
 
-      console.log('[API /api/agent-tools] Tool execution successful:', {
+      logger.debug('[API /api/agent-tools] Tool execution successful:', {
         tool,
         ticketId,
         agentId
@@ -152,7 +154,7 @@ export async function POST(request: Request) {
       return NextResponse.json(response)
     } catch (toolError) {
       error = toolError instanceof Error ? toolError.message : String(toolError)
-      console.error('[API /api/agent-tools] Tool execution failed:', {
+      logger.error('[API /api/agent-tools] Tool execution failed:', {
         tool,
         ticketId,
         agentId,
@@ -167,7 +169,7 @@ export async function POST(request: Request) {
       return NextResponse.json(response, { status: 500 })
     }
   } catch (error) {
-    console.error('[API /api/agent-tools] Fatal error:', {
+    logger.error('[API /api/agent-tools] Fatal error:', {
       error,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getGatewayManager } from '@/lib/gateway/manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 type AnyRecord = Record<string, unknown>
 
@@ -206,19 +208,19 @@ export async function POST(
     try {
       const client = manager.getClient(session.gateway_id)
       if (client && client.isConnected()) {
-        console.log('[AutoSummarize] Fetching history for session:', session.id)
+        logger.debug('[AutoSummarize] Fetching history for session:', session.id)
         const history = await client.getSessionHistory(session.session_key)
         messages = history.messages ?? []
-        console.log('[AutoSummarize] Found messages:', messages.length)
+        logger.debug('[AutoSummarize] Found messages:', messages.length)
       } else {
-        console.log('[AutoSummarize] Gateway not connected for:', session.gateway_id)
+        logger.debug('[AutoSummarize] Gateway not connected for:', session.gateway_id)
         return NextResponse.json({
           error: 'Summarizer gateway not connected',
           skip: true
         }, { status: 503 })
       }
     } catch (error) {
-      console.error('[AutoSummarize] Error fetching session history:', error)
+      logger.error('[AutoSummarize] Error fetching session history:', error)
       return NextResponse.json({
         error: 'Failed to fetch session history',
         skip: true
@@ -226,7 +228,7 @@ export async function POST(
     }
 
     if (!messages || messages.length === 0) {
-      console.log('[AutoSummarize] No messages to summarize')
+      logger.debug('[AutoSummarize] No messages to summarize')
       return NextResponse.json({
         error: 'No messages to summarize',
         skip: true
@@ -275,7 +277,7 @@ ${JSON.stringify(messages, null, 2)}`
       const generatedTitle = parsedSummary.title
       const generatedDescription = parsedSummary.description
 
-      console.log('[AutoSummarize] Parsed response', {
+      logger.debug('[AutoSummarize] Parsed response', {
         sessionId,
         responseShape: describeShape(response),
         source: parsedSummary.source,
@@ -293,7 +295,7 @@ ${JSON.stringify(messages, null, 2)}`
         WHERE id = ?
       `).run(generatedTitle, generatedDescription, updatedAt, sessionId)
 
-      console.log('[AutoSummarize] Summary generated and session marked as inactive:', {
+      logger.debug('[AutoSummarize] Summary generated and session marked as inactive:', {
         sessionId,
         title: generatedTitle
       })
@@ -306,7 +308,7 @@ ${JSON.stringify(messages, null, 2)}`
         status: 'inactive'
       })
     } catch (error) {
-      console.error('[AutoSummarize] Error generating summary:', error)
+      logger.error('[AutoSummarize] Error generating summary:', error)
       return NextResponse.json({
         error: 'Failed to generate summary',
         skip: true
@@ -314,7 +316,7 @@ ${JSON.stringify(messages, null, 2)}`
     }
 
   } catch (error) {
-    console.error('[Chat API] Error in auto-summarize:', error)
+    logger.error('[Chat API] Error in auto-summarize:', error)
     return NextResponse.json(
       { error: 'Failed to auto-summarize session' },
       { status: 500 }

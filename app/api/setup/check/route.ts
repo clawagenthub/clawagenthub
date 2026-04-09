@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { checkSetupRequired, validateSetupToken } from '@/lib/setup/index.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
       message: valid ? 'Token is valid' : 'Invalid or expired token',
     })
   } catch (error) {
-    console.error('Setup check error:', error)
+    logger.error('Setup check error:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

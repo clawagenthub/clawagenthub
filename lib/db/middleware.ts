@@ -5,6 +5,8 @@
 
 import { getDatabase, initializeDatabase } from './index.js'
 import type { CountResult } from './schema.d.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 let isInitialized = false
 let initializationPromise: Promise<void> | null = null
@@ -45,20 +47,20 @@ export async function ensureDatabase(): Promise<void> {
   // Start initialization
   initializationPromise = (async () => {
     try {
-      console.log('🔍 Checking database status...')
+      logger.debug({ category: logCategories.DATABASE }, '🔍 Checking database status...')
 
       // Check if tables exist
       if (!tablesExist()) {
-        console.log('⚠️  Database tables not found, initializing...')
+        logger.debug({ category: logCategories.DATABASE }, '⚠️  Database tables not found, initializing...')
         initializeDatabase()
       } else {
-        console.log('✓ Database tables exist')
+        logger.debug({ category: logCategories.DATABASE }, '✓ Database tables exist')
       }
 
       isInitialized = true
-      console.log('✓ Database ready')
+      logger.debug({ category: logCategories.DATABASE }, '✓ Database ready')
     } catch (error) {
-      console.error('❌ Database initialization failed:', error)
+      logger.error('❌ Database initialization failed:', error)
       throw error
     } finally {
       initializationPromise = null

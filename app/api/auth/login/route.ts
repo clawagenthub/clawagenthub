@@ -6,24 +6,26 @@ import { createSession } from '@/lib/auth/session.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { seedDefaultStatuses } from '@/lib/db/seeder.js'
 import type { User } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   const timestamp = new Date().toISOString()
-  console.log(`\n🔐 [LOGIN API ${timestamp}] POST /api/auth/login`)
+  logger.debug(`\n🔐 [LOGIN API ${timestamp}] POST /api/auth/login`)
 
   try {
     // Ensure database is initialized
     await ensureDatabase()
-    console.log('   ✓ Database initialized')
+    logger.debug('   ✓ Database initialized')
 
     const { email, password, origin } = await request.json()
 
-    console.log(`   📧 Login attempt for: ${email}`)
-    console.log(`   🔑 Password length: ${password?.length}`)
-    console.log(`   🌐 Origin: ${origin || 'not provided'}`)
+    logger.debug(`   📧 Login attempt for: ${email}`)
+    logger.debug(`   🔑 Password length: ${password?.length}`)
+    logger.debug(`   🌐 Origin: ${origin || 'not provided'}`)
 
     if (!email || !password) {
-      console.log('   ❌ Missing credentials')
+      logger.debug('   ❌ Missing credentials')
       return NextResponse.json(
         { message: 'Email and password are required' },
         { status: 400 }
@@ -36,39 +38,39 @@ export async function POST(request: NextRequest) {
       .get(email) as User | undefined
 
     if (!user) {
-      console.log(`   ❌ User not found: ${email}`)
+      logger.debug(`   ❌ User not found: ${email}`)
       return NextResponse.json(
         { message: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    console.log(`   ✓ User found - ID: ${user.id}`)
-    console.log(`   ✓ Email: ${user.email}`)
-    console.log(`   ✓ Is superuser: ${user.is_superuser}`)
-    console.log(`   🔍 Verifying password...`)
+    logger.debug(`   ✓ User found - ID: ${user.id}`)
+    logger.debug(`   ✓ Email: ${user.email}`)
+    logger.debug(`   ✓ Is superuser: ${user.is_superuser}`)
+    logger.debug(`   🔍 Verifying password...`)
 
     const validPassword = await verifyPassword(password, user.password_hash)
 
-    console.log(
+    logger.debug(
       `   ${validPassword ? '✅' : '❌'} Password verification: ${validPassword}`
     )
 
     if (!validPassword) {
-      console.log(`   ❌ Invalid password for: ${email}`)
+      logger.debug(`   ❌ Invalid password for: ${email}`)
       return NextResponse.json(
         { message: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    console.log(`   ✅ Creating session for user: ${user.id}`)
+    logger.debug(`   ✅ Creating session for user: ${user.id}`)
     const session = createSession(user.id, origin)
-    console.log(
+    logger.debug(
       `   ✅ Session created - Token: ${session.token.substring(0, 10)}...`
     )
-    console.log(`   ✅ Session expires: ${session.expires_at}`)
-    console.log(`   ✅ Session origin stored: ${origin || 'none'}`)
+    logger.debug(`   ✅ Session expires: ${session.expires_at}`)
+    logger.debug(`   ✅ Session origin stored: ${origin || 'none'}`)
 
     const response = NextResponse.json({
       success: true,
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log(`   🍪 Setting session cookie...`)
+    logger.debug(`   🍪 Setting session cookie...`)
     response.cookies.set('session_token', session.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -88,14 +90,14 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24, // 24 hours
       path: '/',
     })
-    console.log(`   🍪 Cookie settings:`)
-    console.log(`      - httpOnly: true`)
-    console.log(`      - secure: ${process.env.NODE_ENV === 'production'}`)
-    console.log(`      - sameSite: lax`)
-    console.log(`      - maxAge: 86400 (24 hours)`)
-    console.log(`      - path: /`)
+    logger.debug(`   🍪 Cookie settings:`)
+    logger.debug(`      - httpOnly: true`)
+    logger.debug(`      - secure: ${process.env.NODE_ENV === 'production'}`)
+    logger.debug(`      - sameSite: lax`)
+    logger.debug(`      - maxAge: 86400 (24 hours)`)
+    logger.debug(`      - path: /`)
 
-    console.log(`   ✅ Login successful for: ${email}`)
+    logger.debug(`   ✅ Login successful for: ${email}`)
 
     // Auto-create workspace for new users if they don't have one
     const workspaces = db
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
       .all(user.id) as { id: string }[]
 
     if (workspaces.length === 0) {
-      console.log(`   🌐 No workspace found, creating default workspace...`)
+      logger.debug(`   🌐 No workspace found, creating default workspace...`)
       const workspaceId = generateUserId()
       const memberId = generateUserId()
       const now = new Date().toISOString()
@@ -132,12 +134,12 @@ export async function POST(request: NextRequest) {
         `UPDATE sessions SET current_workspace_id = ? WHERE token = ?`
       ).run(workspaceId, session.token)
 
-      console.log(`   ✅ Default workspace created: ${workspaceId}`)
+      logger.debug(`   ✅ Default workspace created: ${workspaceId}`)
     }
 
     return response
   } catch (error) {
-    console.error(`   ❌ Login error:`, error)
+    logger.error(`   ❌ Login error:`, error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

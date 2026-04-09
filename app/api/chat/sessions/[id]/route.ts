@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatSession } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * PATCH /api/chat/sessions/[id]
@@ -73,7 +75,7 @@ export async function PATCH(
 
     return NextResponse.json({ session: updatedSession })
   } catch (error) {
-    console.error('[API /api/chat/sessions] Error updating session:', error)
+    logger.error('[API /api/chat/sessions] Error updating session:', error)
     return NextResponse.json(
       { error: 'Failed to update session' },
       { status: 500 }

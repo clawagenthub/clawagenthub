@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { StatusCard } from './status-card'
 import { useReorderStatuses } from '@/lib/query/hooks/useStatuses'
 import type { Status } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface StatusListProps {
   statuses: Status[]
@@ -56,7 +58,7 @@ export function StatusList({ statuses, onEdit, onDelete, canManage }: StatusList
     try {
       await reorderStatuses.mutateAsync(reorderItems)
     } catch (error) {
-      console.error('Failed to reorder statuses:', error)
+      logger.error('Failed to reorder statuses:', error)
     }
 
     setDraggedStatusId(null)

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGenerateSessionSummary } from '@/lib/query/hooks/useChat'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface UseSessionIdleOptions {
   sessionId: string | null
@@ -56,10 +58,10 @@ export function useSessionIdle({
         // Trigger summary generation
         generateSummary.mutate(sessionId, {
           onSuccess: () => {
-            console.log('[useSessionIdle] Summary generated successfully')
+            logger.debug({ category: logCategories.SESSION_STATUS }, '[useSessionIdle] Summary generated successfully')
           },
           onError: (error) => {
-            console.error('[useSessionIdle] Failed to generate summary:', error)
+            logger.error('[useSessionIdle] Failed to generate summary:', error)
           },
         })
       }

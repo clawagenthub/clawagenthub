@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import type { TicketFlowConfig, Status } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteParams {
   params: Promise<{ ticketId: string }>
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }))
     })
   } catch (error) {
-    console.error('Error fetching flow configs:', error)
+    logger.error('Error fetching flow configs:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -257,7 +259,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }))
     })
   } catch (error) {
-    console.error('Error updating flow configs:', error)
+    logger.error('Error updating flow configs:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -8,6 +8,8 @@ import { Filters } from './skills/Filters'
 import { SkillsGrid } from './skills/SkillsGrid'
 import { SkillModal } from './skills/SkillModal'
 import { SkillsMarketplaceModal } from './skills/SkillsMarketplaceModal'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
   const { isActive: _isActive } = useNavigation()
@@ -32,7 +34,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
         setSkills(data.skills || [])
       }
     } catch (error) {
-      console.error('Error fetching skills:', error)
+      logger.error('Error fetching skills:', error)
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
         setSkills(skills.filter(s => s.id !== skillId))
       }
     } catch (error) {
-      console.error('Error deleting skill:', error)
+      logger.error('Error deleting skill:', error)
     }
   }
 
@@ -79,7 +81,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
         alert(error.error || 'Failed to save skill')
       }
     } catch (error) {
-      console.error('Error saving skill:', error)
+      logger.error('Error saving skill:', error)
       alert('Failed to save skill')
     }
   }
@@ -100,7 +102,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
         alert(error.error || 'Failed to import skill')
       }
     } catch (error) {
-      console.error('Error importing skill:', error)
+      logger.error('Error importing skill:', error)
       alert('Failed to import skill')
     }
   }

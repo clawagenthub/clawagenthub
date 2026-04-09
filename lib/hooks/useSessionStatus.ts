@@ -1,6 +1,6 @@
 /**
  * useSessionStatus Hook
- * 
+ *
  * React hook for subscribing to real-time session status updates.
  * Connects to the WebSocket 'sessions' channel to receive status updates.
  */
@@ -8,7 +8,179 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { SessionStatus, SessionStatusType } from '@/lib/session/status-tracker'
+import type {
+  SessionStatus,
+  SessionStatusType,
+} from '@/lib/session/status-tracker'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
+interface SessionStatusSnapshot {
+  statuses: Map<string, SessionStatus>
+  isConnected: boolean
+}
+
+type SessionStatusSubscriber = (snapshot: SessionStatusSnapshot) => void
+
+class SessionStatusSocketManager {
+  private ws: WebSocket | null = null
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+  private subscribers = new Map<number, SessionStatusSubscriber>()
+  private statuses = new Map<string, SessionStatus>()
+  private isConnected = false
+  private connectAttempts = 0
+  private subscriberSeq = 0
+
+  subscribe(subscriber: SessionStatusSubscriber): () => void {
+    const id = ++this.subscriberSeq
+    this.subscribers.set(id, subscriber)
+
+    subscriber(this.getSnapshot())
+    this.ensureConnected()
+
+    return () => {
+      this.subscribers.delete(id)
+      if (this.subscribers.size === 0) {
+        this.teardown()
+      }
+    }
+  }
+
+  getSnapshot(): SessionStatusSnapshot {
+    return {
+      statuses: new Map(this.statuses),
+      isConnected: this.isConnected,
+    }
+  }
+
+  private notifySubscribers(): void {
+    const snapshot = this.getSnapshot()
+    for (const subscriber of this.subscribers.values()) {
+      subscriber(snapshot)
+    }
+  }
+
+  private ensureConnected(): void {
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      return
+    }
+
+    this.connectAttempts += 1
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = process.env.NEXT_PUBLIC_WS_URL || window.location.host
+    const wsUrl = `${protocol}//${host}/api/chat/ws`
+
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusSocketManager] connect attempt=%s url=%s subscribers=%s',
+      String(this.connectAttempts),
+      wsUrl,
+      String(this.subscribers.size)
+    )
+
+    this.ws = new WebSocket(wsUrl)
+
+    this.ws.onopen = () => {
+      this.isConnected = true
+      this.notifySubscribers()
+
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusSocketManager] connected'
+      )
+
+      this.ws?.send(
+        JSON.stringify({
+          type: 'subscribe',
+          channel: 'sessions',
+        })
+      )
+
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout)
+        this.reconnectTimeout = null
+      }
+    }
+
+    this.ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data)
+
+        if (message.type === 'session.status') {
+          const status: SessionStatus = message.data
+          this.statuses.set(status.sessionId, status)
+          this.notifySubscribers()
+        } else if (message.type === 'session.statuses') {
+          const allStatuses: SessionStatus[] = message.data || []
+          this.statuses = new Map(allStatuses.map((s) => [s.sessionId, s]))
+          this.notifySubscribers()
+        }
+      } catch (error) {
+        logger.error(
+          { category: logCategories.SESSION_STATUS },
+          '[SessionStatusSocketManager] Failed to parse message: %s',
+          error instanceof Error ? error.message : String(error)
+        )
+      }
+    }
+
+    this.ws.onclose = (event) => {
+      this.ws = null
+      this.isConnected = false
+      this.notifySubscribers()
+
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusSocketManager] disconnected code=%s reason=%s wasClean=%s',
+        String(event.code),
+        event.reason || '(none)',
+        String(event.wasClean)
+      )
+
+      if (this.subscribers.size > 0) {
+        this.reconnectTimeout = setTimeout(() => this.ensureConnected(), 3000)
+      }
+    }
+
+    this.ws.onerror = (event) => {
+      logger.error(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusSocketManager] WebSocket error event=%s',
+        String(event)
+      )
+    }
+  }
+
+  private teardown(): void {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+
+    this.isConnected = false
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusSocketManager] teardown (no subscribers)'
+    )
+  }
+}
+
+let sessionStatusManager: SessionStatusSocketManager | null = null
+
+function getSessionStatusManager(): SessionStatusSocketManager {
+  if (!sessionStatusManager) {
+    sessionStatusManager = new SessionStatusSocketManager()
+  }
+  return sessionStatusManager
+}
 
 interface UseSessionStatusOptions {
   enabled?: boolean
@@ -25,126 +197,62 @@ interface UseSessionStatusResult {
 
 /**
  * Hook for real-time session status tracking
- * 
+ *
  * @example
  * ```tsx
  * const { getStatus, statuses } = useSessionStatus()
  * const status = getStatus(sessionId)
  * ```
  */
-export function useSessionStatus(options: UseSessionStatusOptions = {}): UseSessionStatusResult {
+export function useSessionStatus(
+  options: UseSessionStatusOptions = {}
+): UseSessionStatusResult {
   const { enabled = true } = options
-  
-  const [statuses, setStatuses] = useState<Map<string, SessionStatus>>(new Map())
-  const [isConnected, setIsConnected] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const managerRef = useRef<SessionStatusSocketManager | null>(null)
 
-  // Connect to WebSocket for session status updates
+  if (!managerRef.current) {
+    managerRef.current = getSessionStatusManager()
+  }
+
+  const initialSnapshot = managerRef.current.getSnapshot()
+  const [statuses, setStatuses] = useState<Map<string, SessionStatus>>(
+    initialSnapshot.statuses
+  )
+  const [isConnected, setIsConnected] = useState(initialSnapshot.isConnected)
+
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !managerRef.current) {
+      setIsConnected(false)
       return
     }
 
-    const connect = () => {
-      // WS auth is cookie-based (httpOnly session cookie validated server-side)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const host = process.env.NEXT_PUBLIC_WS_URL || window.location.host
-      const wsUrl = `${protocol}//${host}/api/chat/ws`
-
-      console.log('[useSessionStatus] Connecting to WebSocket:', wsUrl)
-
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        console.log('[useSessionStatus] WebSocket connected')
-        setIsConnected(true)
-
-        // Subscribe to sessions channel
-        ws.send(JSON.stringify({
-          type: 'subscribe',
-          channel: 'sessions'
-        }))
-
-        // Clear any pending reconnect
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
-          reconnectTimeoutRef.current = null
-        }
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data)
-          
-          if (message.type === 'session.status') {
-            const status: SessionStatus = message.data
-            console.log('[useSessionStatus] Status update received:', status)
-            
-            setStatuses(prev => {
-              const next = new Map(prev)
-              next.set(status.sessionId, status)
-              return next
-            })
-          }
-          else if (message.type === 'session.statuses') {
-            // Initial batch of statuses
-            const allStatuses: SessionStatus[] = message.data || []
-            console.log('[useSessionStatus] Initial statuses received:', allStatuses.length)
-            
-            setStatuses(new Map(allStatuses.map(s => [s.sessionId, s])))
-          }
-        } catch (error) {
-          console.error('[useSessionStatus] Failed to parse message:', error)
-        }
-      }
-
-      ws.onclose = () => {
-        console.log('[useSessionStatus] WebSocket disconnected')
-        setIsConnected(false)
-        wsRef.current = null
-
-        // Reconnect after 3 seconds
-        if (enabled) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('[useSessionStatus] Reconnecting...')
-            connect()
-          }, 3000)
-        }
-      }
-
-      ws.onerror = (error) => {
-        console.error('[useSessionStatus] WebSocket error:', error)
-      }
-    }
-
-    connect()
-
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
-    }
+    return managerRef.current.subscribe((snapshot) => {
+      setStatuses(snapshot.statuses)
+      setIsConnected(snapshot.isConnected)
+    })
   }, [enabled])
 
   // Get status for a specific session
-  const getStatus = useCallback((sessionId: string): SessionStatus | undefined => {
-    return statuses.get(sessionId)
-  }, [statuses])
+  const getStatus = useCallback(
+    (sessionId: string): SessionStatus | undefined => {
+      return statuses.get(sessionId)
+    },
+    [statuses]
+  )
 
   // Get all sessions with a specific status type
-  const getStatusesByType = useCallback((statusType: SessionStatusType): SessionStatus[] => {
-    return Array.from(statuses.values()).filter(s => s.status === statusType)
-  }, [statuses])
+  const getStatusesByType = useCallback(
+    (statusType: SessionStatusType): SessionStatus[] => {
+      return Array.from(statuses.values()).filter(
+        (s) => s.status === statusType
+      )
+    },
+    [statuses]
+  )
 
   // Get count of active sessions
   const getActiveCount = useCallback((): number => {
-    return Array.from(statuses.values()).filter(s => {
+    return Array.from(statuses.values()).filter((s) => {
       if (s.status === 'stopped') return false
       if (s.status === 'idle') {
         const oneHourAgo = Date.now() - 3600000
@@ -156,8 +264,11 @@ export function useSessionStatus(options: UseSessionStatusOptions = {}): UseSess
 
   // "Live" means currently processing (thinking/tool/writing), not heartbeat-active.
   const getLiveCount = useCallback((): number => {
-    return Array.from(statuses.values()).filter(s =>
-      s.status === 'thinking' || s.status === 'calling_mcp' || s.status === 'writing'
+    return Array.from(statuses.values()).filter(
+      (s) =>
+        s.status === 'thinking' ||
+        s.status === 'calling_mcp' ||
+        s.status === 'writing'
     ).length
   }, [statuses])
 
@@ -173,7 +284,7 @@ export function useSessionStatus(options: UseSessionStatusOptions = {}): UseSess
 
 /**
  * Hook for a single session's status
- * 
+ *
  * @example
  * ```tsx
  * const { status, isThinking, isWriting } = useSingleSessionStatus(sessionId)

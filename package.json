@@ -29,12 +29,11 @@
     "better-sqlite3": "^11.0.0",
     "marked": "^17.0.4",
     "nanoid": "^5.0.0",
+    "pino": "^9.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vinext": "latest",
     "vite": "^7.3.1",
-    "winston": "^3.19.0",
-    "winston-loki": "^6.1.4",
     "ws": "^8.19.0",
     "zod": "^3.23.0"
   },

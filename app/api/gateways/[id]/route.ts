@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function PUT(
   request: NextRequest,
@@ -115,7 +117,7 @@ export async function PUT(
       gateway: updatedGateway
     })
   } catch (error) {
-    console.error('Error updating gateway:', error)
+    logger.error('Error updating gateway:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -188,7 +190,7 @@ export async function DELETE(
       message: 'Gateway deleted successfully'
     })
   } catch (error) {
-    console.error('Error deleting gateway:', error)
+    logger.error('Error deleting gateway:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

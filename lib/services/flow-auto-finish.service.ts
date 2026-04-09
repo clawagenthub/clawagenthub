@@ -16,6 +16,8 @@
 
 import { getDatabase } from '@/lib/db'
 import type { Ticket, TicketFlowingStatus } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export interface AutoFinishResult {
   wasFinished: boolean
@@ -45,7 +47,7 @@ export class FlowAutoFinishService {
     const db = getDatabase()
     const timestamp = new Date().toISOString()
 
-    console.log(`[FlowAutoFinish] Checking auto-finish for ticket ${ticketId} at ${timestamp}`)
+    logger.debug(`[FlowAutoFinish] Checking auto-finish for ticket ${ticketId} at ${timestamp}`)
 
     // Step 1: Get total flow steps for this ticket (only included ones)
     const totalStepsResult = db.prepare(`
@@ -55,11 +57,11 @@ export class FlowAutoFinishService {
     `).get(ticketId) as { count: number } | undefined
 
     const totalSteps = totalStepsResult?.count ?? 0
-    console.log(`[FlowAutoFinish] Total included flow steps: ${totalSteps}`)
+    logger.debug(`[FlowAutoFinish] Total included flow steps: ${totalSteps}`)
 
     // Edge case: No flow steps configured - don't auto-finish
     if (totalSteps === 0) {
-      console.log(`[FlowAutoFinish] Ticket ${ticketId} has no flow steps configured, skipping`)
+      logger.debug(`[FlowAutoFinish] Ticket ${ticketId} has no flow steps configured, skipping`)
       return {
         wasFinished: false,
         completedSteps: 0,
@@ -78,11 +80,11 @@ export class FlowAutoFinishService {
     `).get(ticketId) as { count: number } | undefined
 
     const completedSteps = completedStepsResult?.count ?? 0
-    console.log(`[FlowAutoFinish] Completed flow steps: ${completedSteps}/${totalSteps}`)
+    logger.debug(`[FlowAutoFinish] Completed flow steps: ${completedSteps}/${totalSteps}`)
 
     // Step 3: Check if all steps are completed
     if (completedSteps < totalSteps) {
-      console.log(`[FlowAutoFinish] Ticket ${ticketId} not ready for auto-finish (${completedSteps}/${totalSteps})`)
+      logger.debug(`[FlowAutoFinish] Ticket ${ticketId} not ready for auto-finish (${completedSteps}/${totalSteps})`)
       return {
         wasFinished: false,
         completedSteps,
@@ -103,7 +105,7 @@ export class FlowAutoFinishService {
     `).get(...this.FINISHED_STATUS_NAMES) as { id: string } | undefined
 
     if (!finishedStatus) {
-      console.warn(`[FlowAutoFinish] No "Finished" status found in statuses table`)
+      logger.warn(`[FlowAutoFinish] No "Finished" status found in statuses table`)
       return {
         wasFinished: false,
         completedSteps,
@@ -114,7 +116,7 @@ export class FlowAutoFinishService {
       }
     }
 
-    console.log(`[FlowAutoFinish] Found Finished status: ${finishedStatus.id}`)
+    logger.debug(`[FlowAutoFinish] Found Finished status: ${finishedStatus.id}`)
 
     // Step 5: Update ticket to Finished (only if not already finished)
     const updateResult = db.prepare(`
@@ -129,7 +131,7 @@ export class FlowAutoFinishService {
     `).run(finishedStatus.id, ticketId)
 
     if (updateResult.changes === 0) {
-      console.log(`[FlowAutoFinish] Ticket ${ticketId} was already finished or update not needed`)
+      logger.debug(`[FlowAutoFinish] Ticket ${ticketId} was already finished or update not needed`)
       return {
         wasFinished: false,
         completedSteps,
@@ -140,7 +142,7 @@ export class FlowAutoFinishService {
       }
     }
 
-    console.log(`[FlowAutoFinish] ✅ Ticket ${ticketId} auto-finished! Status updated to: ${finishedStatus.id}`)
+    logger.debug(`[FlowAutoFinish] ✅ Ticket ${ticketId} auto-finished! Status updated to: ${finishedStatus.id}`)
 
     // Log to audit trail
     try {
@@ -158,7 +160,7 @@ export class FlowAutoFinishService {
         })
       )
     } catch (error) {
-      console.error(`[FlowAutoFinish] Failed to log auto-finish to audit:`, error)
+      logger.error(`[FlowAutoFinish] Failed to log auto-finish to audit:`, error)
     }
 
     return {
@@ -178,7 +180,7 @@ export class FlowAutoFinishService {
    * @param ticketId - The ticket whose flow step just completed
    */
   async afterFlowStepComplete(ticketId: string): Promise<AutoFinishResult> {
-    console.log(`[FlowAutoFinish] Flow step completed for ticket ${ticketId}, checking auto-finish...`)
+    logger.debug(`[FlowAutoFinish] Flow step completed for ticket ${ticketId}, checking auto-finish...`)
     return this.checkAndAutoFinishTicket(ticketId)
   }
 
@@ -203,7 +205,7 @@ export class FlowAutoFinishService {
     } | undefined
 
     if (!ticket) {
-      console.warn(`[FlowAutoFinish] Ticket ${ticketId} not found for flow dependency check`)
+      logger.warn(`[FlowAutoFinish] Ticket ${ticketId} not found for flow dependency check`)
       return {
         canFlow: false,
         waitingTicketId: null,
@@ -231,7 +233,7 @@ export class FlowAutoFinishService {
     } | undefined
 
     if (!waitingTicket) {
-      console.warn(`[FlowAutoFinish] Waiting ticket ${ticket.waiting_finished_ticket_id} not found`)
+      logger.warn(`[FlowAutoFinish] Waiting ticket ${ticket.waiting_finished_ticket_id} not found`)
       return {
         canFlow: true,
         waitingTicketId: ticket.waiting_finished_ticket_id,
@@ -296,7 +298,7 @@ export class FlowAutoFinishService {
         AND flowing_status = 'waiting'
     `).run(finishedTicketId)
 
-    console.log(`[FlowAutoFinish] Updated ${result.changes} waiting tickets after ${finishedTicketId} finished`)
+    logger.debug(`[FlowAutoFinish] Updated ${result.changes} waiting tickets after ${finishedTicketId} finished`)
     return result.changes
   }
 }

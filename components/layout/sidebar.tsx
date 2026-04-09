@@ -6,6 +6,8 @@ import { WorkspaceSelector } from '@/components/workspace/workspace-selector'
 import { SidebarNav } from './sidebar-nav'
 import { SidebarUserMenu } from './sidebar-user-menu'
 import type { WorkspaceWithRole } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface UserInfo {
   id: string
@@ -50,7 +52,7 @@ export function Sidebar({ user: _user }: SidebarProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching workspaces:', error)
+      logger.error('Error fetching workspaces:', error)
     } finally {
       setLoading(false)
       setIsInitialLoad(false)
@@ -80,7 +82,7 @@ export function Sidebar({ user: _user }: SidebarProps) {
         }
       }
     } catch (error) {
-      console.error('Error switching workspace:', error)
+      logger.error('Error switching workspace:', error)
       setSwitchingWorkspace(false)
     }
   }
@@ -94,7 +96,7 @@ export function Sidebar({ user: _user }: SidebarProps) {
       await fetch('/api/auth/logout', { method: 'POST' })
       router.push('/login')
     } catch (error) {
-      console.error('Logout failed:', error)
+      logger.error('Logout failed:', error)
     }
   }
 

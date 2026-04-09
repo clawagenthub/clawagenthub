@@ -1,10 +1,11 @@
 /**
  * Gateway Session State Machine
- * 
+ *
  * Manages state transitions and logging for session instances.
  */
 
 import type { InstanceState } from './protocol.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 export interface StateChangeEvent {
   state: InstanceState
@@ -52,12 +53,14 @@ export class SessionStateMachine {
     this._state = newState
     this._error = error
 
-    console.log('[SessionInstance] State changed', {
-      sessionId: this.sessionId,
+    logger.debug(
+      { category: logCategories.GATEWAY_INSTANCE },
+      '[SessionInstance] State changed: %s %s %s %s',
+      this.sessionId,
       oldState,
       newState,
       error
-    })
+    )
 
     return { state: newState, error }
   }

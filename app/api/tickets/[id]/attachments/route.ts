@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { storeAttachments, type StoredAttachmentInput } from '@/lib/attachments'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(
   request: Request,
@@ -64,7 +66,7 @@ export async function POST(
       description: nextDescription,
     })
   } catch (error) {
-    console.error('[Ticket Attachments API] Error saving attachments:', error)
+    logger.error('[Ticket Attachments API] Error saving attachments:', error)
     return NextResponse.json(
       { error: 'Failed to save attachments' },
       { status: 500 }

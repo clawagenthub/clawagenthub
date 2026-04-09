@@ -1,5 +1,7 @@
 import { useCallback } from 'react'
 import type { TicketFlowMode } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export interface FlowConfig {
   status_id: string
@@ -115,7 +117,7 @@ export interface UseFlowConfigReturn {
 // Hook for managing flow configuration state and handlers
 export function useFlowConfigUtils() {
   const handleFlowConfigsChange = useCallback((configs: FlowConfig[]) => {
-    console.log('[TicketModal] onChange from StatusFlowBuilder', {
+    logger.debug('[TicketModal] onChange from StatusFlowBuilder', {
       nextCount: configs.length,
       statusIds: configs.map(config => config.status_id),
     })
@@ -131,13 +133,13 @@ export function useFlowConfigUtils() {
   ) => {
     const initialConfigs = buildDefaultFlowConfigs()
 
-    console.log('[TicketModal] Loading flow configs from status defaults by user action', {
+    logger.debug('[TicketModal] Loading flow configs from status defaults by user action', {
       includedCount: initialConfigs.length,
       totalStatuses: statuses?.length ?? 0,
       source: 'manual-load-default-config',
     })
 
-    console.log('[TicketModal] Applied default flow configs to modal state', {
+    logger.debug('[TicketModal] Applied default flow configs to modal state', {
       appliedCount: initialConfigs.length,
       statusIds: initialConfigs.map(config => config.status_id),
     })

@@ -7,33 +7,23 @@
 
 import { createServiceEventEmitter, type ServiceEventEmitter } from './service-event-emitter'
 import type { Gateway, AgentInfo } from '../db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface GatewayServiceState {
-  // Loading states
   isLoading: boolean
   isConnecting: boolean
-  
-  // Connection status
   isConnected: boolean
   connectionError: string | null
-  
-  // Gateway data
   gateways: Gateway[]
   activeGatewayId: string | null
-  
-  // Agents data
   agents: AgentInfo[]
   isLoadingAgents: boolean
-  
-  // Reconnection state
   reconnectAttempts: number
   lastReconnectAttempt: number | null
-  
-  // Initialization state
   isInitialized: boolean
 }
 
@@ -82,34 +72,18 @@ class GatewayServiceClass {
     })
   }
 
-  // ========================================================================
-  // State Management
-  // ========================================================================
-
-  /**
-   * Get the current service state
-   */
   getState(): GatewayServiceState {
     return this.stateEmitter.get()
   }
 
-  /**
-   * Subscribe to state changes
-   */
   subscribe(listener: (state: GatewayServiceState) => void): () => void {
     return this.stateEmitter.subscribe(listener)
   }
 
-  /**
-   * Get the state emitter (for advanced use cases)
-   */
   getStateEmitter(): ServiceEventEmitter<GatewayServiceState> {
     return this.stateEmitter
   }
 
-  /**
-   * Update internal state and emit changes
-   */
   private setState(updater: Partial<GatewayServiceState> | ((prev: GatewayServiceState) => Partial<GatewayServiceState>)): void {
     const prevState = this.stateEmitter.get()
     let updates: Partial<GatewayServiceState>
@@ -125,13 +99,6 @@ class GatewayServiceClass {
     this.emit('state:change', newState)
   }
 
-  // ========================================================================
-  // Event System
-  // ========================================================================
-
-  /**
-   * Listen to a specific gateway event
-   */
   on<K extends keyof GatewayServiceEvents>(
     event: K,
     callback: (payload: GatewayServiceEvents[K]) => void
@@ -145,9 +112,6 @@ class GatewayServiceClass {
     }
   }
 
-  /**
-   * Emit an event to all listeners
-   */
   private emit<K extends keyof GatewayServiceEvents>(
     event: K,
     payload: GatewayServiceEvents[K]
@@ -158,34 +122,27 @@ class GatewayServiceClass {
         try {
           callback(payload)
         } catch (error) {
-          console.error(`[GatewayService] Error in ${event} listener:`, error)
+          logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Error in %s listener: %s', String(event), String(error))
         }
       }
     }
   }
 
-  // ========================================================================
-  // Initialization
-  // ========================================================================
-
-  /**
-   * Initialize the service and fetch gateways
-   */
   async initialize(): Promise<void> {
     if (this.getState().isInitialized) {
-      console.log('[GatewayService] Already initialized')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Already initialized')
       return
     }
 
-    console.log('[GatewayService] Initializing...')
+    logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Initializing...')
     this.setState({ isLoading: true })
 
     try {
       await this.refreshGateways()
       this.setState({ isInitialized: true, isLoading: false })
-      console.log('[GatewayService] Initialized successfully')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Initialized successfully')
     } catch (error) {
-      console.error('[GatewayService] Initialization failed:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Initialization failed: %s', String(error))
       this.setState({
         isLoading: false,
         connectionError: error instanceof Error ? error.message : 'Failed to initialize',
@@ -194,15 +151,8 @@ class GatewayServiceClass {
     }
   }
 
-  // ========================================================================
-  // Gateway Management
-  // ========================================================================
-
-  /**
-   * Refresh gateways from the API
-   */
   async refreshGateways(): Promise<Gateway[]> {
-    console.log('[GatewayService] Fetching gateways...')
+    logger.debug({ category: logCategories.GATEWAY_SERVICE }, 'Fetching gateways...')
     this.setState({ isLoading: true })
 
     try {
@@ -217,8 +167,6 @@ class GatewayServiceClass {
       const data = await response.json()
       const gateways = data.gateways || []
 
-      // Determine if we have any connected gateways in the database
-      // The actual connection will be verified by refreshAgents()
       const connectedGateways = gateways.filter((g: Gateway) => g.status === 'connected')
       const activeGatewayId = connectedGateways.length > 0 ? connectedGateways[0].id : null
 
@@ -230,20 +178,15 @@ class GatewayServiceClass {
         isLoading: false,
       })
 
-      console.log('[GatewayService] Gateways fetched:', {
-        total: gateways.length,
-        connected: connectedGateways.length,
-        activeGatewayId,
-      })
+      logger.debug({ category: logCategories.GATEWAY_SERVICE }, 'Gateways fetched: %s total, %s connected', gateways.length, connectedGateways.length)
 
-      // After refreshing gateways, refresh agents to verify actual connections
       if (connectedGateways.length > 0) {
         await this.refreshAgents()
       }
 
       return gateways
     } catch (error) {
-      console.error('[GatewayService] Failed to fetch gateways:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Failed to fetch gateways: %s', String(error))
       this.setState({
         isLoading: false,
         connectionError: error instanceof Error ? error.message : 'Failed to fetch gateways',
@@ -253,18 +196,15 @@ class GatewayServiceClass {
     }
   }
 
-  /**
-   * Connect to a specific gateway
-   */
   async connectGateway(gatewayId: string): Promise<void> {
     const state = this.getState()
 
     if (state.isConnecting) {
-      console.log('[GatewayService] Already connecting, skipping')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Already connecting, skipping')
       return
     }
 
-    console.log('[GatewayService] Connecting to gateway:', gatewayId)
+    logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Connecting to gateway %s', gatewayId)
     this.setState({ isConnecting: true, connectionError: null })
     this.emit('gateway:connecting', { gatewayId })
 
@@ -282,7 +222,6 @@ class GatewayServiceClass {
       const data = await response.json()
       const gateway = data.gateway
 
-      // Refresh gateways to get updated state
       await this.refreshGateways()
 
       this.setState({
@@ -293,13 +232,12 @@ class GatewayServiceClass {
       })
 
       this.emit('gateway:connected', { gatewayId, gateway })
-      console.log('[GatewayService] Connected to gateway:', gatewayId)
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Connected to gateway %s', gatewayId)
 
-      // Load agents after successful connection
       await this.refreshAgents()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to connect'
-      console.error('[GatewayService] Connection failed:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Connection failed: %s', errorMessage)
 
       this.setState({
         isConnecting: false,
@@ -312,11 +250,8 @@ class GatewayServiceClass {
     }
   }
 
-  /**
-   * Disconnect from a gateway
-   */
   async disconnectGateway(gatewayId: string): Promise<void> {
-    console.log('[GatewayService] Disconnecting gateway:', gatewayId)
+    logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Disconnecting gateway %s', gatewayId)
 
     try {
       const response = await fetch(`/api/gateways/${gatewayId}`, {
@@ -325,28 +260,20 @@ class GatewayServiceClass {
       })
 
       if (!response.ok) {
-        console.warn('[GatewayService] Failed to disconnect gateway:', gatewayId)
+        logger.warn({ category: logCategories.GATEWAY_SERVICE }, 'Failed to disconnect gateway %s', gatewayId)
       }
 
       await this.refreshGateways()
 
       this.emit('gateway:disconnected', { gatewayId })
     } catch (error) {
-      console.error('[GatewayService] Disconnect error:', error)
-      // Still refresh gateways to get current state
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Disconnect error: %s', String(error))
       await this.refreshGateways()
     }
   }
 
-  // ========================================================================
-  // Health Check
-  // ========================================================================
-
-  /**
-   * Check health of a specific gateway
-   */
   async checkHealth(gatewayId: string): Promise<{ healthy: boolean; message?: string }> {
-    console.log('[GatewayService] Checking health for gateway:', gatewayId)
+    logger.debug({ category: logCategories.GATEWAY_SERVICE }, 'Checking health for gateway %s', gatewayId)
 
     try {
       const response = await fetch(`/api/gateways/${gatewayId}/health`, {
@@ -360,7 +287,6 @@ class GatewayServiceClass {
 
       const data = await response.json()
 
-      // Update connection state based on health
       if (!data.healthy) {
         this.setState({
           isConnected: false,
@@ -375,7 +301,7 @@ class GatewayServiceClass {
       return data
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Health check failed'
-      console.error('[GatewayService] Health check failed:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Health check failed: %s', errorMessage)
 
       this.setState({
         isConnected: false,
@@ -386,37 +312,26 @@ class GatewayServiceClass {
     }
   }
 
-  // ========================================================================
-  // Reconnection Logic
-  // ========================================================================
-
-  /**
-   * Attempt to reconnect to the active gateway
-   * Only attempts once when gateway is not loading
-   */
   async tryReconnect(): Promise<boolean> {
     const state = this.getState()
 
-    // Don't reconnect if already connecting
     if (state.isConnecting) {
-      console.log('[GatewayService] Already connecting, skipping reconnect')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Already connecting, skipping reconnect')
       return false
     }
 
-    // Don't reconnect if we've already tried once
     if (state.reconnectAttempts >= 1) {
-      console.log('[GatewayService] Max reconnect attempts reached')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Max reconnect attempts reached')
       return false
     }
 
-    // Need a gateway to reconnect to
     const gatewayId = state.activeGatewayId || (state.gateways.length > 0 ? state.gateways[0].id : null)
     if (!gatewayId) {
-      console.log('[GatewayService] No gateway to reconnect to')
+      logger.info({ category: logCategories.GATEWAY_SERVICE }, 'No gateway to reconnect to')
       return false
     }
 
-    console.log('[GatewayService] Attempting reconnection to:', gatewayId)
+    logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Attempting reconnection to %s', gatewayId)
     this.emit('reconnect:attempt', { gatewayId })
 
     this.setState({
@@ -430,15 +345,12 @@ class GatewayServiceClass {
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Reconnection failed'
-      console.error('[GatewayService] Reconnection failed:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Reconnection failed: %s', errorMessage)
       this.emit('reconnect:failed', { gatewayId, error: errorMessage })
       return false
     }
   }
 
-  /**
-   * Reset reconnection attempts (call after successful connection)
-   */
   private resetReconnectAttempts(): void {
     this.setState({
       reconnectAttempts: 0,
@@ -446,18 +358,10 @@ class GatewayServiceClass {
     })
   }
 
-  // ========================================================================
-  // Agents Management
-  // ========================================================================
-
-  /**
-   * Refresh agents from connected gateways
-   */
   async refreshAgents(): Promise<AgentInfo[]> {
     const state = this.getState()
 
-    // Always try to fetch agents - the server will check actual connections
-    console.log('[GatewayService] Fetching agents...')
+    logger.debug({ category: logCategories.GATEWAY_SERVICE }, 'Fetching agents...')
     this.setState({ isLoadingAgents: true })
     this.emit('agents:loading', undefined)
 
@@ -473,9 +377,6 @@ class GatewayServiceClass {
       const data = await response.json()
       const agents = data.agents || []
 
-      // Update connection state based on agents availability
-      // If we have agents, gateway is truly connected. If not but DB says connected,
-      // it means gateway is connected but has no agents configured.
       const hasConnectedGatewayInDb = state.gateways.some((g: Gateway) => g.status === 'connected')
       const actuallyConnected = agents.length > 0 || hasConnectedGatewayInDb
 
@@ -486,23 +387,18 @@ class GatewayServiceClass {
       })
 
       this.emit('agents:loaded', { agents })
-      console.log('[GatewayService] Agents fetched:', {
-        count: agents.length,
-        hasConnectedGatewayInDb,
-        actuallyConnected,
-      })
+      logger.debug({ category: logCategories.GATEWAY_SERVICE }, 'Agents fetched: %s', agents.length)
 
       return agents
     } catch (error) {
-      console.error('[GatewayService] Failed to fetch agents:', error)
+      logger.error({ category: logCategories.GATEWAY_SERVICE }, 'Failed to fetch agents: %s', String(error))
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch agents'
 
-      // Don't set isConnected to false on error - there might still be a connected gateway
       const hasConnectedGatewayInDb = state.gateways.some((g: Gateway) => g.status === 'connected')
       
       this.setState({
         isLoadingAgents: false,
-        isConnected: hasConnectedGatewayInDb, // Keep connected if gateway exists in DB
+        isConnected: hasConnectedGatewayInDb,
         connectionError: hasConnectedGatewayInDb ? null : errorMessage,
       })
 
@@ -511,39 +407,21 @@ class GatewayServiceClass {
     }
   }
 
-  // ========================================================================
-  // Cleanup
-  // ========================================================================
-
-  /**
-   * Cleanup and reset the service
-   */
   cleanup(): void {
-    // Cancel any pending requests
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
     }
 
-    // Clear all event listeners
     this.eventListeners.clear()
-
-    // Reset state to initial
     this.stateEmitter.emit(INITIAL_STATE)
 
-    console.log('[GatewayService] Cleaned up')
+    logger.info({ category: logCategories.GATEWAY_SERVICE }, 'Cleaned up')
   }
 }
 
-// ============================================================================
-// Singleton Instance
-// ============================================================================
-
 let gatewayServiceInstance: GatewayServiceClass | null = null
 
-/**
- * Get the singleton GatewayService instance
- */
 export function getGatewayService(): GatewayServiceClass {
   if (!gatewayServiceInstance) {
     gatewayServiceInstance = new GatewayServiceClass()
@@ -551,9 +429,6 @@ export function getGatewayService(): GatewayServiceClass {
   return gatewayServiceInstance
 }
 
-/**
- * Reset the singleton (useful for testing)
- */
 export function resetGatewayService(): void {
   if (gatewayServiceInstance) {
     gatewayServiceInstance.cleanup()
@@ -561,7 +436,5 @@ export function resetGatewayService(): void {
   }
 }
 
-// Export the class type for type checking
 export type { GatewayServiceClass }
-// Export the class as GatewayService
 export { GatewayServiceClass as GatewayService }

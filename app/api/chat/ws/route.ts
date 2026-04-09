@@ -6,6 +6,8 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace } from '@/lib/auth/api-auth'
 import { getSessionStatusTracker } from '@/lib/session/status-tracker'
 import { getInstanceManager } from '@/lib/gateway/instance-manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // WebSocket server instance
 let wss: WebSocketServer | null = null
@@ -13,7 +15,7 @@ let wss: WebSocketServer | null = null
 function getWSS(): WebSocketServer {
   if (!wss) {
     wss = new WebSocketServer({ noServer: true })
-    console.log('[WebSocket] Server initialized')
+    logger.debug('[WebSocket] Server initialized')
   }
   return wss
 }
@@ -77,7 +79,7 @@ export async function GET(request: NextRequest) {
                     data: allStatuses,
                   }))
                   
-                  console.log('[WebSocket] Client subscribed to sessions channel:', clientId)
+                  logger.debug('[WebSocket] Client subscribed to sessions channel:', clientId)
                 }
               } else if (message.sessionId) {
                 // Verify user has access to session
@@ -121,13 +123,13 @@ export async function GET(request: NextRequest) {
                 })
 
                 instanceSessionId = sessionId
-                console.log('[WebSocket] Client connected to instance', {
+                logger.debug('[WebSocket] Client connected to instance', {
                   clientId,
                   sessionId,
                   agentId
                 })
               } catch (error) {
-                console.error('[WebSocket] Failed to connect to instance:', error)
+                logger.error('[WebSocket] Failed to connect to instance:', error)
                 ws.send(JSON.stringify({
                   type: 'error',
                   error: error instanceof Error ? error.message : 'Failed to connect to gateway'
@@ -152,7 +154,7 @@ export async function GET(request: NextRequest) {
                 await instanceManager.handleClientMessage(clientId, message)
               } else {
                 // Fallback to old behavior
-                console.warn('[WebSocket] Chat message without instance subscription')
+                logger.warn('[WebSocket] Chat message without instance subscription')
               }
               break
             }
@@ -185,7 +187,7 @@ export async function GET(request: NextRequest) {
               break
           }
         } catch (error) {
-          console.error('[WebSocket] Message handling error:', error)
+          logger.error('[WebSocket] Message handling error:', error)
         }
       })
 
@@ -205,12 +207,12 @@ export async function GET(request: NextRequest) {
         }
 
         manager.removeClient(clientId)
-        console.log('[WebSocket] Client disconnected:', clientId)
+        logger.debug('[WebSocket] Client disconnected:', clientId)
       })
 
       // Handle errors
       ws.on('error', (error) => {
-        console.error('[WebSocket] Client error:', error)
+        logger.error('[WebSocket] Client error:', error)
         manager.removeClient(clientId)
 
         // Remove from instance if connected
@@ -232,7 +234,7 @@ export async function GET(request: NextRequest) {
     // Return empty response (connection is upgraded)
     return new Response(null, { status: 101 })
   } catch (error) {
-    console.error('[WebSocket] Connection error:', error)
+    logger.error('[WebSocket] Connection error:', error)
     return new Response('Internal Server Error', { status: 500 })
   }
 }

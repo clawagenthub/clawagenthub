@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { AgentInfo, ChatSession, ChatMessage } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // Fetch available agents from connected gateways
 export function useAgents() {
@@ -20,18 +22,18 @@ export function useChatSessions() {
   return useQuery({
     queryKey: ['chat', 'sessions'],
     queryFn: async () => {
-      console.log('[useChatSessions] Fetching sessions...')
+      logger.debug('[useChatSessions] Fetching sessions...')
       const res = await fetch('/api/chat/sessions')
-      console.log('[useChatSessions] Response status:', res.status, res.statusText)
+      logger.debug('[useChatSessions] Response status:', res.status, res.statusText)
       
       if (!res.ok) {
         const errorText = await res.text()
-        console.error('[useChatSessions] Failed to fetch sessions:', res.status, errorText)
+        logger.error('[useChatSessions] Failed to fetch sessions:', res.status, errorText)
         throw new Error('Failed to fetch sessions')
       }
       
       const data = await res.json()
-      console.log('[useChatSessions] Sessions received:', data.sessions?.length || 0, 'sessions')
+      logger.debug('[useChatSessions] Sessions received:', data.sessions?.length || 0, 'sessions')
       return data.sessions as ChatSession[]
     },
     // Refetch sessions when window regains focus (user returns to tab)

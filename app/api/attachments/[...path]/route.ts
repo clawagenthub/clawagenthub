@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // Serve files from temp/photos directory
 // Path param is the relative path from temp/photos (e.g., "2026-04-07/filename.png")
@@ -73,7 +75,7 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('[Attachments API] Error serving file:', error)
+    logger.error('[Attachments API] Error serving file:', error)
     return NextResponse.json({ error: 'Failed to serve file' }, { status: 500 })
   }
 }

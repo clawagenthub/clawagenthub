@@ -1,4 +1,6 @@
 import { createHash, sign } from 'crypto'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * Ed25519 SPKI prefix for extracting raw public key
@@ -30,7 +32,7 @@ export function base64UrlEncode(buf: Buffer): string {
  * @throws Error if the key format is invalid
  */
 export function extractRawPublicKey(publicKeyDer: Buffer): Buffer {
-  console.log('[DeviceIdentity] Extracting raw public key', {
+  logger.debug('[DeviceIdentity] Extracting raw public key', {
     inputLength: publicKeyDer.length,
     expectedLength: ED25519_SPKI_PREFIX.length + 32
   })
@@ -42,11 +44,11 @@ export function extractRawPublicKey(publicKeyDer: Buffer): Buffer {
     publicKeyDer.length === ED25519_SPKI_PREFIX.length + 32 &&
     publicKeyDer.subarray(0, ED25519_SPKI_PREFIX.length).equals(ED25519_SPKI_PREFIX)
   ) {
-    console.log('[DeviceIdentity] Raw public key extracted successfully')
+    logger.debug('[DeviceIdentity] Raw public key extracted successfully')
     return publicKeyDer.subarray(ED25519_SPKI_PREFIX.length)
   }
   
-  console.error('[DeviceIdentity] Invalid Ed25519 public key format', {
+  logger.error('[DeviceIdentity] Invalid Ed25519 public key format', {
     expectedLength: ED25519_SPKI_PREFIX.length + 32,
     actualLength: publicKeyDer.length
   })
@@ -70,7 +72,7 @@ export function deriveDeviceId(publicKeyDer: Buffer): string {
   const rawKey = extractRawPublicKey(publicKeyDer)
   const deviceId = createHash('sha256').update(rawKey).digest('hex')
   
-  console.log('[DeviceIdentity] Derived device ID', {
+  logger.debug('[DeviceIdentity] Derived device ID', {
     deviceId: deviceId.substring(0, 16) + '...'
   })
   
@@ -92,7 +94,7 @@ export function signDevicePayload(
   privateKeyDer: Buffer,
   payload: { deviceId: string; nonce: string; signedAt: number } | string
 ): string {
-  console.log('[DeviceIdentity] Signing payload', {
+  logger.debug('[DeviceIdentity] Signing payload', {
     payloadLength: typeof payload === 'string' ? payload.length : JSON.stringify(payload).length,
     isPreStringified: typeof payload === 'string'
   })
@@ -110,7 +112,7 @@ export function signDevicePayload(
   // Return base64url-encoded signature (OpenClaw format)
   const encodedSignature = base64UrlEncode(signature)
   
-  console.log('[DeviceIdentity] Payload signed successfully', {
+  logger.debug('[DeviceIdentity] Payload signed successfully', {
     signatureLength: encodedSignature.length
   })
   

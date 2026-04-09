@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { createSuperuser } from '@/lib/setup/index.js'
 import { setupSchema, validateSetupPasswords } from '@/lib/utils/validation.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Setup create error:', error)
+    logger.error('Setup create error:', error)
     return NextResponse.json(
       {
         message:

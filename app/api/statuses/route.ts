@@ -6,6 +6,8 @@ import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { seedDefaultStatuses } from '@/lib/db/seeder.js'
 import type { Status } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/statuses
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ statuses })
   } catch (error) {
-    console.error('Error fetching statuses:', error)
+    logger.error('Error fetching statuses:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -238,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ status }, { status: 201 })
   } catch (error) {
-    console.error('Error creating status:', error)
+    logger.error('Error creating status:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

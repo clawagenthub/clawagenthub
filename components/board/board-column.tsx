@@ -6,6 +6,8 @@ import { useBulkStartTicketFlow, useBulkStopTicketFlow } from '@/lib/query/hooks
 import { Toast } from '@/components/ui/toast'
 import { TicketCard } from './lib/ticket-card'
 import type { StartAllConfirmProps, StopAllConfirmProps } from './lib/board-types'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
   return (
@@ -251,7 +253,7 @@ export function BoardColumn({
       await bulkStartFlow(ticketIds)
       setShowStartAllConfirm(false)
     } catch (error) {
-      console.error('Failed to start flow for all tickets:', error)
+      logger.error('Failed to start flow for all tickets:', error)
       setToast({ message: error instanceof Error ? error.message : 'Failed to start flow', type: 'error' })
     }
   }
@@ -263,7 +265,7 @@ export function BoardColumn({
       await bulkStopFlow(ticketIds)
       setShowStopAllConfirm(false)
     } catch (error) {
-      console.error('Failed to stop flow for all tickets:', error)
+      logger.error('Failed to stop flow for all tickets:', error)
       setToast({ message: error instanceof Error ? error.message : 'Failed to stop flow', type: 'error' })
     }
   }

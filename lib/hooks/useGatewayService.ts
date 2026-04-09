@@ -15,6 +15,8 @@ import {
 } from '../services/gateway-service'
 import type { AgentInfo, Gateway } from '../db/schema'
 import type { GatewayServiceEvents } from '../services/gateway-service'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // ============================================================================
 // useGatewayService - Get full service state
@@ -35,7 +37,7 @@ export function useGatewayService(): GatewayServiceState {
     // Initialize service if not already initialized
     if (!service.getState().isInitialized) {
       service.initialize().catch((error) => {
-        console.error('[useGatewayService] Failed to initialize:', error)
+        logger.error('[useGatewayService] Failed to initialize:', error)
       })
     }
 
@@ -73,7 +75,7 @@ export function useGatewayServiceValue<T>(
     // Initialize service if not already initialized
     if (!service.getState().isInitialized) {
       service.initialize().catch((error) => {
-        console.error('[useGatewayServiceValue] Failed to initialize:', error)
+        logger.error('[useGatewayServiceValue] Failed to initialize:', error)
       })
     }
 
@@ -149,7 +151,7 @@ export function useSetGatewayService(): GatewayServiceActions {
  * 
  * @example
  * useGatewayEvent('gateway:connected', ({ gatewayId }) => {
- *   console.log('Gateway connected:', gatewayId)
+ *   logger.debug('Gateway connected:', gatewayId)
  * })
  */
 export function useGatewayEvent<K extends keyof GatewayServiceEvents>(

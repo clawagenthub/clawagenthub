@@ -1,6 +1,7 @@
 import { getDatabase } from '@/lib/db'
 import { generateUserId } from '@/lib/auth/token.js'
 import { triggerAgentForFlowStart } from '../../app/api/tickets/[ticketId]/flow/lib/trigger-agent'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 function getSystemUserId(db: ReturnType<typeof getDatabase>): string {
   const workspace = db
@@ -49,16 +50,23 @@ export async function triggerWaitingTickets(workspaceId: string) {
     : 5
 
   if (onflowlimit <= 0) {
-    console.log(
-      `[WaitingToFlow] Workspace ${workspaceId}: onflowlimit is ${onflowlimit}, skipping`
+    logger.info(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      'Workspace %s: onflowlimit is %s, skipping',
+      workspaceId,
+      String(onflowlimit)
     )
     return
   }
 
   const availableSlots = onflowlimit - currentFlowingCount.count
   if (availableSlots <= 0) {
-    console.log(
-      `[WaitingToFlow] Workspace ${workspaceId}: No slots available (${currentFlowingCount.count}/${onflowlimit} flowing)`
+    logger.info(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      'Workspace %s: No slots available (%s/%s flowing)',
+      workspaceId,
+      String(currentFlowingCount.count),
+      String(onflowlimit)
     )
     return
   }
@@ -77,12 +85,15 @@ export async function triggerWaitingTickets(workspaceId: string) {
     workspace_id: string
   }>
 
-  console.log(
-    `[WaitingToFlow] Workspace ${workspaceId}: Found ${waitingTickets.length} waiting tickets, ${availableSlots} slots available`
+logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE },
+    'Workspace %s: Found %s waiting tickets, %s slots available',
+    workspaceId,
+    String(waitingTickets.length),
+    String(availableSlots)
   )
 
   for (const ticket of waitingTickets) {
-    console.log(`[WaitingToFlow] Triggering flow for ticket ${ticket.id}`)
+    logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Triggering flow for ticket %s', ticket.id)
     const now = new Date().toISOString()
     db.prepare(
       `
@@ -111,7 +122,6 @@ export async function triggerWaitingTickets(workspaceId: string) {
       now
     )
 
-    // Use the directly imported function
     await triggerAgentForFlowStart({
       ticketId: ticket.id,
       workspaceId: ticket.workspace_id,

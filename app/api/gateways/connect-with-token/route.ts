@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { getGatewayManager } from '@/lib/gateway/manager.js'
 import type { Gateway } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * @deprecated This endpoint is deprecated as of 2026-03-08
@@ -18,7 +20,7 @@ import type { Gateway } from '@/lib/db/schema.js'
  * This bypasses the pairing flow by using the gateway's auth token
  */
 export async function POST(request: NextRequest) {
-  console.log('[API:ConnectWithToken] Request received')
+  logger.debug('[API:ConnectWithToken] Request received')
   
   try {
     await ensureDatabase()
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
     const { gatewayId, gatewayToken } = body
 
     if (!gatewayId) {
-      console.error('[API:ConnectWithToken] Gateway ID missing')
+      logger.error('[API:ConnectWithToken] Gateway ID missing')
       return NextResponse.json(
         { message: 'Gateway ID is required' },
         { status: 400 }
@@ -69,14 +71,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!gatewayToken) {
-      console.error('[API:ConnectWithToken] Gateway token missing')
+      logger.error('[API:ConnectWithToken] Gateway token missing')
       return NextResponse.json(
         { message: 'Gateway token is required' },
         { status: 400 }
       )
     }
 
-    console.log('[API:ConnectWithToken] Connecting gateway with token', {
+    logger.debug('[API:ConnectWithToken] Connecting gateway with token', {
       gatewayId,
       hasToken: !!gatewayToken,
       workspaceId: session.current_workspace_id
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
       .get(gatewayId, session.current_workspace_id) as Gateway | undefined
 
     if (!gateway) {
-      console.error('[API:ConnectWithToken] Gateway not found', {
+      logger.error('[API:ConnectWithToken] Gateway not found', {
         gatewayId,
         workspaceId: session.current_workspace_id
       })
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[API:ConnectWithToken] Gateway found', {
+    logger.debug('[API:ConnectWithToken] Gateway found', {
       gatewayId,
       gatewayUrl: gateway.url,
       gatewayName: gateway.name
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
       'UPDATE gateways SET auth_token = ?, updated_at = ? WHERE id = ?'
     ).run(gatewayToken, new Date().toISOString(), gatewayId)
     
-    console.log('[API:ConnectWithToken] Gateway token stored', {
+    logger.debug('[API:ConnectWithToken] Gateway token stored', {
       gatewayId
     })
 
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
         'UPDATE gateways SET status = ?, updated_at = ? WHERE id = ?'
       ).run('connecting', new Date().toISOString(), gatewayId)
 
-      console.log('[API:ConnectWithToken] Attempting connection', {
+      logger.debug('[API:ConnectWithToken] Attempting connection', {
         gatewayId,
         url: gateway.url
       })
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
       // Check connection status
       const isConnected = manager.isConnected(gatewayId)
       
-      console.log('[API:ConnectWithToken] Connection attempt completed', {
+      logger.debug('[API:ConnectWithToken] Connection attempt completed', {
         gatewayId,
         isConnected
       })
@@ -147,7 +149,7 @@ export async function POST(request: NextRequest) {
           'UPDATE gateways SET status = ?, last_connected_at = ?, last_error = NULL, updated_at = ? WHERE id = ?'
         ).run('connected', new Date().toISOString(), new Date().toISOString(), gatewayId)
 
-        console.log('[API:ConnectWithToken] Gateway connected successfully', {
+        logger.debug('[API:ConnectWithToken] Gateway connected successfully', {
           gatewayId
         })
 
@@ -162,7 +164,7 @@ export async function POST(request: NextRequest) {
           'UPDATE gateways SET status = ?, last_error = ?, updated_at = ? WHERE id = ?'
         ).run('error', 'Connection failed after token authentication', new Date().toISOString(), gatewayId)
 
-        console.error('[API:ConnectWithToken] Connection failed', {
+        logger.error('[API:ConnectWithToken] Connection failed', {
           gatewayId,
           error: 'Connection failed after token authentication'
         })
@@ -179,7 +181,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       
-      console.error('[API:ConnectWithToken] Error during connection', {
+      logger.error('[API:ConnectWithToken] Error during connection', {
         gatewayId,
         error: errorMessage
       })
@@ -199,7 +201,7 @@ export async function POST(request: NextRequest) {
       )
     }
   } catch (error) {
-    console.error('Error connecting gateway with token:', error)
+    logger.error('Error connecting gateway with token:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

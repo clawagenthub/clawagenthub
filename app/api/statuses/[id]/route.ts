@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import type { Status } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -210,7 +212,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ status: updatedStatus })
   } catch (error) {
-    console.error('Error updating status:', error)
+    logger.error('Error updating status:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -283,7 +285,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       .prepare('SELECT id, title FROM tickets WHERE status_id = ?')
       .all(id) as { id: string; title: string }[]
 
-    console.log(`[Status Delete] Status ${id} is used by ${ticketsUsingStatus.length} tickets`)
+    logger.debug(`[Status Delete] Status ${id} is used by ${ticketsUsingStatus.length} tickets`)
 
     if (ticketsUsingStatus.length > 0) {
       // Find a replacement status (any other status in the same workspace)
@@ -301,13 +303,13 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         )
       }
 
-      console.log(`[Status Delete] Reassigning tickets to replacement status: ${replacementStatus.id}`)
+      logger.debug(`[Status Delete] Reassigning tickets to replacement status: ${replacementStatus.id}`)
 
       // Reassign all tickets using this status to the replacement status
       const now = new Date().toISOString()
       const reassignStmt = db.prepare('UPDATE tickets SET status_id = ?, updated_at = ? WHERE status_id = ?')
       reassignStmt.run(replacementStatus.id, now, id)
-      console.log(`[Status Delete] Reassigned ${ticketsUsingStatus.length} tickets from status ${id} to ${replacementStatus.id}`)
+      logger.debug(`[Status Delete] Reassigned ${ticketsUsingStatus.length} tickets from status ${id} to ${replacementStatus.id}`)
     }
 
     // Also update flow_configs if it references this status
@@ -315,7 +317,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       .prepare('SELECT id, ticket_id FROM ticket_flow_configs WHERE status_id = ?')
       .all(id) as { id: string; ticket_id: string }[]
 
-    console.log(`[Status Delete] Found ${flowConfigsUsingStatus.length} flow_configs using status ${id}`)
+    logger.debug(`[Status Delete] Found ${flowConfigsUsingStatus.length} flow_configs using status ${id}`)
 
     if (flowConfigsUsingStatus.length > 0) {
       // Get replacement status for flow config
@@ -323,7 +325,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         .prepare('SELECT id FROM statuses WHERE workspace_id = ? AND id != ? ORDER BY priority ASC LIMIT 1')
         .get(status.workspace_id, id) as { id: string } | undefined
 
-      console.log(`[Status Delete] Replacement status for flow: ${replacementForFlow?.id}`)
+      logger.debug(`[Status Delete] Replacement status for flow: ${replacementForFlow?.id}`)
 
       if (replacementForFlow) {
         // For each flow_config using this status, check if replacing would cause a conflict
@@ -335,11 +337,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
           if (existingConfig) {
             // Conflict exists - delete the old flow_config (ticket already has one for replacement status)
-            console.log(`[Status Delete] Conflict on ticket ${fc.ticket_id} - deleting old flow_config ${fc.id}`)
+            logger.debug(`[Status Delete] Conflict on ticket ${fc.ticket_id} - deleting old flow_config ${fc.id}`)
             db.prepare('DELETE FROM ticket_flow_configs WHERE id = ?').run(fc.id)
           } else {
             // No conflict - update the flow_config to use new status
-            console.log(`[Status Delete] Updating flow_config ${fc.id} to status ${replacementForFlow.id}`)
+            logger.debug(`[Status Delete] Updating flow_config ${fc.id} to status ${replacementForFlow.id}`)
             db.prepare('UPDATE ticket_flow_configs SET status_id = ? WHERE id = ?')
               .run(replacementForFlow.id, fc.id)
           }
@@ -355,7 +357,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       reassignedTickets: ticketsUsingStatus.length
     })
   } catch (error) {
-    console.error('Error deleting status:', error)
+    logger.error('Error deleting status:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

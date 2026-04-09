@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useUpdateSessionTitle, useGenerateSessionTitle, useGenerateSessionSummary } from '@/lib/query/hooks/useChat'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface UseChatHeaderProps {
   session: {
@@ -123,16 +125,16 @@ export function useChatHeader({ session }: UseChatHeaderProps) {
   const handleSummarize = useCallback(async () => {
     try {
       setSummaryError(null)
-      console.log('[EnhancedChatScreen] Summarize clicked', { sessionId: session.id })
+      logger.debug('[EnhancedChatScreen] Summarize clicked', { sessionId: session.id })
       const result = await generateSummary.mutateAsync(session.id)
-      console.log('[EnhancedChatScreen] Summarize success', {
+      logger.debug('[EnhancedChatScreen] Summarize success', {
         sessionId: session.id,
         title: result?.title,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate summary'
       setSummaryError(message)
-      console.error('[EnhancedChatScreen] Summarize failed', {
+      logger.error('[EnhancedChatScreen] Summarize failed', {
         sessionId: session.id,
         error: message,
       })

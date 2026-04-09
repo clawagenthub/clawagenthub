@@ -7,6 +7,8 @@
 
 import { getDatabase } from '../db/index.js'
 import type { Gateway } from '../db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // ============================================================================
 // TYPES
@@ -49,7 +51,7 @@ export function getAllGateways(): GatewayConfig[] {
       status: g.status as GatewayConfig['status']
     }))
   } catch (error) {
-    console.error('[GatewayConfig] Failed to get gateways:', error)
+    logger.error('[GatewayConfig] Failed to get gateways:', error)
     return []
   }
 }
@@ -76,7 +78,7 @@ export function getGatewayById(gatewayId: string): GatewayConfig | null {
       status: gateway.status as GatewayConfig['status']
     }
   } catch (error) {
-    console.error('[GatewayConfig] Failed to get gateway:', error)
+    logger.error('[GatewayConfig] Failed to get gateway:', error)
     return null
   }
 }
@@ -99,7 +101,7 @@ export function getConnectedGateways(): GatewayConfig[] {
       status: g.status as GatewayConfig['status']
     }))
   } catch (error) {
-    console.error('[GatewayConfig] Failed to get connected gateways:', error)
+    logger.error('[GatewayConfig] Failed to get connected gateways:', error)
     return []
   }
 }
@@ -145,7 +147,7 @@ export function updateGatewayStatus(
       `).run(gatewayId)
     }
   } catch (error) {
-    console.error('[GatewayConfig] Failed to update gateway status:', error)
+    logger.error('[GatewayConfig] Failed to update gateway status:', error)
   }
 }
 
@@ -198,7 +200,7 @@ export function getWorkspaceGateways(workspaceId: string): GatewayConfig[] {
       status: g.status as GatewayConfig['status']
     }))
   } catch (error) {
-    console.error('[GatewayConfig] Failed to get workspace gateways:', error)
+    logger.error('[GatewayConfig] Failed to get workspace gateways:', error)
     return []
   }
 }

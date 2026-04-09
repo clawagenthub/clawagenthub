@@ -4,6 +4,8 @@ import React, { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket, useWorkspacePrompts, useUpdateTicket } from '@/lib/query/hooks'
 import { AuditLogPanel } from './audit-log-panel'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface TicketViewModalProps {
   isOpen: boolean
@@ -95,7 +97,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
         description: convertedText,
       })
     } catch (error) {
-      console.error('Auto format error:', error)
+      logger.error('Auto format error:', error)
       alert(error instanceof Error ? error.message : 'Failed to generate auto format')
     } finally {
       setIsAutoFormatLoading(false)
@@ -107,7 +109,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
     try {
       await startFlow({ ticketId })
     } catch (error) {
-      console.error('Failed to start flow:', error)
+      logger.error('Failed to start flow:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to start flow'
       
       // Check if this is a gateway/auth error that might need gateway restart
@@ -134,7 +136,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
     try {
       await stopFlow({ ticketId })
     } catch (error) {
-      console.error('Failed to stop flow:', error)
+      logger.error('Failed to stop flow:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to stop flow'
       
       // Check if this is a gateway/auth error that might need gateway restart
@@ -168,7 +170,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
       await deleteTicket(ticketId)
       onClose()
     } catch (error) {
-      console.error('Failed to delete ticket:', error)
+      logger.error('Failed to delete ticket:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete ticket')
     }
   }

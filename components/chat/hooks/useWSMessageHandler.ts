@@ -2,6 +2,8 @@
 
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface UseWSMessageHandlerProps {
   sessionId: string
@@ -40,7 +42,7 @@ export function useWSMessageHandler({
 
     const eventType = event.type || event.data?.type
 
-    console.log('[EnhancedChatScreen] WebSocket event:', eventType, event)
+    logger.debug('[EnhancedChatScreen] WebSocket event:', eventType, event)
 
     switch (eventType) {
       case 'message.chunk':

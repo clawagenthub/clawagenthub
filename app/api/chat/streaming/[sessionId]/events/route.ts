@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { getStreamingChatService } from '@/lib/streaming/chat-service'
 import { getUserWithWorkspace } from '@/lib/auth/api-auth'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/chat/streaming/[sessionId]/events
@@ -45,11 +47,11 @@ export async function GET(
   
   const streamResponse = new ReadableStream({
     start(controller) {
-      console.log('[Streaming Events] Client connected to stream:', streamId)
+      logger.debug('[Streaming Events] Client connected to stream:', streamId)
 
       // Send buffered events first
       const bufferedEvents = service.getBufferedEvents(streamId)
-      console.log('[Streaming Events] Sending', bufferedEvents.length, 'buffered events')
+      logger.debug('[Streaming Events] Sending', bufferedEvents.length, 'buffered events')
       
       for (const event of bufferedEvents) {
         const sseData = `data: ${JSON.stringify(event)}\n\n`
@@ -71,7 +73,7 @@ export async function GET(
       
       setTimeout(() => {
         controller.close()
-        console.log('[Streaming Events] Client disconnected from stream:', streamId)
+        logger.debug('[Streaming Events] Client disconnected from stream:', streamId)
       }, 100)
     }
   })

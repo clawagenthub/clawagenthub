@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getStreamingChatService } from '@/lib/streaming/chat-service'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * POST /api/chat/streaming
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
       return unauthorizedResponse()
     }
 
-    console.log('[Streaming API] Starting stream for session:', sessionId)
+    logger.debug('[Streaming API] Starting stream for session:', sessionId)
 
     const service = getStreamingChatService()
     const result = await service.startStreaming({
@@ -29,10 +31,10 @@ export async function POST(request: Request) {
       workspaceId: auth.workspaceId
     })
 
-    console.log('[Streaming API] Stream started:', result)
+    logger.debug('[Streaming API] Stream started:', result)
     return NextResponse.json(result)
   } catch (error) {
-    console.error('[Streaming API] Error:', error)
+    logger.error('[Streaming API] Error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to start streaming' },
       { status: 500 }
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ streams })
   } catch (error) {
-    console.error('[Streaming API] Error:', error)
+    logger.error('[Streaming API] Error:', error)
     return NextResponse.json({ streams: [] })
   }
 }
@@ -87,12 +89,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Stream not found' }, { status: 404 })
     }
 
-    console.log('[Streaming API] Stopping stream:', streamId)
+    logger.debug('[Streaming API] Stopping stream:', streamId)
     service.stopStreaming(streamId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[Streaming API] Error:', error)
+    logger.error('[Streaming API] Error:', error)
     return NextResponse.json(
       { error: 'Failed to stop streaming' },
       { status: 500 }

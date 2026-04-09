@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto'
 import fs from 'fs/promises'
 import path from 'path'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export type StoredAttachmentKind = 'image' | 'pdf' | 'file'
 
@@ -58,7 +60,8 @@ export async function storeAttachments(
     const safeName = sanitizeFileName(input.name)
     const fileName = `${id}-${safeName}`
     const absolutePath = path.join(targetDir, fileName)
-    console.log('Storing attachment:', absolutePath)
+    // Attachment storage is server-only; use console until logger is available in this module
+    logger.debug('Storing attachment:', absolutePath)
     const buffer = Buffer.from(input.dataBase64, 'base64')
 
     await fs.writeFile(absolutePath, buffer)

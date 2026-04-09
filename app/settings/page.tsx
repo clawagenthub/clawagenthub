@@ -15,6 +15,8 @@ import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
 import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
 import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'
 
 const DEFAULT_MAX_IMAGES_PER_POST = 5
@@ -121,7 +123,7 @@ export default function SettingsPage() {
           setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
         }
       } catch (error) {
-        console.error('Error fetching workspace settings:', error)
+        logger.error('Error fetching workspace settings:', error)
       } finally {
         setFlowTemplateLoading(false)
       }
@@ -339,7 +341,7 @@ export default function SettingsPage() {
                         setSaveMessage('Saved!')
                         setTimeout(() => setSaveMessage(''), 2000)
                       } catch (error) {
-                        console.error('Error saving settings:', error)
+                        logger.error('Error saving settings:', error)
                         setSaveMessage('Error saving')
                         setTimeout(() => setSaveMessage(''), 2000)
                       } finally {
@@ -519,7 +521,7 @@ export default function SettingsPage() {
                             throw new Error(errorData.message || 'Failed to save template')
                           }
                         } catch (error) {
-                          console.error('Error saving flow template:', error)
+                          logger.error('Error saving flow template:', error)
                           setSaveMessage('Error saving')
                           setTimeout(() => setSaveMessage(''), 2000)
                         } finally {
@@ -680,7 +682,7 @@ export default function SettingsPage() {
                         setSaveMessage('Saved!')
                         setTimeout(() => setSaveMessage(''), 2000)
                       } catch (error) {
-                        console.error('Error saving workspace settings:', error)
+                        logger.error('Error saving workspace settings:', error)
                         setSaveMessage('Error saving')
                         setTimeout(() => setSaveMessage(''), 2000)
                       } finally {
@@ -1003,7 +1005,7 @@ export default function SettingsPage() {
                         setPromptTemplatesMessage('Saved!')
                         setTimeout(() => setPromptTemplatesMessage(''), 2000)
                       } catch (error) {
-                        console.error('Error saving prompt template settings:', error)
+                        logger.error('Error saving prompt template settings:', error)
                         setPromptTemplatesMessage('Error saving')
                         setTimeout(() => setPromptTemplatesMessage(''), 2000)
                       } finally {
@@ -1133,7 +1135,7 @@ export default function SettingsPage() {
                         setSkillsmpMessage('Saved!')
                         setTimeout(() => setSkillsmpMessage(''), 2000)
                       } catch (error) {
-                        console.error('Error saving SkillsMP settings:', error)
+                        logger.error('Error saving SkillsMP settings:', error)
                         setSkillsmpMessage('Error saving')
                         setTimeout(() => setSkillsmpMessage(''), 2000)
                       } finally {

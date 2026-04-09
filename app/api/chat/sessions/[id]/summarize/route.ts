@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getGatewayManager } from '@/lib/gateway/manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 type AnyRecord = Record<string, unknown>
 
@@ -144,7 +146,7 @@ export async function POST(
     }
 
     const sessionId = params.id
-    console.log('[Summarize] Request received', { sessionId, userId: auth.user.id, workspaceId: auth.workspaceId })
+    logger.debug('[Summarize] Request received', { sessionId, userId: auth.user.id, workspaceId: auth.workspaceId })
 
     // Verify session exists and belongs to workspace
     const session = db
@@ -160,7 +162,7 @@ export async function POST(
     } | undefined
 
     if (!session) {
-      console.warn('[Summarize] Session not found', { sessionId, workspaceId: auth.workspaceId })
+      logger.warn('[Summarize] Session not found', { sessionId, workspaceId: auth.workspaceId })
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
@@ -174,7 +176,7 @@ export async function POST(
     } | undefined
 
     if (!userSettings?.summarizer_agent_id || !userSettings?.summarizer_gateway_id) {
-      console.warn('[Summarize] Missing summarizer config', {
+      logger.warn('[Summarize] Missing summarizer config', {
         sessionId,
         hasAgent: !!userSettings?.summarizer_agent_id,
         hasGateway: !!userSettings?.summarizer_gateway_id,
@@ -189,27 +191,27 @@ export async function POST(
     try {
       const client = manager.getClient(session.gateway_id)
       if (client) {
-        console.log('[Summarize] Fetching history for session:', {
+        logger.debug('[Summarize] Fetching history for session:', {
           sessionId: session.id,
           sessionKey: session.session_key,
           gatewayId: session.gateway_id
         })
         const history = await client.getSessionHistory(session.session_key)
-        console.log('[Summarize] History response:', history)
+        logger.debug('[Summarize] History response:', history)
         messages = history.messages ?? []
-        console.log('[Summarize] Messages extracted:', {
+        logger.debug('[Summarize] Messages extracted:', {
           count: messages.length,
           messages: messages
         })
       } else {
-        console.log('[Summarize] No gateway client found for:', session.gateway_id)
+        logger.debug('[Summarize] No gateway client found for:', session.gateway_id)
       }
     } catch (error) {
-      console.error('[Summarize] Error fetching session history:', error)
+      logger.error('[Summarize] Error fetching session history:', error)
     }
 
     if (!messages || messages.length === 0) {
-      console.log('[Summarize] Returning error: No messages to summarize')
+      logger.debug('[Summarize] Returning error: No messages to summarize')
       return NextResponse.json({
         error: 'No messages to summarize'
       }, { status: 400 })
@@ -218,7 +220,7 @@ export async function POST(
     // Use the user's selected summarizer agent
     const summarizerClient = manager.getClient(userSettings.summarizer_gateway_id)
     if (!summarizerClient || !summarizerClient.isConnected()) {
-      console.warn('[Summarize] Summarizer gateway unavailable', {
+      logger.warn('[Summarize] Summarizer gateway unavailable', {
         sessionId,
         summarizerGatewayId: userSettings.summarizer_gateway_id,
         hasClient: !!summarizerClient,
@@ -246,7 +248,7 @@ ${JSON.stringify(messages, null, 2)}`
     try {
       // Use chat.send with agent session key format for OpenClaw v3.2
       const agentSessionKey = `agent:${userSettings.summarizer_agent_id}:main`
-      console.log('[Summarize] Sending summarize prompt', {
+      logger.debug('[Summarize] Sending summarize prompt', {
         sessionId,
         agentSessionKey,
         messageCount: messages.length,
@@ -268,7 +270,7 @@ ${JSON.stringify(messages, null, 2)}`
       const generatedTitle = parsedSummary.title
       const generatedDescription = parsedSummary.description
 
-      console.log('[Summarize] Parsed response', {
+      logger.debug('[Summarize] Parsed response', {
         sessionId,
         responseShape: describeShape(response),
         source: parsedSummary.source,
@@ -284,7 +286,7 @@ ${JSON.stringify(messages, null, 2)}`
         WHERE id = ?
       `).run(generatedTitle, generatedDescription, new Date().toISOString(), sessionId)
 
-      console.log('[Summarize] Summary updated', {
+      logger.debug('[Summarize] Summary updated', {
         sessionId,
         generatedTitle,
         durationMs: Date.now() - requestStartedAt,
@@ -296,7 +298,7 @@ ${JSON.stringify(messages, null, 2)}`
         sessionId
       })
     } catch (error) {
-      console.error('[Summarize] Error generating summary with summarizer agent:', {
+      logger.error('[Summarize] Error generating summary with summarizer agent:', {
         sessionId,
         error: error instanceof Error ? error.message : String(error),
         durationMs: Date.now() - requestStartedAt,
@@ -307,7 +309,7 @@ ${JSON.stringify(messages, null, 2)}`
     }
 
   } catch (error) {
-    console.error('[Summarize] Unhandled error:', error)
+    logger.error('[Summarize] Unhandled error:', error)
     return NextResponse.json(
       { error: 'Failed to generate summary' },
       { status: 500 }

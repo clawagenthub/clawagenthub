@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import type { Skill, SkillInsert } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * GET /api/skills
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
       }))
     })
   } catch (error) {
-    console.error('Error fetching skills:', error)
+    logger.error('Error fetching skills:', error)
     return NextResponse.json({ error: 'Failed to fetch skills' }, { status: 500 })
   }
 }
@@ -234,7 +236,7 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating skill:', error)
+    logger.error('Error creating skill:', error)
     return NextResponse.json({ error: 'Failed to create skill' }, { status: 500 })
   }
 }

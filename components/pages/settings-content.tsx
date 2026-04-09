@@ -17,6 +17,8 @@ import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-mo
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
 import type { PageContentProps } from './index'
 import type { Gateway } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'
 
@@ -116,7 +118,7 @@ function SettingsContent({ user }: PageContentProps) {
           setDefaultPromptsTimeaout(data.defaultPromptsTimeaout ? parseInt(data.defaultPromptsTimeaout) : 120)
         }
       } catch (error) {
-        console.error('Error fetching workspace settings:', error)
+        logger.error('Error fetching workspace settings:', error)
       } finally {
         setFlowTemplateLoading(false)
       }
@@ -284,7 +286,7 @@ function SettingsContent({ user }: PageContentProps) {
                     setSaveMessage('Saved!')
                     setTimeout(() => setSaveMessage(''), 2000)
                   } catch (error) {
-                    console.error('Error saving settings:', error)
+                    logger.error('Error saving settings:', error)
                     setSaveMessage('Error saving')
                     setTimeout(() => setSaveMessage(''), 2000)
                   } finally {
@@ -358,7 +360,7 @@ function SettingsContent({ user }: PageContentProps) {
                     const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flow_prompt_template: flowPromptTemplate, flow_timeout_seconds: flowTimeoutSeconds.toString(), onflowlimit: onflowlimit.toString() }) })
                     if (res.ok) { setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) }
                     else throw new Error((await res.json()).message || 'Failed to save settings')
-                  } catch (error) { console.error('Error saving flow settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) }
+                  } catch (error) { logger.error('Error saving flow settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) }
                   finally { setIsSaving(false) }
                 }}>
                   {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
@@ -440,7 +442,7 @@ function SettingsContent({ user }: PageContentProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>Workspace Settings</h2>
-              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSaving} onClick={async () => { setIsSaving(true); setSaveMessage('Saving...'); try { const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ max_images_per_post: String(maxImagesPerPost), allow_pdf_attachments: String(allowPdfAttachments) }) }); if (!res.ok) throw new Error((await res.json()).message || 'Failed to save settings'); setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) } catch (error) { console.error('Error saving workspace settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) } finally { setIsSaving(false) } }}>
+              <button className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSaving} onClick={async () => { setIsSaving(true); setSaveMessage('Saving...'); try { const res = await fetch('/api/workspaces/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ max_images_per_post: String(maxImagesPerPost), allow_pdf_attachments: String(allowPdfAttachments) }) }); if (!res.ok) throw new Error((await res.json()).message || 'Failed to save settings'); setSaveMessage('Saved!'); setTimeout(() => setSaveMessage(''), 2000) } catch (error) { logger.error('Error saving workspace settings:', error); setSaveMessage('Error saving'); setTimeout(() => setSaveMessage(''), 2000) } finally { setIsSaving(false) } }}>
                 {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
               </button>
             </div>
@@ -702,7 +704,7 @@ function SettingsContent({ user }: PageContentProps) {
                     setPromptTemplatesMessage('Saved!')
                     setTimeout(() => setPromptTemplatesMessage(''), 2000)
                   } catch (error) {
-                    console.error('Error saving prompt templates settings:', error)
+                    logger.error('Error saving prompt templates settings:', error)
                     setPromptTemplatesMessage('Error saving')
                     setTimeout(() => setPromptTemplatesMessage(''), 2000)
                   } finally {
@@ -833,7 +835,7 @@ function SettingsContent({ user }: PageContentProps) {
                   setSkillsmpMessage('Saved!')
                   setTimeout(() => setSkillsmpMessage(''), 2000)
                 } catch (error) {
-                  console.error('Error saving SkillsMP settings:', error)
+                  logger.error('Error saving SkillsMP settings:', error)
                   setSkillsmpMessage('Error saving')
                   setTimeout(() => setSkillsmpMessage(''), 2000)
                 } finally {

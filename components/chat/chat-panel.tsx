@@ -6,6 +6,8 @@ import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
 import { useAgents, useCreateSession, useChatMessages, useSendMessage } from '@/lib/query/hooks/useChat'
 import type { AgentInfo } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export function ChatPanel() {
   const [selectedAgent, setSelectedAgent] = useState<AgentInfo | null>(null)
@@ -35,7 +37,7 @@ export function ChatPanel() {
         setMaxImagesPerPost(Number.isFinite(parsedMaxImages) && parsedMaxImages > 0 ? parsedMaxImages : 5)
         setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
       } catch (error) {
-        console.error('[ChatPanel] Failed to load workspace attachment settings:', error)
+        logger.error('[ChatPanel] Failed to load workspace attachment settings:', error)
       }
     }
 
@@ -58,7 +60,7 @@ export function ChatPanel() {
       })
       setCurrentSessionId(session.id)
     } catch (error) {
-      console.error('Failed to create session:', error)
+      logger.error('Failed to create session:', error)
       alert('Failed to start chat session')
     }
   }
@@ -73,7 +75,7 @@ export function ChatPanel() {
         attachments,
       })
     } catch (error) {
-      console.error('Failed to send message:', error)
+      logger.error('Failed to send message:', error)
       alert('Failed to send message')
     }
   }

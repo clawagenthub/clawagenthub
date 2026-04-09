@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { CommandBlock } from './CommandBlock'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface PairingModalProps {
   isOpen: boolean
@@ -232,7 +234,7 @@ export function PairingModal({
       setCopiedCommand(commandId)
       setTimeout(() => setCopiedCommand(null), 2000)
     } catch (err) {
-      console.error('Failed to copy:', err)
+      logger.error('Failed to copy:', err)
     }
   }
 
@@ -263,7 +265,7 @@ export function PairingModal({
           }, 2000)
         }
       } catch (err) {
-        console.error('Failed to poll pairing status:', err)
+        logger.error('Failed to poll pairing status:', err)
       }
     }
 

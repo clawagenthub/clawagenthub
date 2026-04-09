@@ -1,21 +1,22 @@
 import { initializeDatabase } from './lib/db/index.js'
 import { checkSetupRequired, createSetupToken, displaySetupUrl } from './lib/setup/index.js'
 import '@/lib/services/waiting-to-flow-service.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 // Initialize database and check for setup
 async function startup() {
-  console.info('🚀 ClawAgentHub starting...')
-  
+  logger.info({ category: logCategories.INITIALIZATION }, '🚀 ClawAgentHub starting...')
+
   initializeDatabase()
-  
+
   const setupRequired = checkSetupRequired()
-  
+
   if (setupRequired) {
     const token = createSetupToken()
     displaySetupUrl(token)
   } else {
-    console.info('✓ Superuser exists, ready to go!')
+    logger.info({ category: logCategories.INITIALIZATION }, '✓ Superuser exists, ready to go!')
   }
 }
 
-startup().catch(console.error)
+startup().catch((error) => logger.error({ category: logCategories.INITIALIZATION }, 'Startup failed', { error }))

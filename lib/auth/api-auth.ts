@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getUserFromSession, validateSession } from './session.js'
 import { getDatabase } from '../db/index.js'
 import type { User, Session } from '../db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 /**
  * Cookie name used throughout the application
@@ -24,7 +25,7 @@ export async function getSessionToken(): Promise<string | null> {
 export async function validateApiSession(): Promise<Session | null> {
   const token = await getSessionToken()
   if (!token) return null
-  
+
   return validateSession(token)
 }
 
@@ -34,7 +35,7 @@ export async function validateApiSession(): Promise<Session | null> {
 export async function getAuthenticatedUser(): Promise<User | null> {
   const token = await getSessionToken()
   if (!token) return null
-  
+
   return getUserFromSession(token)
 }
 
@@ -49,49 +50,61 @@ export async function getUserWithWorkspace(): Promise<{
 } | null> {
   const token = await getSessionToken()
   if (!token) return null
-  
+
   const db = getDatabase()
-  
+
   // Get session with workspace
   const session = db
-    .prepare(`SELECT * FROM sessions WHERE token = ? AND datetime(expires_at) > datetime('now')`)
+    .prepare(
+      `SELECT * FROM sessions WHERE token = ? AND datetime(expires_at) > datetime('now')`
+    )
     .get(token) as Session | undefined
-  
-  console.log('[Auth] Session lookup result:', session ? {
-    id: session.id,
-    userId: session.user_id,
-    currentWorkspaceId: session.current_workspace_id,
-    expiresAt: session.expires_at
-  } : 'No session found')
-  
+
+  logger.debug(
+    '[Auth] Session lookup result:',
+    session
+      ? {
+          id: session.id,
+          userId: session.user_id,
+          currentWorkspaceId: session.current_workspace_id,
+          expiresAt: session.expires_at,
+        }
+      : 'No session found'
+  )
+
   if (!session) {
-    console.error('[Auth] No valid session found for token')
+    logger.warn({ category: logCategories.AUTH }, 'No valid session found for token')
     return null
   }
-  
+
   if (!session.current_workspace_id) {
-    console.error('[Auth] Session found but no current_workspace_id set. Session:', { id: session.id, userId: session.user_id })
+    logger.error(
+      '[Auth] Session found but no current_workspace_id set. Session:',
+      { id: session.id, userId: session.user_id }
+    )
     return null
   }
-  
+
   // Get user
   const user = db
     .prepare('SELECT * FROM users WHERE id = ?')
     .get(session.user_id) as User | undefined
-  
+
   if (!user) return null
-  
+
   return {
     user,
     session,
-    workspaceId: session.current_workspace_id
+    workspaceId: session.current_workspace_id,
   }
 }
 
 /**
  * Unified unauthorized response
  */
-export function unauthorizedResponse(message: string = 'Unauthorized'): NextResponse {
+export function unauthorizedResponse(
+  message: string = 'Unauthorized'
+): NextResponse {
   return NextResponse.json({ error: message }, { status: 401 })
 }
 
@@ -115,6 +128,6 @@ export async function debugSessionCookie(): Promise<{
   return {
     hasCookie: !!token,
     cookieName: SESSION_COOKIE_NAME,
-    tokenPreview: token ? `${token.substring(0, 10)}...` : undefined
+    tokenPreview: token ? `${token.substring(0, 10)}...` : undefined,
   }
 }

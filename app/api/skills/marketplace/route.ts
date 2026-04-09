@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // SkillsMP API client
 const SKILLS_MP_API_BASE = 'https://skillsmp.com/api/v1'
@@ -85,7 +87,7 @@ function parseGitHubUrl(githubUrl: string): {
     
     return { owner, repo, branch, path }
   } catch (error) {
-    console.error('Error parsing GitHub URL:', error)
+    logger.error('Error parsing GitHub URL:', error)
     return { owner: '', repo: '', branch: 'main', path: '' }
   }
 }
@@ -108,7 +110,7 @@ async function downloadGitHubFolder(
   // Construct GitHub API URL
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
   
-  console.log(`${SKILLSMP_LOG_PREFIX} Fetching contents from: ${apiUrl}`)
+  logger.debug(`${SKILLSMP_LOG_PREFIX} Fetching contents from: ${apiUrl}`)
   
   try {
     const response = await fetch(apiUrl, {
@@ -119,7 +121,7 @@ async function downloadGitHubFolder(
     })
     
     if (!response.ok) {
-      console.warn(`${SKILLSMP_LOG_PREFIX} GitHub API error: ${response.status} ${response.statusText}`)
+      logger.warn(`${SKILLSMP_LOG_PREFIX} GitHub API error: ${response.status} ${response.statusText}`)
       return 0
     }
     
@@ -133,7 +135,7 @@ async function downloadGitHubFolder(
           const content = await fileResponse.text()
           const filePath = join(localBasePath, contents.name)
           await writeFile(filePath, content, 'utf-8')
-          console.log(`${SKILLSMP_LOG_PREFIX} Downloaded file: ${contents.name} (${content.length} bytes)`)
+          logger.debug(`${SKILLSMP_LOG_PREFIX} Downloaded file: ${contents.name} (${content.length} bytes)`)
           return 1
         }
       }
@@ -150,13 +152,13 @@ async function downloadGitHubFolder(
             const content = await fileResponse.text()
             const filePath = join(localBasePath, item.name)
             await writeFile(filePath, content, 'utf-8')
-            console.log(`${SKILLSMP_LOG_PREFIX} Downloaded: ${item.path} (${content.length} bytes)`)
+            logger.debug(`${SKILLSMP_LOG_PREFIX} Downloaded: ${item.path} (${content.length} bytes)`)
             filesDownloaded++
           } else {
-            console.warn(`${SKILLSMP_LOG_PREFIX} Failed to download file: ${item.path} (${fileResponse.status})`)
+            logger.warn(`${SKILLSMP_LOG_PREFIX} Failed to download file: ${item.path} (${fileResponse.status})`)
           }
         } catch (error) {
-          console.error(`${SKILLSMP_LOG_PREFIX} Error downloading file ${item.path}:`, error)
+          logger.error(`${SKILLSMP_LOG_PREFIX} Error downloading file ${item.path}:`, error)
         }
       } else if (item.type === 'dir') {
         // Recursively download subdirectory
@@ -173,14 +175,14 @@ async function downloadGitHubFolder(
           )
           filesDownloaded += subFilesDownloaded
         } catch (error) {
-          console.error(`${SKILLSMP_LOG_PREFIX} Error downloading directory ${item.path}:`, error)
+          logger.error(`${SKILLSMP_LOG_PREFIX} Error downloading directory ${item.path}:`, error)
         }
       }
     }
     
     return filesDownloaded
   } catch (error) {
-    console.error(`${SKILLSMP_LOG_PREFIX} Error fetching GitHub contents:`, error)
+    logger.error(`${SKILLSMP_LOG_PREFIX} Error fetching GitHub contents:`, error)
     return 0
   }
 }
@@ -243,12 +245,12 @@ export async function GET(request: NextRequest) {
 
     const apiKey = apiKeySetting?.setting_value
 
-    console.log(`${SKILLSMP_LOG_PREFIX} Search query: "${query}"`)
-    console.log(`${SKILLSMP_LOG_PREFIX} Workspace ID: ${session.current_workspace_id}`)
-    console.log(`${SKILLSMP_LOG_PREFIX} API Key configured: ${!!apiKey}`)
+    logger.debug(`${SKILLSMP_LOG_PREFIX} Search query: "${query}"`)
+    logger.debug(`${SKILLSMP_LOG_PREFIX} Workspace ID: ${session.current_workspace_id}`)
+    logger.debug(`${SKILLSMP_LOG_PREFIX} API Key configured: ${!!apiKey}`)
 
     if (!apiKey) {
-      console.warn(`${SKILLSMP_LOG_PREFIX} API key not found in workspace settings`)
+      logger.warn(`${SKILLSMP_LOG_PREFIX} API key not found in workspace settings`)
       return NextResponse.json({
         skills: [],
         total: 0,
@@ -262,7 +264,7 @@ export async function GET(request: NextRequest) {
     try {
       const searchUrl = `${SKILLS_MP_API_BASE}/skills/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}&sortBy=stars`
       
-      console.log(`${SKILLSMP_LOG_PREFIX} Fetching from: ${searchUrl}`)
+      logger.debug(`${SKILLSMP_LOG_PREFIX} Fetching from: ${searchUrl}`)
 
       const response = await fetch(searchUrl, {
         headers: {
@@ -272,11 +274,11 @@ export async function GET(request: NextRequest) {
         signal: AbortSignal.timeout(10000), // 10 second timeout
       })
 
-      console.log(`${SKILLSMP_LOG_PREFIX} Response status: ${response.status}`)
+      logger.debug(`${SKILLSMP_LOG_PREFIX} Response status: ${response.status}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.warn(`${SKILLSMP_LOG_PREFIX} API error:`, errorData)
+        logger.warn(`${SKILLSMP_LOG_PREFIX} API error:`, errorData)
         
         // If SkillsMP API returns an error, return empty results with message
         return NextResponse.json({
@@ -290,7 +292,7 @@ export async function GET(request: NextRequest) {
 
       const apiResponse: SkillsMPApiResponse = await response.json()
       
-      console.log(`${SKILLSMP_LOG_PREFIX} API Response:`, JSON.stringify(apiResponse, null, 2))
+      logger.debug(`${SKILLSMP_LOG_PREFIX} API Response:`, JSON.stringify(apiResponse, null, 2))
 
       // Extract skills from the nested data structure
       const skills = apiResponse.data?.skills || []
@@ -316,7 +318,7 @@ export async function GET(request: NextRequest) {
       })
     } catch (fetchError) {
       // If fetch fails, return empty results
-      console.error(`${SKILLSMP_LOG_PREFIX} Fetch error:`, fetchError)
+      logger.error(`${SKILLSMP_LOG_PREFIX} Fetch error:`, fetchError)
       return NextResponse.json({
         skills: [],
         total: 0,
@@ -326,7 +328,7 @@ export async function GET(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error(`${SKILLSMP_LOG_PREFIX} Unexpected error:`, error)
+    logger.error(`${SKILLSMP_LOG_PREFIX} Unexpected error:`, error)
     return NextResponse.json({ error: 'Failed to search marketplace' }, { status: 500 })
   }
 }
@@ -418,15 +420,15 @@ export async function POST(request: NextRequest) {
     // If GitHub URL is provided, download the entire folder recursively
     if (github_url) {
       try {
-        console.log(`${SKILLSMP_LOG_PREFIX} Downloading skill folder from GitHub: ${github_url}`)
+        logger.debug(`${SKILLSMP_LOG_PREFIX} Downloading skill folder from GitHub: ${github_url}`)
         
         // Parse GitHub URL to extract owner, repo, branch, and path
         const { owner, repo, branch, path } = parseGitHubUrl(github_url)
         
         if (!owner || !repo) {
-          console.warn(`${SKILLSMP_LOG_PREFIX} Invalid GitHub URL format, using provided content`)
+          logger.warn(`${SKILLSMP_LOG_PREFIX} Invalid GitHub URL format, using provided content`)
         } else {
-          console.log(`${SKILLSMP_LOG_PREFIX} Parsed: owner=${owner}, repo=${repo}, branch=${branch}, path=${path}`)
+          logger.debug(`${SKILLSMP_LOG_PREFIX} Parsed: owner=${owner}, repo=${repo}, branch=${branch}, path=${path}`)
           
           // Create local directory structure
           const { mkdir } = await import('fs/promises')
@@ -448,17 +450,17 @@ export async function POST(request: NextRequest) {
           )
           
           if (downloadedFiles > 0) {
-            console.log(`${SKILLSMP_LOG_PREFIX} Successfully downloaded ${downloadedFiles} files to: downloaded_skills/${folderName}`)
+            logger.debug(`${SKILLSMP_LOG_PREFIX} Successfully downloaded ${downloadedFiles} files to: downloaded_skills/${folderName}`)
             
             skillPath = `downloaded_skills/${folderName}/SKILL.md`
             isContentFromPath = true
             finalSkillData = `${skill_name}\n\n${skill_description || ''}` // Fallback content
           } else {
-            console.warn(`${SKILLSMP_LOG_PREFIX} No files downloaded, using provided content`)
+            logger.warn(`${SKILLSMP_LOG_PREFIX} No files downloaded, using provided content`)
           }
         }
       } catch (error) {
-        console.error(`${SKILLSMP_LOG_PREFIX} Error downloading from GitHub:`, error)
+        logger.error(`${SKILLSMP_LOG_PREFIX} Error downloading from GitHub:`, error)
         // Continue with provided content
       }
     }
@@ -516,7 +518,7 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 })
   } catch (error) {
-    console.error('Error importing skill:', error)
+    logger.error('Error importing skill:', error)
     return NextResponse.json({ error: 'Failed to import skill' }, { status: 500 })
   }
 }

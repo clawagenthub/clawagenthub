@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import type { WorkspaceWithRole } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ workspace: workspace || null })
   } catch (error) {
-    console.error('Error fetching current workspace:', error)
+    logger.error('Error fetching current workspace:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

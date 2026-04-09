@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import type { TicketComment } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteParams {
   params: Promise<{ ticketId: string }>
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })),
     })
   } catch (error) {
-    console.error('Error fetching comments:', error)
+    logger.error('Error fetching comments:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -240,7 +242,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error creating comment:', error)
+    logger.error('Error creating comment:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

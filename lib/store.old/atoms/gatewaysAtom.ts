@@ -1,6 +1,8 @@
 import { atom } from 'jotai'
 import { atomWithRefresh } from 'jotai/utils'
 import type { Gateway } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * Base atom that fetches gateways data from /api/gateways
@@ -17,7 +19,7 @@ export const gatewaysAtom = atomWithRefresh(async (get) => {
     const data = await response.json()
     return (data.gateways || []) as Gateway[]
   } catch (error) {
-    console.error('[gatewaysAtom] Error fetching gateways:', error)
+    logger.error('[gatewaysAtom] Error fetching gateways:', error)
     return []
   }
 })

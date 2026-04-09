@@ -3,6 +3,8 @@
 import { useAtom, useAtomValue } from 'jotai'
 import { useEffect, useRef } from 'react'
 import { userAtom, isAuthenticatedAtom, mustChangePasswordAtom } from '../atoms/userAtom'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 const REFRESH_INTERVAL = 60000 // 60 seconds (1 minute)
 
@@ -31,7 +33,7 @@ export function useUser() {
     // This will refresh user data every minute to keep session fresh
     // and detect any changes (like password updates or permission changes)
     intervalRef.current = setInterval(() => {
-      console.log('[useUser] Auto-refreshing user data...')
+      logger.debug('[useUser] Auto-refreshing user data...')
       refreshUser()
     }, REFRESH_INTERVAL)
 

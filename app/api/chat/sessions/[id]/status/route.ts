@@ -3,6 +3,8 @@ import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import { getWebSocketManager } from '@/lib/websocket/manager'
 import type { SessionStatus } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function PATCH(
   request: Request,
@@ -112,7 +114,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[Chat API] Error updating session status:', error)
+    logger.error('[Chat API] Error updating session status:', error)
     return NextResponse.json(
       { error: 'Failed to update session status' },
       { status: 500 }

@@ -1,13 +1,20 @@
 /**
  * Session Status Tracker
- * 
+ *
  * Tracks real-time status of chat sessions based on OpenClaw lifecycle events.
  * Status states: idle, thinking, calling_mcp, writing, stopped, failed
  */
 
 import { getWebSocketManager } from '@/lib/websocket/manager'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
-export type SessionStatusType = 'idle' | 'thinking' | 'calling_mcp' | 'writing' | 'stopped' | 'failed'
+export type SessionStatusType =
+  | 'idle'
+  | 'thinking'
+  | 'calling_mcp'
+  | 'writing'
+  | 'stopped'
+  | 'failed'
 
 export interface SessionStatus {
   sessionId: string
@@ -44,14 +51,20 @@ class SessionStatusTracker {
     }
 
     this.started = true
-    console.log('[SessionStatusTracker] Starting session status tracker...')
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusTracker] Starting session status tracker...'
+    )
 
     // Start cleanup timer
     this.cleanupTimer = setInterval(() => {
       this.cleanupExpiredSessions()
     }, this.CLEANUP_INTERVAL_MS)
 
-    console.log('[SessionStatusTracker] Session status tracker started')
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusTracker] Session status tracker started'
+    )
   }
 
   /**
@@ -69,13 +82,19 @@ class SessionStatusTracker {
       this.cleanupTimer = null
     }
 
-    console.log('[SessionStatusTracker] Session status tracker stopped')
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusTracker] Session status tracker stopped'
+    )
   }
 
   /**
    * Update or create a session status
    */
-  updateStatus(sessionId: string, updates: Partial<Omit<SessionStatus, 'sessionId'>>) {
+  updateStatus(
+    sessionId: string,
+    updates: Partial<Omit<SessionStatus, 'sessionId'>>
+  ) {
     const existing = this.status.get(sessionId)
     const previousStatus = existing?.status
 
@@ -92,12 +111,14 @@ class SessionStatusTracker {
 
     // Log status changes
     if (previousStatus !== newStatus.status) {
-      console.log('[SessionStatusTracker] Status updated:', {
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusTracker] Status updated: sessionId=%s previous=%s current=%s toolName=%s',
         sessionId,
-        previous: previousStatus,
-        current: newStatus.status,
-        toolName: newStatus.toolName,
-      })
+        previousStatus,
+        newStatus.status,
+        newStatus.toolName
+      )
     }
 
     // Broadcast the update
@@ -122,7 +143,9 @@ class SessionStatusTracker {
    * Get statuses filtered by type
    */
   getStatusesByType(statusType: SessionStatusType): SessionStatus[] {
-    return Array.from(this.status.values()).filter(s => s.status === statusType)
+    return Array.from(this.status.values()).filter(
+      (s) => s.status === statusType
+    )
   }
 
   /**
@@ -130,7 +153,7 @@ class SessionStatusTracker {
    */
   getActiveSessions(): SessionStatus[] {
     const now = Date.now()
-    return Array.from(this.status.values()).filter(s => {
+    return Array.from(this.status.values()).filter((s) => {
       if (s.status === 'stopped') return false
       if (s.status === 'idle') {
         // Consider idle sessions as active if they had recent activity
@@ -158,7 +181,11 @@ class SessionStatusTracker {
    */
   removeSession(sessionId: string) {
     this.status.delete(sessionId)
-    console.log('[SessionStatusTracker] Session removed from tracking:', sessionId)
+    logger.debug(
+      { category: logCategories.SESSION_STATUS },
+      '[SessionStatusTracker] Session removed from tracking: %s',
+      sessionId
+    )
   }
 
   /**
@@ -180,14 +207,21 @@ class SessionStatusTracker {
       }
 
       // Mark inactive sessions as stopped
-      if (now - status.lastActivity > this.TIMEOUT_MS && status.status === 'idle') {
+      if (
+        now - status.lastActivity > this.TIMEOUT_MS &&
+        status.status === 'idle'
+      ) {
         this.markSessionStopped(sessionId)
         cleaned++
       }
     }
 
     if (cleaned > 0) {
-      console.log('[SessionStatusTracker] Cleaned up', cleaned, 'expired sessions')
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusTracker] Cleaned up: %s expired sessions',
+        cleaned
+      )
     }
   }
 
@@ -197,7 +231,7 @@ class SessionStatusTracker {
   private broadcastStatus(sessionId: string, status: SessionStatus) {
     try {
       const wsManager = getWebSocketManager()
-      
+
       // Broadcast to 'sessions' channel - all clients listening to session updates
       wsManager.broadcast('sessions', {
         type: 'session.status',
@@ -210,12 +244,18 @@ class SessionStatusTracker {
         data: status,
       })
 
-      console.log('[SessionStatusTracker] Broadcast status:', {
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusTracker] Broadcast status: sessionId=%s status=%s',
         sessionId,
-        status: status.status,
-      })
+        status.status
+      )
     } catch (error) {
-      console.error('[SessionStatusTracker] Failed to broadcast status:', error)
+      logger.error(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusTracker] Failed to broadcast status: %s',
+        String(error)
+      )
     }
   }
 

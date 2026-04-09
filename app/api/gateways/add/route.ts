@@ -4,6 +4,8 @@ import { nanoid } from 'nanoid'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ gateway }, { status: 201 })
   } catch (error) {
-    console.error('Error adding gateway:', error)
+    logger.error('Error adding gateway:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -6,6 +6,8 @@ import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { seedDefaultStatuses } from '@/lib/db/seeder.js'
 import type { Workspace } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
       workspace,
     })
   } catch (error) {
-    console.error('Error creating workspace:', error)
+    logger.error('Error creating workspace:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

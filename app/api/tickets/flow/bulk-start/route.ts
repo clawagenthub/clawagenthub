@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { triggerAgentForFlowStart } from '../../[ticketId]/flow/lib/trigger-agent.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // Start first availableSlots tickets, rest go to waiting_to_flow
 
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Calculate how many slots are available (excluding currently flowing tickets)
     const availableSlots = Math.max(0, onflowlimit - currentFlowingCount.count)
 
-    console.log(
+    logger.debug(
       '[bulk-start] onflowlimit:',
       onflowlimit,
       'currentFlowing:',
@@ -223,7 +225,7 @@ export async function POST(request: NextRequest) {
       results,
     })
   } catch (error) {
-    console.error('Error in bulk-start flow:', error)
+    logger.error('Error in bulk-start flow:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

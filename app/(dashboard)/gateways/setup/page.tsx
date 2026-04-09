@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface DiscoveredGateway {
   url: string
@@ -65,7 +67,7 @@ export default function GatewaySetupPage() {
         })
       }
     } catch (err) {
-      console.error('Auto-discovery error:', err)
+      logger.error('Auto-discovery error:', err)
       setError(err instanceof Error ? err.message : 'Auto-discovery failed')
     } finally {
       setDiscovering(false)

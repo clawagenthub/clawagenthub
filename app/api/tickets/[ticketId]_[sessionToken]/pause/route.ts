@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { processFlowPost } from '@/app/api/tickets/[ticketId]/flow/route'
+import { processFlowPost } from '@/app/api/tickets/[ticketId]/flow/lib/process-post'
 
 interface RouteParams {
   params: Promise<{ ticketId_sessionToken: string }>

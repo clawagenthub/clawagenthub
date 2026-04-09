@@ -6,6 +6,8 @@
 
 import type { InstanceEvent } from './protocol.js'
 import type { ClientConnection } from './session-types.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 /**
  * Event callback manager for session instance
@@ -30,7 +32,7 @@ export class SessionEventManager {
       try {
         callback(event)
       } catch (error) {
-        console.error('[SessionInstance] Event callback error:', error)
+        logger.error('[SessionInstance] Event callback error:', error)
       }
     }
   }
@@ -57,7 +59,7 @@ export function sendToClient(
   try {
     client.ws.send(JSON.stringify(event))
   } catch (error) {
-    console.error('[SessionInstance] Failed to send to client:', {
+    logger.error('[SessionInstance] Failed to send to client:', {
       clientId: client.id,
       error
     })

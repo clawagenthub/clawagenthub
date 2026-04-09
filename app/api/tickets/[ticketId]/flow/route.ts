@@ -6,6 +6,8 @@ import { getDatabase } from '@/lib/db/index'
 import { triggerAgentForFlowStart } from './lib/trigger-agent'
 import { processFlowPost } from './lib/process-post'
 import type { Ticket } from '@/lib/db/schema'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteParams {
   params: Promise<{ ticketId: string }>
@@ -158,7 +160,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         : null,
     })
   } catch (error) {
-    console.error('Error fetching flow status:', error)
+    logger.error('Error fetching flow status:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -353,7 +355,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       body
     )
   } catch (error) {
-    console.error('Error updating flow:', error)
+    logger.error('Error updating flow:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

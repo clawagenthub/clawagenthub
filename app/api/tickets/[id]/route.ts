@@ -5,6 +5,8 @@ import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import type { Ticket, TicketAuditLog, TicketFlowConfig } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -150,7 +152,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error fetching ticket:', error)
+    logger.error('Error fetching ticket:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -401,7 +403,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     })
   } catch (error) {
-    console.error('Error updating ticket:', error)
+    logger.error('Error updating ticket:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -468,7 +470,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting ticket:', error)
+    logger.error('Error deleting ticket:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

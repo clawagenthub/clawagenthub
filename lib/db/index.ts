@@ -2,6 +2,8 @@ import Database from 'better-sqlite3'
 import { readFileSync, existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -83,7 +85,7 @@ export function runMigrations(): void {
       .get(migrationName)
 
     if (!existing) {
-      console.info(`📦 Running migration: ${migrationName}`)
+      logger.info(`📦 Running migration: ${migrationName}`)
       const migrationPath = join(migrationsDir, file)
       const sql = readFileSync(migrationPath, 'utf-8')
 
@@ -92,7 +94,7 @@ export function runMigrations(): void {
         db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
           migrationName
         )
-        console.info(`✓ Migration ${migrationName} applied`)
+        logger.info(`✓ Migration ${migrationName} applied`)
       } catch (error: any) {
         // Handle idempotent-safe errors (column/table already exists)
         const errorMessage = error?.message || String(error)
@@ -101,13 +103,13 @@ export function runMigrations(): void {
           (errorMessage.includes('table') &&
             errorMessage.includes('already exists'))
         ) {
-          console.info(
+          logger.info(
             `ℹ️  Migration ${migrationName}: Object already exists, marking as applied`
           )
           db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
             migrationName
           )
-          console.info(`✓ Migration ${migrationName} marked as applied`)
+          logger.info(`✓ Migration ${migrationName} marked as applied`)
         } else {
           // Re-throw unexpected errors
           throw error
@@ -118,10 +120,10 @@ export function runMigrations(): void {
 }
 
 export function initializeDatabase(): void {
-  console.info('🚀 Initializing database...')
+  logger.info({ category: logCategories.DATABASE }, '🚀 Initializing database...')
   getDatabase()
   runMigrations()
-  console.info('✓ Database initialized')
+  logger.info({ category: logCategories.DATABASE }, '✓ Database initialized')
 }
 
 export function closeDatabase(): void {

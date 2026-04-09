@@ -40,6 +40,8 @@ import {
   buildSubmitTicketData,
 } from './ticket-modal-form-utils'
 import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // ============================================================================
 // Types
@@ -203,7 +205,7 @@ export function TicketModal({
         setMaxImagesPerPost(Number.isFinite(parsedMaxImages) && parsedMaxImages > 0 ? parsedMaxImages : 5)
         setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
       } catch (error) {
-        console.error('[TicketModal] Failed to load workspace attachment settings:', error)
+        logger.error('[TicketModal] Failed to load workspace attachment settings:', error)
       }
     }
 
@@ -249,11 +251,7 @@ export function TicketModal({
       .map((config) => mapExternalFlowConfig(config, statusIdByName))
       .filter((config): config is FlowConfig => config !== null)
 
-    console.log('[TicketModal] Hydrating flow configs for edit mode', {
-      ticketId: editingTicketId,
-      count: mappedConfigs.length,
-      flowEnabled,
-    })
+    logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Hydrating flow configs for edit mode]: ticketId=%s count=%s', editingTicketId, mappedConfigs.length)
 
     setFlowConfigs(mappedConfigs)
   }, [isOpen, editingTicketId, existingFlowConfigs, flowEnabled, statuses])
@@ -341,7 +339,7 @@ export function TicketModal({
           })
         }
       } catch (error) {
-        console.error('Failed to auto-save draft:', error)
+        logger.error('Failed to auto-save draft:', error)
       }
     }, 500)
 
@@ -367,10 +365,7 @@ export function TicketModal({
   // Flow config change handler
   // -------------------------------------------------------------------------
   const handleFlowConfigsChange = useCallback((configs: FlowConfig[]) => {
-    console.log('[TicketModal] onChange from StatusFlowBuilder', {
-      nextCount: configs.length,
-      statusIds: configs.map(config => config.status_id),
-    })
+    logger.debug({ category: logCategories.CHAT }, '[[TicketModal] onChange from StatusFlowBuilder]: nextCount=%s statusIds=%s', configs.length, configs.map(config => config.status_id))
     setFlowConfigs(configs)
   }, [])
 
@@ -379,10 +374,7 @@ export function TicketModal({
   // -------------------------------------------------------------------------
   const handleLoadDefaultConfig = useCallback(() => {
     const initialConfigs = buildDefaultFlowConfigs(statuses)
-    console.log('[TicketModal] Loading flow configs from status defaults by user action', {
-      includedCount: initialConfigs.length,
-      totalStatuses: statuses?.length ?? 0,
-    })
+    logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Loading flow configs from status defaults by user action]: includedCount=%s totalStatuses=%s', initialConfigs.length, statuses?.length ?? 0)
     setFlowConfigs(initialConfigs)
     if (!statusId && statuses && statuses.length > 0) {
       setStatusId(statuses[0].id)
@@ -398,7 +390,7 @@ export function TicketModal({
     try {
       await startFlow({ ticketId: editingTicketId })
     } catch (error) {
-      console.error('Failed to start flow runtime:', error)
+      logger.error('Failed to start flow runtime:', error)
       if (isGatewayAuthError(error)) {
         alert(getGatewayAuthErrorMessage(error))
       } else {
@@ -412,7 +404,7 @@ export function TicketModal({
     try {
       await stopFlow({ ticketId: editingTicketId })
     } catch (error) {
-      console.error('Failed to stop flow runtime:', error)
+      logger.error('Failed to stop flow runtime:', error)
       if (isGatewayAuthError(error)) {
         alert(getGatewayAuthErrorMessage(error))
       } else {
@@ -454,13 +446,7 @@ export function TicketModal({
       await persistDescriptionAttachments(resolvedTicketId, descriptionAttachments)
     }
 
-    console.log('[TicketModal] Submitting ticket with flow config payload', {
-      creationStatus,
-      submitTicketId: resolvedTicketId || submitTicketId || null,
-      flowEnabled,
-      flowConfigCount: flowEnabled ? flowConfigs.length : 0,
-      attachmentCount: descriptionAttachments.length,
-    })
+    logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Submitting ticket with flow config payload]: submitTicketId=%s flowConfigCount=%s attachmentCount=%s', resolvedTicketId || submitTicketId || null, flowEnabled ? flowConfigs.length : 0, descriptionAttachments.length)
 
     clearDraftFromStorage(workspaceId)
     setHasLoadedDraft(false)
@@ -604,7 +590,7 @@ export function TicketModal({
                       })
                     }
                   } catch (error) {
-                    console.error('Auto prompt error:', error)
+                    logger.error('Auto prompt error:', error)
                     alert(error instanceof Error ? error.message : 'Failed to generate auto prompt')
                   } finally {
                     setIsAutoPromptLoading(false)
@@ -761,11 +747,7 @@ export function TicketModal({
                 type="checkbox"
                 checked={flowEnabled}
                 onChange={(e) => {
-                  console.log('[TicketModal] Flow toggle changed', {
-                    checked: e.target.checked,
-                    mode: isDraft ? 'draft' : 'active',
-                    ticketType: isEditing ? 'edit' : 'create',
-                  })
+                  logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Flow toggle changed]: checked=%s mode=%s ticketType=%s', e.target.checked, isDraft ? 'draft' : 'active', isEditing ? 'edit' : 'create')
                   setFlowEnabled(e.target.checked)
                 }}
                 className="sr-only peer"

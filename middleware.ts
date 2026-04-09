@@ -2,52 +2,45 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getDatabase } from '@/lib/db/index.js'
 import type { Session } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
-// Public routes that don't require authentication
 const publicRoutes = ['/login', '/setup', '/api/setup/check', '/api/setup/create', '/api/auth/login']
 
-// Static assets and Next.js internals to skip
 const skipRoutes = ['/_next', '/favicon.ico', '/api/auth/login']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const timestamp = new Date().toISOString()
 
-  console.log(`\n🔒 [MIDDLEWARE ${timestamp}] Request: ${request.method} ${pathname}`)
+  logger.info({ category: logCategories.MIDDLEWARE }, 'Request: %s %s', request.method, pathname)
 
-  // Skip static assets and Next.js internals
   if (skipRoutes.some(route => pathname.startsWith(route))) {
-    console.log(`   ✓ Skipping route (static/internal): ${pathname}`)
+    logger.info({ category: logCategories.MIDDLEWARE }, 'Skipping route (static/internal): %s', pathname)
     return NextResponse.next()
   }
 
-  // Allow public routes without authentication
   if (publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
-    console.log(`   ✓ Public route allowed: ${pathname}`)
+    logger.info({ category: logCategories.MIDDLEWARE }, 'Public route allowed: %s', pathname)
     return NextResponse.next()
   }
 
-  // Get session token from cookies
   const sessionToken = request.cookies.get('session_token')?.value
-  console.log(`   🍪 Session token present: ${!!sessionToken}`)
+  logger.info({ category: logCategories.MIDDLEWARE }, 'Session token present: %s', String(!!sessionToken))
   if (sessionToken) {
-    console.log(`   🍪 Token preview: ${sessionToken.substring(0, 10)}...`)
+    logger.debug({ category: logCategories.MIDDLEWARE }, 'Token preview: %s...', sessionToken.substring(0, 10))
   }
 
-  // If no session token, redirect to login or return 401 for API routes
   if (!sessionToken) {
-    console.log(`   ❌ No session token - redirecting to login`)
+    logger.warn({ category: logCategories.MIDDLEWARE }, 'No session token - redirecting to login')
     if (pathname.startsWith('/api/')) {
-      console.log(`   ❌ API route - returning 401`)
+      logger.warn({ category: logCategories.MIDDLEWARE }, 'API route - returning 401')
       return NextResponse.json({ message: 'Unauthorized - No session token' }, { status: 401 })
     }
-    console.log(`   ↪️  Redirecting to /login`)
+    logger.info({ category: logCategories.MIDDLEWARE }, 'Redirecting to /login')
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Validate session token server-side
   try {
-    console.log(`   🔍 Validating session token in database...`)
+    logger.debug({ category: logCategories.MIDDLEWARE }, 'Validating session token in database...')
     const db = getDatabase()
     const session = db
       .prepare(
@@ -55,12 +48,11 @@ export async function middleware(request: NextRequest) {
       )
       .get(sessionToken) as Session | undefined
 
-    // If session is invalid or expired, clear cookie and redirect
     if (!session) {
-      console.log(`   ❌ Invalid or expired session token`)
-      
+      logger.warn({ category: logCategories.MIDDLEWARE }, 'Invalid or expired session token')
+
       if (pathname.startsWith('/api/')) {
-        console.log(`   ❌ API route - returning 401 and clearing cookie`)
+        logger.warn({ category: logCategories.MIDDLEWARE }, 'API route - returning 401 and clearing cookie')
         const response = NextResponse.json(
           { message: 'Unauthorized - Invalid or expired session' },
           { status: 401 }
@@ -68,52 +60,40 @@ export async function middleware(request: NextRequest) {
         response.cookies.delete('session_token')
         return response
       }
-      
-      console.log(`   ↪️  Clearing cookie and redirecting to /login`)
+
+      logger.info({ category: logCategories.MIDDLEWARE }, 'Clearing cookie and redirecting to /login')
       const response = NextResponse.redirect(new URL('/login', request.url))
       response.cookies.delete('session_token')
       return response
     }
 
-    console.log(`   ✅ Valid session found - User ID: ${session.user_id}`)
-    console.log(`   ✅ Session expires: ${session.expires_at}`)
+    logger.info({ category: logCategories.MIDDLEWARE }, 'Valid session found - User ID: %s', session.user_id)
 
-    // If user is authenticated and trying to access login page, redirect to dashboard
     if (pathname === '/login') {
-      console.log(`   ↪️  User authenticated, redirecting from /login to /dashboard`)
+      logger.info({ category: logCategories.MIDDLEWARE }, 'User authenticated, redirecting from /login to /dashboard')
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    // Valid session - allow request to proceed
-    console.log(`   ✅ Access granted to: ${pathname}`)
+    logger.info({ category: logCategories.MIDDLEWARE }, 'Access granted to: %s', pathname)
     return NextResponse.next()
   } catch (error) {
-    console.error(`   ❌ Middleware error:`, error)
-    
-    // On error, allow request to proceed (fail open for non-critical paths)
-    // API routes will still be protected by their own auth checks
+    logger.error({ category: logCategories.MIDDLEWARE }, 'Middleware error: %s', String(error))
+
     if (pathname.startsWith('/api/')) {
-      console.log(`   ❌ API route error - returning 500`)
+      logger.error({ category: logCategories.MIDDLEWARE }, 'API route error - returning 500')
       return NextResponse.json(
         { message: 'Internal server error' },
         { status: 500 }
       )
     }
-    
-    console.log(`   ⚠️  Error occurred, allowing request to proceed`)
+
+    logger.warn({ category: logCategories.MIDDLEWARE }, 'Error occurred, allowing request to proceed')
     return NextResponse.next()
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder files
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

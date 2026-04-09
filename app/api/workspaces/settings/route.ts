@@ -4,6 +4,8 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
+
 
 // GET /api/workspaces/settings - Fetch all settings for current workspace
 export async function GET(request: NextRequest) {
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(settingsObj)
   } catch (error) {
-    console.error('Error fetching workspace settings:', error)
+    logger.error('Error fetching workspace settings:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -199,7 +201,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(settingsObj)
   } catch (error) {
-    console.error('Error updating workspace settings:', error)
+    logger.error('Error updating workspace settings:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

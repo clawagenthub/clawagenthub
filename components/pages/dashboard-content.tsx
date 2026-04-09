@@ -17,6 +17,7 @@ import {
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import type { PageContentProps } from './index'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
+import logger, { logCategories } from '@/lib/logger/index.js'
 import {
   BoardLoadingState,
   BoardErrorState,
@@ -95,7 +96,7 @@ function useBulkActions(
         )
       )
     } catch (error) {
-      console.error('Failed to move tickets:', error)
+      logger.error('Failed to move tickets:', error)
       alert(error instanceof Error ? error.message : 'Failed to move tickets')
     }
   }
@@ -113,7 +114,7 @@ function useBulkActions(
         )
       )
     } catch (error) {
-      console.error('Failed to delete tickets:', error)
+      logger.error('Failed to delete tickets:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete tickets')
     }
   }
@@ -153,7 +154,7 @@ function useTicketDrag(tickets: TicketWithRelations[], updateMutation: any) {
         status_id: targetStatusId,
       })
     } catch (error) {
-      console.error('Failed to move ticket:', error)
+      logger.error('Failed to move ticket:', error)
       alert(error instanceof Error ? error.message : 'Failed to move ticket')
     }
 
@@ -352,7 +353,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
           setEditingTicket(null)
         }
       } catch (error) {
-        console.error('Failed to update ticket:', error)
+        logger.error('Failed to update ticket:', error)
       }
       return
     }
@@ -376,7 +377,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
       setIsTicketModalOpen(false)
       setEditingTicket(null)
     } catch (error) {
-      console.error('Failed to delete draft:', error)
+      logger.error('Failed to delete draft:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete draft')
     }
   }
