@@ -105,7 +105,6 @@ function ColumnHeader({
   isSomeSelected: boolean
   eligibleForFlowStart: TicketWithRelations[]
   eligibleForFlowStop: TicketWithRelations[]
-  allFlowingTickets: TicketWithRelations[]
   showStopAll: boolean
   isBulkStartingFlow: boolean
   isBulkStoppingFlow: boolean
@@ -233,18 +232,23 @@ export function BoardColumn({
   const draftCount = tickets.filter(t => t.creation_status === 'draft').length
   const activeTicketsForSelection = visibleTickets.filter(t => t.creation_status === 'active')
 
+  // Fix #1: exclude waiting_to_flow from eligibleForFlowStart
   const eligibleForFlowStart = visibleTickets.filter(
-    t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status !== 'flowing'
+    t => t.flow_enabled && 
+       t.creation_status === 'active' && 
+       t.flowing_status !== 'flowing' &&
+       t.flowing_status !== 'waiting_to_flow'
   )
 
+  // Fix #2: include waiting_to_flow in eligibleForFlowStop and show Stop when ANY needs stopping
   const eligibleForFlowStop = visibleTickets.filter(
-    t => t.flow_enabled && t.creation_status === 'active' && t.flowing_status === 'flowing'
+    t => t.flow_enabled && 
+       t.creation_status === 'active' && 
+       (t.flowing_status === 'flowing' || t.flowing_status === 'waiting_to_flow')
   )
 
-  const allFlowingTickets = visibleTickets.filter(
-    t => t.flow_enabled && t.creation_status === 'active'
-  )
-  const showStopAll = allFlowingTickets.length > 0 && allFlowingTickets.every(t => t.flowing_status === 'flowing')
+  // Stop All takes priority - show when ANY ticket needs stopping
+  const showStopAll = eligibleForFlowStop.length > 0
 
   const handleStartFlowAll = async () => {
     if (eligibleForFlowStart.length === 0) return
@@ -291,7 +295,6 @@ export function BoardColumn({
         isSomeSelected={isSomeSelected}
         eligibleForFlowStart={eligibleForFlowStart}
         eligibleForFlowStop={eligibleForFlowStop}
-        allFlowingTickets={allFlowingTickets}
         showStopAll={showStopAll}
         isBulkStartingFlow={isBulkStartingFlow}
         isBulkStoppingFlow={isBulkStoppingFlow}

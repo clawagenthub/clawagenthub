@@ -132,6 +132,8 @@ export function TicketModal({
   const [isLoadDefaultsConfirmOpen, setIsLoadDefaultsConfirmOpen] = useState(false)
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isAutoPromptLoading, setIsAutoPromptLoading] = useState(false)
+  const [isDraftSubmitting, setIsDraftSubmitting] = useState(false)
+  const [isPublishSubmitting, setIsPublishSubmitting] = useState(false)
   const [maxImagesPerPost, setMaxImagesPerPost] = useState(5)
   const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
 
@@ -255,6 +257,31 @@ export function TicketModal({
 
     setFlowConfigs(mappedConfigs)
   }, [isOpen, editingTicketId, existingFlowConfigs, flowEnabled, statuses])
+
+  // -------------------------------------------------------------------------
+  // Reset form state when modal opens for new ticket
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (isOpen && !initialData?.title && !hasLoadedDraft) {
+      // Modal opened for new ticket - ensure clean state
+      setTitle('')
+      setDescription('')
+      setDescriptionAttachments([])
+      setStatusId('')
+      setAssignedTo('')
+      setFlowEnabled(false)
+      setFlowMode('manual')
+      setFlowConfigs([])
+      setIsSubTicket(false)
+      setParentTicketId('')
+      setWaitingFinishedTicketId('')
+      setDraftTicketId(null)
+      setHasCreatedDraft(false)
+      setIsLoadDefaultsConfirmOpen(false)
+      setIsPromptModalOpen(false)
+      setIsAutoPromptLoading(false)
+    }
+  }, [isOpen, initialData, hasLoadedDraft])
 
   // -------------------------------------------------------------------------
   // Auto-save draft to database on input changes
@@ -420,38 +447,53 @@ export function TicketModal({
     if (!title.trim()) return
     if (!statusId) return
 
+    const isDraftOp = creationStatus === 'draft'
+    if (isDraftOp) {
+      setIsDraftSubmitting(true)
+    } else {
+      setIsPublishSubmitting(true)
+    }
+
     const isEditingExistingTicket = !!initialData?.title
     const submitTicketId = isEditingExistingTicket ? initialData?.id : draftTicketId
 
-    const payload = {
-      id: submitTicketId || undefined,
-      title: title.trim(),
-      description: description.trim() || undefined,
-      status_id: statusId,
-      assigned_to: assignedTo || undefined,
-      flow_enabled: flowEnabled,
-      flow_mode: flowMode,
-      creation_status: creationStatus,
-      isSubTicket,
-      parentTicketId: isSubTicket ? parentTicketId : undefined,
-      waitingFinishedTicketId: waitingFinishedTicketId || undefined,
-      flow_configs: flowEnabled && flowConfigs.length > 0 ? flowConfigs : undefined,
+    try {
+      const payload = {
+        id: submitTicketId || undefined,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status_id: statusId,
+        assigned_to: assignedTo || undefined,
+        flow_enabled: flowEnabled,
+        flow_mode: flowMode,
+        creation_status: creationStatus,
+        isSubTicket,
+        parentTicketId: isSubTicket ? parentTicketId : undefined,
+        waitingFinishedTicketId: waitingFinishedTicketId || undefined,
+        flow_configs: flowEnabled && flowConfigs.length > 0 ? flowConfigs : undefined,
+      }
+
+      const result = onSubmit(payload, switchToView)
+      const maybeTicket = result instanceof Promise ? await result : null
+
+      const resolvedTicketId = maybeTicket?.id || submitTicketId
+      if (resolvedTicketId && descriptionAttachments.length > 0) {
+        await persistDescriptionAttachments(resolvedTicketId, descriptionAttachments)
+      }
+
+      logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Submitting ticket with flow config payload]: submitTicketId=%s flowConfigCount=%s attachmentCount=%s', resolvedTicketId || submitTicketId || null, flowEnabled ? flowConfigs.length : 0, descriptionAttachments.length)
+
+      clearDraftFromStorage(workspaceId)
+      setHasLoadedDraft(false)
+      setDraftTicketId(null)
+      setHasCreatedDraft(false)
+    } finally {
+      if (isDraftOp) {
+        setIsDraftSubmitting(false)
+      } else {
+        setIsPublishSubmitting(false)
+      }
     }
-
-    const result = onSubmit(payload, switchToView)
-    const maybeTicket = result instanceof Promise ? await result : null
-
-    const resolvedTicketId = maybeTicket?.id || submitTicketId
-    if (resolvedTicketId && descriptionAttachments.length > 0) {
-      await persistDescriptionAttachments(resolvedTicketId, descriptionAttachments)
-    }
-
-    logger.debug({ category: logCategories.CHAT }, '[[TicketModal] Submitting ticket with flow config payload]: submitTicketId=%s flowConfigCount=%s attachmentCount=%s', resolvedTicketId || submitTicketId || null, flowEnabled ? flowConfigs.length : 0, descriptionAttachments.length)
-
-    clearDraftFromStorage(workspaceId)
-    setHasLoadedDraft(false)
-    setDraftTicketId(null)
-    setHasCreatedDraft(false)
   }, [title, description, statusId, assignedTo, flowEnabled, flowMode, flowConfigs, onSubmit, workspaceId, initialData, draftTicketId, isSubTicket, parentTicketId, waitingFinishedTicketId, descriptionAttachments, persistDescriptionAttachments])
 
   // -------------------------------------------------------------------------
@@ -481,10 +523,27 @@ export function TicketModal({
   // Cancel handler
   // -------------------------------------------------------------------------
   const handleCancel = () => {
+    // Reset all form state to prevent stale state on reopen
+    setTitle('')
+    setDescription('')
+    setDescriptionAttachments([])
+    setStatusId('')
+    setAssignedTo('')
+    setFlowEnabled(false)
+    setFlowMode('manual')
+    setFlowConfigs([])
+    setIsSubTicket(false)
+    setParentTicketId('')
+    setWaitingFinishedTicketId('')
     setDraftTicketId(null)
     setHasCreatedDraft(false)
     setHasLoadedDraft(false)
     setIsLoadDefaultsConfirmOpen(false)
+    setIsPromptModalOpen(false)
+    setIsAutoPromptLoading(false)
+    setIsDraftSubmitting(false)
+    setIsPublishSubmitting(false)
+    clearDraftFromStorage(workspaceId)
     onClose()
   }
 
@@ -883,18 +942,18 @@ export function TicketModal({
                   onClick={() => { void handleSubmit('draft') }}
                   className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: `rgb(var(--border-color))`, color: `rgb(var(--text-primary))` }}
-                  disabled={isSubmitting || !title.trim() || !statusId}
+                  disabled={isDraftSubmitting || isPublishSubmitting || !title.trim() || !statusId}
                 >
-                  {isSubmitting ? 'Saving...' : isDraft ? 'Save Draft' : 'Save as Draft'}
+                  {isDraftSubmitting ? 'Saving...' : isDraft ? 'Save Draft' : 'Save as Draft'}
                 </button>
                 <button
                   type="button"
                   onClick={() => { void handleSubmit('active') }}
                   className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: `rgb(var(--accent-primary, 59 130 246))`, color: `rgb(var(--accent-primary-foreground, 255 255 255))` }}
-                  disabled={isSubmitting || !title.trim() || !statusId}
+                  disabled={isDraftSubmitting || isPublishSubmitting || !title.trim() || !statusId}
                 >
-                  {isSubmitting ? 'Publishing...' : 'Publish'}
+                  {isPublishSubmitting ? 'Publishing...' : 'Publish'}
                 </button>
               </>
             ) : (

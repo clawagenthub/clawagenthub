@@ -173,6 +173,11 @@ export async function triggerAgentForFlowStart(args: {
     email: string
   }>
 
+  // Log context about the flow trigger attempt
+  logger.debug(
+    `[triggerAgentForFlowStart] Flow trigger context: ticketId=${ticketId}, agentId=${effectiveAgentId}, statusId=${ticket.status_id}, flowMode=${ticket.flow_mode}, sessionToken=${sessionToken ? 'provided' : 'empty'}`
+  )
+
   // Retry logic: try multiple times with exponential backoff before giving up
   const MAX_RETRIES = 5
   const INITIAL_DELAY_MS = 1000

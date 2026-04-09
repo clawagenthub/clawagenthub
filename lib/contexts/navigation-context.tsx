@@ -45,10 +45,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const navigateTo = (route: AppRoute) => {
-    setCurrentRoute(route)
-    // Update URL without triggering full page navigation
     const url = getRouteUrl(route)
-    window.history.pushState({}, '', url)
+    // Use router.push to let Next.js handle navigation properly
+    // This ensures usePathname() updates and useEffect([pathname]) syncs state correctly
+    router.push(url)
   }
 
   const isActive = (route: AppRoute) => {
