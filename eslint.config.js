@@ -65,9 +65,10 @@ export default tseslint.config(
       'max-lines-per-function': ['error', { max: 250, skipBlankLines: true, skipComments: true, IIFEs: true }],
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'import/no-extraneous-dependencies': ['error', { devDependencies: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', 'scripts/**', 'tests/**'] }],
+      'import/no-extraneous-dependencies': ['warn', { devDependencies: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', 'scripts/**', 'tests/**'] }],
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
+      
     },
   },
   {

@@ -76,6 +76,7 @@ function StopAllConfirm({ count, onConfirm, onCancel }: StopAllConfirmProps) {
 }
 
 function ColumnHeader({
+  statusId,
   activeTicketsForSelection,
   title,
   color,
@@ -92,6 +93,7 @@ function ColumnHeader({
   onStartAllClick,
   onStopAllClick,
 }: {
+  statusId: string
   activeTicketsForSelection: TicketWithRelations[]
   title: string
   color: string
@@ -119,7 +121,7 @@ function ColumnHeader({
             ref={(el) => {
               if (el) el.indeterminate = isSomeSelected
             }}
-            onChange={(e) => onSelectAll(id, e.target.checked)}
+            onChange={(e) => onSelectAll(statusId, e.target.checked)}
             className="w-4 h-4 rounded cursor-pointer"
             title="Select all in column"
           />
@@ -277,6 +279,7 @@ export function BoardColumn({
       }}
     >
       <ColumnHeader
+        statusId={id}
         activeTicketsForSelection={activeTicketsForSelection}
         title={title}
         color={color}
