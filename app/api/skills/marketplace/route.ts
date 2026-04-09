@@ -434,7 +434,7 @@ export async function POST(request: NextRequest) {
           const { mkdir } = await import('fs/promises')
           const { join } = await import('path')
           
-          const folderName = external_id
+          const folderName = `${session.current_workspace_id}_${external_id}`
           const localBasePath = join(process.cwd(), `downloaded_skills/${folderName}`)
           
           // Create base directory
@@ -452,7 +452,7 @@ export async function POST(request: NextRequest) {
           if (downloadedFiles > 0) {
             logger.debug(`${SKILLSMP_LOG_PREFIX} Successfully downloaded ${downloadedFiles} files to: downloaded_skills/${folderName}`)
             
-            skillPath = `downloaded_skills/${folderName}/SKILL.md`
+            skillPath = `downloaded_skills/${session.current_workspace_id}_${external_id}/SKILL.md`
             isContentFromPath = true
             finalSkillData = `${skill_name}\n\n${skill_description || ''}` // Fallback content
           } else {

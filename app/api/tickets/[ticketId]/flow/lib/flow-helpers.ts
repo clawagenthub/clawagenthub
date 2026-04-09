@@ -82,7 +82,29 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     skillsSection = '[]'
   }
 
-  const commentsJson = JSON.stringify(recentComments, null, 2)
+  // Add role-based user attribution to comments
+  const commentsWithRole = recentComments.map((comment) => {
+    // Check if comment is from an agent using is_agent_completion_signal (1 = agent, 0 = user)
+    // Fallback to content-based detection if is_agent_completion_signal is not available
+    const isAgentComment =
+      (comment as any).is_agent_completion_signal === 1 ||
+      comment.content.startsWith('[Agent ')
+    let userAttribution: string
+    if (isAgentComment) {
+      // Extract agent name from comment content like "[Agent librarian] Status=..."
+      const match = comment.content.match(/^\[Agent\s+([^\]]+)\]/)
+      const agentName = match ? match[1] : 'Unknown'
+      userAttribution = `user:${agentName}-AI`
+    } else {
+      // User comment - use email
+      userAttribution = `user:${comment.email || 'unknown'}-user`
+    }
+    return {
+      ...comment,
+      user: userAttribution,
+    }
+  })
+  const commentsJson = JSON.stringify(commentsWithRole, null, 2)
   const ticketJson = JSON.stringify({
     ...ticket,
     description: null,

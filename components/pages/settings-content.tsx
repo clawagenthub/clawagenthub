@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser, useWorkspacePrompts, useUpdateWorkspacePrompts, useDeletePromptMutation, useAddCustomPrompt, type WorkspacePrompt } from '@/lib/query/hooks'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
@@ -71,6 +71,7 @@ function SettingsContent({ user }: PageContentProps) {
   const [selectedPromptTemplateLoadMessage, setSelectedPromptTemplateLoadMessage] = useState('')
   const [defaultPromptsTimeaout, setDefaultPromptsTimeaout] = useState(120)
 
+  // Sync activeTab from URL on mount and when searchParams change
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab | null
     if (tab && ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'prompttemplates', 'skillsmp', 'danger'].includes(tab)) {
@@ -78,12 +79,22 @@ function SettingsContent({ user }: PageContentProps) {
     }
   }, [searchParams])
 
-  const setActiveTab = (tab: SettingsTab) => {
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      // Force a re-render by refreshing router to pick up URL changes
+      router.refresh()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [router])
+
+  const setActiveTab = useCallback((tab: SettingsTab) => {
     setActiveTabState(tab)
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', tab)
-    window.history.pushState({}, '', url)
-  }
+    // Use router.push to properly trigger Next.js navigation
+    const newUrl = `/settings?tab=${tab}`
+    router.push(newUrl, { scroll: false })
+  }, [router])
 
   useEffect(() => {
     if (!isLoading && !userData) {

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser, useWorkspacePrompts, useUpdateWorkspacePrompts, useDeletePromptMutation, useAddCustomPrompt, type WorkspacePrompt } from '@/lib/query/hooks'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
 import { useAgents } from '@/lib/query/hooks/useChat'
@@ -19,10 +19,13 @@ import logger, { logCategories } from '@/lib/logger/index.js'
 
 type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'
 
+const VALID_TABS: SettingsTab[] = ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'prompttemplates', 'skillsmp', 'danger']
+
 const DEFAULT_MAX_IMAGES_PER_POST = 5
 
 export default function SettingsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isLoading } = useUser()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const { data: settings, isLoading: settingsLoading } = useUserSettings()
@@ -90,12 +93,26 @@ export default function SettingsPage() {
     refresh()
   }
 
-  // Redirect to login if not authenticated
+  // Sync activeTab from URL on mount and when searchParams change (browser back/forward)
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login')
+    const tab = searchParams.get('tab') as SettingsTab | null
+    if (tab && VALID_TABS.includes(tab)) {
+      setActiveTab(tab)
+    } else {
+      // Default to general if no valid tab in URL
+      setActiveTab('general')
     }
-  }, [user, isLoading, router])
+  }, [searchParams])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      // useSearchParams will trigger the effect above via dependency
+      router.refresh()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [router])
 
   // Sync local state when settings are loaded
   useEffect(() => {
@@ -129,6 +146,14 @@ export default function SettingsPage() {
       }
     }
     fetchWorkspaceSettings()
+  }, [])
+
+  // Navigate to tab and update URL
+  const handleTabChange = useCallback((tab: SettingsTab) => {
+    setActiveTab(tab)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    window.history.pushState({ tab }, '', url)
   }, [])
 
   if (isLoading || !user) {
@@ -178,7 +203,7 @@ export default function SettingsPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 className={`px-4 py-3 font-medium transition-colors relative ${
                   activeTab === tab.key ? '' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}

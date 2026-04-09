@@ -83,18 +83,21 @@ export class GatewayClient {
   private connectResolve?: () => void
   private connectReject?: (err: Error) => void
 
-  constructor(url = 'ws://127.0.0.1:18789', opts: { authToken: string; origin?: string }) {
+  constructor(
+    url = 'ws://127.0.0.1:18789',
+    opts: { authToken: string; origin?: string }
+  ) {
     this.url = url
     this.authToken = opts.authToken
     this.origin = opts.origin
-    
+
     if (!this.authToken) {
       throw new Error('Auth token is required for gateway connection')
     }
-    
+
     console.log('[GatewayClient] Initializing with token auth', {
       url: this.url,
-      hasAuthToken: !!this.authToken
+      hasAuthToken: !!this.authToken,
     })
   }
 
@@ -115,8 +118,8 @@ export class GatewayClient {
         this.ws = new WebSocket(this.url, {
           maxPayload: 25 * 1024 * 1024,
           headers: {
-            'Origin': origin
-          }
+            Origin: origin,
+          },
         })
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)))
@@ -130,7 +133,7 @@ export class GatewayClient {
 
       this.ws.on('open', () => {
         console.log('[GatewayClient] WebSocket connection opened', {
-          url: this.url
+          url: this.url,
         })
         this.connected = true
         // Wait for connect.challenge event from server
@@ -139,11 +142,11 @@ export class GatewayClient {
       this.ws.on('message', (raw: WebSocket.Data) => {
         try {
           const parsed = JSON.parse(raw.toString())
-          console.log('[GatewayClient] Received message', {
-            type: parsed.type,
-            event: parsed.event || 'N/A',
-            id: parsed.id || 'N/A'
-          })
+          // console.log('[GatewayClient] Received message', {
+          //   type: parsed.type,
+          //   event: parsed.event || 'N/A',
+          //   id: parsed.id || 'N/A'
+          // })
           this.handleMessage(parsed, connectTimeout)
         } catch (error) {
           console.error('[GatewayClient] Failed to parse message:', error)
@@ -153,7 +156,7 @@ export class GatewayClient {
       this.ws.on('close', () => {
         console.log('[GatewayClient] WebSocket connection closed', {
           url: this.url,
-          wasAuthenticated: this.authenticated
+          wasAuthenticated: this.authenticated,
         })
         this.connected = false
         this.authenticated = false
@@ -215,7 +218,10 @@ export class GatewayClient {
     const protocol = gatewayUrl.protocol === 'wss:' ? 'https:' : 'http:'
 
     // If connecting to localhost, use localhost origin
-    if (gatewayUrl.hostname === 'localhost' || gatewayUrl.hostname === '127.0.0.1') {
+    if (
+      gatewayUrl.hostname === 'localhost' ||
+      gatewayUrl.hostname === '127.0.0.1'
+    ) {
       return `${protocol}//localhost:18789`
     }
 
@@ -238,7 +244,7 @@ export class GatewayClient {
         const payload = evt.payload as { nonce?: string } | undefined
         const nonce = payload?.nonce
         console.log('[GatewayClient] Received connect.challenge', {
-          nonce: nonce || 'none'
+          nonce: nonce || 'none',
         })
         this.sendConnectRequest(nonce, connectTimeout)
         return
@@ -250,7 +256,7 @@ export class GatewayClient {
         console.log('[GatewayClient] Broadcasting event', {
           event: evt.event,
           hasPayload: !!evt.payload,
-          listenerCount: listeners.size
+          listenerCount: listeners.size,
         })
         for (const cb of listeners) {
           try {
@@ -287,7 +293,7 @@ export class GatewayClient {
       } else {
         console.error('[GatewayClient] Response error:', {
           id: res.id,
-          error: res.error
+          error: res.error,
         })
         pending.reject(new Error(res.error?.message ?? 'Unknown gateway error'))
       }
@@ -299,9 +305,9 @@ export class GatewayClient {
     connectTimeout?: ReturnType<typeof setTimeout>
   ): void {
     const id = randomUUID()
-    
+
     console.log('[GatewayClient] Sending connect request with token auth')
-    
+
     const frame: RequestFrame = {
       type: 'req',
       id,
@@ -333,7 +339,9 @@ export class GatewayClient {
       },
       reject: (err: unknown) => {
         if (connectTimeout) clearTimeout(connectTimeout)
-        this.connectReject?.(err instanceof Error ? err : new Error(String(err)))
+        this.connectReject?.(
+          err instanceof Error ? err : new Error(String(err))
+        )
       },
       timeout: setTimeout(() => {
         this.pendingRequests.delete(id)
@@ -347,14 +355,18 @@ export class GatewayClient {
 
   // --- JSON-RPC calls ---
 
-  async call(method: string, params?: unknown, timeoutMs = 30000): Promise<unknown> {
+  async call(
+    method: string,
+    params?: unknown,
+    timeoutMs = 30000
+  ): Promise<unknown> {
     if (!this.isConnected()) {
       await this.connect()
     }
 
     console.log('[GatewayClient] RPC call', {
       method,
-      hasParams: !!params
+      hasParams: !!params,
     })
 
     const id = randomUUID()
@@ -370,7 +382,7 @@ export class GatewayClient {
         this.pendingRequests.delete(id)
         console.error('[GatewayClient] RPC timeout:', {
           method,
-          timeoutMs
+          timeoutMs,
         })
         reject(new Error(`RPC timeout: ${method}`))
       }, timeoutMs)
@@ -408,7 +420,7 @@ export class GatewayClient {
       console.error('[GatewayClient] Error calling health():', {
         error,
         message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       })
       throw error
     }
@@ -424,14 +436,14 @@ export class GatewayClient {
         hasAgents: !!result?.agents,
         agentCount: result?.agents?.length ?? 0,
         agents: result?.agents,
-        rawResult: result
+        rawResult: result,
       })
       return result?.agents ?? []
     } catch (error) {
       console.error('[GatewayClient] Error calling agents.list:', {
         error,
         message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       })
       throw error
     }
@@ -462,7 +474,7 @@ export class GatewayClient {
       sessionKey,
       messageLength: message.length,
       idempotencyKey,
-      hasOptions: !!options
+      hasOptions: !!options,
     })
 
     const result = await this.call('chat.send', {
@@ -471,7 +483,7 @@ export class GatewayClient {
       idempotencyKey,
       thinking: options?.thinking,
       deliver: options?.deliver,
-      timeoutMs: options?.timeoutMs
+      timeoutMs: options?.timeoutMs,
     })
 
     return result as { runId: string; status: string }
@@ -515,14 +527,14 @@ export class GatewayClient {
           cleanup()
           resolve({
             runId,
-            message: event.message
+            message: event.message,
           })
         } else if (event.state === 'error') {
           clearTimeout(timeout)
           cleanup()
           resolve({
             runId,
-            error: event.errorMessage || 'Unknown error'
+            error: event.errorMessage || 'Unknown error',
           })
         }
         // Ignore 'delta' events for now
@@ -560,15 +572,15 @@ export class GatewayClient {
    */
   async getSessionHistory(sessionKey: string): Promise<SessionGetResponse> {
     console.log('[GatewayClient] Getting session history', { sessionKey })
-    
+
     // OpenClaw v3.2 uses 'chat.history' method for session history
     const result = (await this.call('chat.history', {
-      sessionKey: sessionKey
+      sessionKey: sessionKey,
     })) as SessionGetResponse | undefined
 
     console.log('[GatewayClient] Session history response', {
       hasMessages: !!result?.messages,
-      messageCount: result?.messages?.length ?? 0
+      messageCount: result?.messages?.length ?? 0,
     })
 
     // Return empty messages array if result is undefined

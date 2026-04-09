@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json()
-    const { name, color, description, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue } = body
+    const { name, color, description, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue, skill_ids } = body
 
     // Validate inputs
     if (name !== undefined) {
@@ -205,6 +205,27 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     db.prepare(
       `UPDATE statuses SET ${updates.join(', ')} WHERE id = ?`
     ).run(...values)
+
+    // Handle skill_ids for status-skills association
+    if (skill_ids !== undefined && Array.isArray(skill_ids)) {
+      // Delete existing associations
+      db.prepare('DELETE FROM status_skills WHERE status_id = ?').run(id)
+      
+      // Insert new associations with priority order
+      if (skill_ids.length > 0) {
+        const insertStmt = db.prepare(`
+          INSERT INTO status_skills (status_id, skill_id, priority, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        
+        const now = new Date().toISOString()
+        for (let i = 0; i < skill_ids.length; i++) {
+          insertStmt.run(id, skill_ids[i], i, now)
+        }
+        
+        logger.info(`Updated skills for status ${id}:`, { skill_ids })
+      }
+    }
 
     const updatedStatus = db
       .prepare('SELECT * FROM statuses WHERE id = ?')

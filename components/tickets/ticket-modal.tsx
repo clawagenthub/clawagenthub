@@ -435,7 +435,7 @@ export function TicketModal({
       isSubTicket,
       parentTicketId: isSubTicket ? parentTicketId : undefined,
       waitingFinishedTicketId: waitingFinishedTicketId || undefined,
-      flow_configs: flowEnabled ? flowConfigs : undefined,
+      flow_configs: flowEnabled && flowConfigs.length > 0 ? flowConfigs : undefined,
     }
 
     const result = onSubmit(payload, switchToView)

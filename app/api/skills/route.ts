@@ -98,29 +98,49 @@ export async function GET(request: NextRequest) {
 
     query += ` GROUP BY s.id ORDER BY s.created_at DESC`
 
-    const skills = db.prepare(query).all(...params)
+    const skills = db.prepare(query).all(...params) as any[]
+
+    // Fetch full content from file path for skills where is_content_from_path = 1
+    const { readFile } = await import('fs/promises')
+    const { join } = await import('path')
+
+    const skillsWithFullContent = await Promise.all(
+      skills.map(async (skill: any) => {
+        // If content should be read from file path, fetch it
+        if (skill.is_content_from_path === 1 && skill.path) {
+          try {
+            const fullPath = join(process.cwd(), skill.path)
+            skill.skill_data = await readFile(fullPath, 'utf-8')
+          } catch (error) {
+            logger.warn(`Failed to read skill file at ${skill.path}:`, error)
+            // Keep existing skill_data as fallback
+          }
+        }
+        return {
+          id: skill.id,
+          workspace_id: skill.workspace_id,
+          skill_name: skill.skill_name,
+          skill_description: skill.skill_description,
+          skill_data: skill.skill_data,
+          source: skill.source,
+          external_id: skill.external_id,
+          tags: skill.tags,
+          path: skill.path,
+          is_content_from_path: skill.is_content_from_path === 1,
+          github_url: skill.github_url,
+          skill_url: skill.skill_url,
+          is_active: skill.is_active === 1,
+          created_at: skill.created_at,
+          updated_at: skill.updated_at,
+          created_by: skill.created_by,
+          status_count: skill.status_count || 0,
+          created_by_email: skill.created_by_email,
+        }
+      })
+    )
 
     return NextResponse.json({
-      skills: (skills as any[]).map((skill: any) => ({
-        id: skill.id,
-        workspace_id: skill.workspace_id,
-        skill_name: skill.skill_name,
-        skill_description: skill.skill_description,
-        skill_data: skill.skill_data,
-        source: skill.source,
-        external_id: skill.external_id,
-        tags: skill.tags,
-        path: skill.path,
-        is_content_from_path: skill.is_content_from_path === 1,
-        github_url: skill.github_url,
-        skill_url: skill.skill_url,
-        is_active: skill.is_active === 1,
-        created_at: skill.created_at,
-        updated_at: skill.updated_at,
-        created_by: skill.created_by,
-        status_count: skill.status_count || 0,
-        created_by_email: skill.created_by_email,
-      }))
+      skills: skillsWithFullContent
     })
   } catch (error) {
     logger.error('Error fetching skills:', error)

@@ -4,7 +4,7 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerAgentForFlowStart } from '../../[ticketId]/flow/lib/trigger-agent.js'
+import { triggerAgentForFlowStart } from '../../[ticketId]/flow/lib/trigger-agent'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
 

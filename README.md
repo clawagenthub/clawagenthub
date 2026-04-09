@@ -29,6 +29,134 @@ ClawAgentHub connects to OpenClaw gateways and helps teams:
 Note: `status_id` values are workspace-specific. The above is the default mapping
 created during initial setup. Verify with `GET /api/statuses`.
 
+## Flow Configuration System
+
+### Overview
+
+The flow configuration system allows tickets to progress through a series of defined steps, with each step handled by a specific agent. The system supports both automatic and manual flow modes.
+
+### Flow Configuration Variables
+
+When a ticket is processed through flow, the following variables are available to agents:
+
+#### $flowConfig (Array)
+
+Defines the sequence of flow steps with failure handling:
+
+```typescript
+$flowConfig = [
+  {
+    statusId: string,           // Status ID for this step
+    statusName: string,         // Human-readable status name
+    flowOrder: number,          // Sequence order (1, 2, 3...)
+    agentId: string,            // Agent responsible for this step
+    onFailedGoto: string | null, // Status to goto on failure, null=stop flow
+    askApproveToContinue: boolean // Pause for manual approval
+  }
+]
+```
+
+#### $flowMode (String)
+
+Controls automatic vs manual flow progression:
+
+- `automatic`: Flow advances automatically after each agent completes
+- `manual`: Flow requires explicit approval before advancing
+
+#### $name (String)
+
+Human-readable name for the flow configuration.
+
+#### $statusId (Number)
+
+Current status ID in the flow sequence.
+
+### Status ID Mappings
+
+#### Flow-Specific Statuses
+
+| status_id | Name        | Description                    | Notes                    |
+| --------- | ----------- | ------------------------------ | ------------------------ |
+| 1         | waiting     | Initial flow state             | Set when flow starts     |
+| 2         | finished    | Flow step completed            | Advances to next step   |
+
+### API Authentication
+
+Ticket operations support two authentication methods:
+
+1. **Session Token (Cookie):**
+   ```
+   Cookie: session_token=<token>
+   ```
+
+2. **Bearer Token (OpenClaw Gateway):**
+   ```
+   Authorization: Bearer <token>
+   ```
+
+### Session-Token Based API Endpoints
+
+The following endpoints use session-token based routing:
+
+```
+POST /api/{sessionToken}/ticket/create     - Create a new ticket
+GET  /api/{sessionToken}/ticket/details   - Get ticket details
+PATCH /api/{sessionToken}/ticket/update   - Update ticket fields
+DELETE /api/{sessionToken}/ticket/delete  - Delete a ticket
+```
+
+### Flow Control Endpoints
+
+```
+POST /api/{sessionToken}/ticket/{ticketId}/finished - Mark flow step finished
+POST /api/{sessionToken}/ticket/{ticketId}/failed   - Mark flow step failed
+POST /api/{sessionToken}/ticket/{ticketId}/pause     - Pause flow
+```
+
+### Example: Creating a Ticket with Flow
+
+```bash
+curl -X POST http://127.0.0.1:7777/api/tickets \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Implement new feature",
+    "description": "Create flow configuration for tickets",
+    "statusId": 1,
+    "flowEnabled": true,
+    "flowMode": "automatic"
+  }'
+```
+
+### Example: User Request Interpretation
+
+When a user says:
+> "create for each ticket for every issue with status waiting_flow, with flow mode automatic, with flow config is default flowconfiguration"
+
+The system interprets:
+- `$flowMode = "automatic"`
+- `$flowConfig = [configured flow steps from default flowconfiguration]`
+- Initial status ID = 1 (waiting/initial state)
+
+### Fail-to-Go Behavior
+
+Each flow step can define an `onFailedGoto` property:
+
+- **null**: Flow stops when step fails (terminal failure)
+- **statusId string**: Flow redirects to specified status on failure
+
+Example:
+```typescript
+{
+  statusId: "2",
+  statusName: "finished",
+  flowOrder: 2,
+  agentId: "coder",
+  onFailedGoto: "1",  // On failure, go back to waiting status
+  askApproveToContinue: true
+}
+```
+
 ## Sub-Ticket System
 
 ### Overview

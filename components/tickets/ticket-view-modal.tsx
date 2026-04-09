@@ -418,19 +418,6 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={handleAutoFormat}
-                  disabled={isAutoFormatLoading || !ticket?.description?.trim()}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium transition-opacity disabled:opacity-50"
-                  style={{
-                    backgroundColor: `rgb(var(--bg-secondary))`,
-                    color: `rgb(var(--text-primary))`,
-                    border: '1px solid rgb(var(--border-color))',
-                  }}
-                >
-                  {isAutoFormatLoading ? 'Formatting...' : 'Auto Format'}
-                </button>
-                <button
-                  type="button"
                   onClick={handleAddComment}
                   disabled={isAddingComment || !commentInput.trim()}
                   className="px-3 py-1.5 rounded-md text-xs font-medium transition-opacity disabled:opacity-50"

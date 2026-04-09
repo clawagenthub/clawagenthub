@@ -288,6 +288,7 @@ export function useTicketComments(ticketId: string | null) {
       }>
     },
     enabled: !!ticketId,
+    refetchOnMount: true,
   })
 }
 

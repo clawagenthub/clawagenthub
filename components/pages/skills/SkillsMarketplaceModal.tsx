@@ -181,6 +181,10 @@ interface PreviewModalProps { preview: any; onClose: () => void; onImport: (skil
 
 export function PreviewModal({ preview, onClose, onImport }: PreviewModalProps) {
   const inputStyle = { backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }
+  
+  // Get external docs URL - prefer githubUrl, then url
+  const externalDocsUrl = preview.githubUrl || preview.url || null
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
       <div className="rounded-lg shadow-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto p-6" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
@@ -188,6 +192,29 @@ export function PreviewModal({ preview, onClose, onImport }: PreviewModalProps) 
           <h2 className="text-xl font-bold" style={{ color: 'rgb(var(--text-primary))' }}>{preview.name}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700" style={{ color: 'rgb(var(--text-secondary))' }}>✕</button>
         </div>
+        
+        {/* External Docs Button */}
+        {externalDocsUrl && (
+          <div className="mb-4">
+            <a
+              href={externalDocsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors hover:opacity-80"
+              style={{
+                backgroundColor: 'rgb(var(--bg-secondary))',
+                borderColor: 'rgb(var(--border-color))',
+                color: 'rgb(59 130 246)',
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Open Documentation
+            </a>
+          </div>
+        )}
+        
         <p className="mb-4" style={{ color: 'rgb(var(--text-secondary))' }}>{preview.description}</p>
         <pre className="p-4 rounded-lg overflow-x-auto text-sm" style={{ backgroundColor: 'rgb(var(--bg-secondary))', color: 'rgb(var(--text-primary))' }}>{preview.content}</pre>
         <div className="flex justify-end gap-3 mt-4">
