@@ -269,7 +269,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     )
 
-    await triggerWaitingTickets(workspaceId)
+    try {
+      await triggerWaitingTickets(workspaceId)
+    } catch (err) {
+      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed in /finished route:', { error: err })
+    }
 
     logger.info(
       { category: logCategories.API_TICKETS },

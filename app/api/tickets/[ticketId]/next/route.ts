@@ -275,12 +275,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
       )
 
-      await triggerAgentForFlowStart({
-        ticketId,
-        workspaceId,
-        userId: user.id,
-        sessionToken,
-      })
+      try {
+        await triggerAgentForFlowStart({
+          ticketId,
+          workspaceId,
+          userId: user.id,
+          sessionToken,
+        })
+      } catch (err) {
+        logger.error({ category: logCategories.API_TICKETS }, 'triggerAgentForFlowStart failed in /next route:', { error: err })
+      }
 
       logger.info(
         { category: logCategories.API_TICKETS },
@@ -302,7 +306,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     )
 
-    await triggerWaitingTickets(workspaceId)
+    try {
+      await triggerWaitingTickets(workspaceId)
+    } catch (err) {
+      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed in /next route:', { error: err })
+    }
 
     logger.info(
       { category: logCategories.API_TICKETS },
