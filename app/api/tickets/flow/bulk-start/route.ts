@@ -163,13 +163,18 @@ export async function POST(request: NextRequest) {
 
         results.started++
 
-        // Trigger the agent for this ticket
-        await triggerAgentForFlowStart({
-          ticketId: ticket.id,
-          workspaceId,
-          userId: user.id,
-          sessionToken,
-        })
+        // Trigger the agent for this ticket - wrap in try/catch to prevent one failure from stopping all tickets
+        try {
+          await triggerAgentForFlowStart({
+            ticketId: ticket.id,
+            workspaceId,
+            userId: user.id,
+            sessionToken,
+          })
+        } catch (triggerError) {
+          logger.error(`[bulk-start] triggerAgentForFlowStart failed for ticket ${ticket.id}:`, triggerError)
+          // Continue processing other tickets even if this one fails to trigger
+        }
 
         results.details.push({
           ticketId: ticket.id,
