@@ -108,28 +108,59 @@ Session Token : {$sessionToken}
      "notes": "Paused for user input. Question: <what you need>. Context: <why needed>."
    }
 
-Ticket Management APIs: 
-Note: every ticket when created needs to check is flow confugration needed?, 
-Is this ticket subticket of some ticket ?
-is this ticket flow is automatic or manual ?
-Is this needs to start immedately or not ? if not status should be waiting if start immediately status should be waiting to flow.
+Ticket Management APIs:
+Note: every ticket when created needs to check:
+- Is flow configuration needed for this ticket?
+- Is this ticket a subticket of another ticket?
+- Is this ticket's flow automatic or manual?
+- Does it need to start immediately? If not, status should be "waiting". If yes, status should be "waiting_to_flow".
+
+SUB-TICKET CREATION:
+When creating a subticket, the request body must include:
+- isSubTicket: true - boolean flag indicating this is a subticket
+- parentTicketId: "<uuid>" - UUID of the parent ticket this subtask belongs to
+- waitingFinishedTicketId: "<uuid>" | null - UUID of ticket to wait for before flowing (optional)
+
 9) GET /api/tickets -> get all tickets for current workspace
 10) POST /api/tickets -> create a new ticket
-   body example:
+   body example (main ticket):
    {
      "title": "Ticket title",
      "description": "Ticket description",
-     "statusId": 1
+     "statusId": 1,
+     "flowEnabled": true,
+     "flowMode": "automatic"
+   }
+   body example (subticket):
+   {
+     "title": "Sub Task Title",
+     "description": "Sub-task description",
+     "statusId": 1,
+     "isSubTicket": true,
+     "parentTicketId": "parent-ticket-uuid",
+     "waitingFinishedTicketId": null
    }
 11) GET /api/tickets/{$ticketId} -> get ticket details by ID
 12) PATCH /api/tickets/{$ticketId} -> update ticket fields
-   body example:
+   body example (update main ticket):
    {
      "title": "Updated title",
      "description": "Updated description",
      "statusId": 2
    }
+   body example (update subticket fields):
+   {
+     "isSubTicket": true,
+     "parentTicketId": "parent-ticket-uuid",
+     "waitingFinishedTicketId": "blocking-ticket-uuid"
+   }
 13) DELETE /api/tickets/{$ticketId} -> delete a ticket
+
+SUB-TICKET RELATIONSHIP:
+- Main tickets (parent): standalone tasks that can have subtasks
+- Sub-tickets (children): linked to parent via parentTicketId
+- waitingFinishedTicketId: sets a ticket that must finish before this ticket can flow
+- Flow can continue only when all blocking tickets (waitingFinishedTicketId) are in "finished" status
 
 Execution policy:
 - Perform work for this status using your skills.
