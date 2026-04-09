@@ -7,11 +7,12 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { useState, useEffect, ReactNode } from 'react'
 import { AppRoute, NavigationContextValue } from '@/lib/types/navigation-types'
+import { NavigationContext } from './navigation-context'
 
-const NavigationContext = createContext<NavigationContextValue | undefined>(undefined)
+export { NavigationContext }
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -55,15 +56,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useNavigation() {
-  const context = useContext(NavigationContext)
-  if (!context) {
-    throw new Error('useNavigation must be used within NavigationProvider')
-  }
-  return context
-}
-
-// Helper functions
+// Helper functions (not exported - internal to this module)
 function getPathnameRoute(pathname: string): AppRoute {
   if (pathname.startsWith('/chat')) return 'chat'
   if (pathname.startsWith('/statuses')) return 'statuses'

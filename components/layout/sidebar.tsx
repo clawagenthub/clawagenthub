@@ -61,7 +61,7 @@ export function Sidebar({ user: _user }: SidebarProps) {
 
   useEffect(() => {
     fetchWorkspaces()
-  }, [])
+  }, [fetchWorkspaces])
 
   const handleWorkspaceChange = async (workspaceId: string) => {
     if (currentWorkspace?.id === workspaceId) return

@@ -28,7 +28,7 @@ export function EnhancedChatContainer({ initialSession, onSessionChange }: Enhan
       queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
     }
     previousTabRef.current = activeTab
-  }, [activeTab])
+  }, [activeTab, queryClient])
 
   const handleSessionSelect = (sessionId: string) => {
     // In a real app, you'd fetch the session details here

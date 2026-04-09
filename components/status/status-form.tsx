@@ -55,14 +55,14 @@ export function StatusForm({
     if (isSkillsExpanded && availableSkills.length === 0) {
       fetchSkills()
     }
-  }, [isSkillsExpanded])
+  }, [isSkillsExpanded, availableSkills.length])
   
   // Fetch initial skills for editing
   useEffect(() => {
     if (isEditing && editingStatusId) {
       fetchStatusSkills()
     }
-  }, [isEditing, editingStatusId])
+  }, [isEditing, editingStatusId, fetchStatusSkills])
   
   const fetchSkills = async () => {
     setIsLoadingSkills(true)

@@ -1,5 +1,5 @@
 import { ThemeSwitcher } from '@/components/ui/theme-switcher'
-import { useNavigation } from '@/lib/contexts/navigation-context'
+import { useNavigation } from '@/lib/hooks/use-navigation'
 
 interface UserMenuProps {
   onLogout: () => void

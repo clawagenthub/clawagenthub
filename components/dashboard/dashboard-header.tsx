@@ -59,7 +59,7 @@ export function DashboardHeader({
   // Load show drafts preference on mount
   useEffect(() => {
     onShowDraftsChange(getShowDraftsPreference())
-  }, [])
+  }, [onShowDraftsChange])
 
   return (
     <div className="flex-shrink-0 mb-6 flex items-center justify-between">

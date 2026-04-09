@@ -1,4 +1,4 @@
-import { useNavigation } from '@/lib/contexts/navigation-context'
+import { useNavigation } from '@/lib/hooks/use-navigation'
 
 interface NavItem {
   id: string

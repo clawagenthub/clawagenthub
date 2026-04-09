@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useNavigation } from '@/lib/contexts/navigation-context'
+import { useNavigation } from '@/lib/hooks/use-navigation'
 import { Skill, SkillsPageContentProps } from './skills/types'
 import { Header } from './skills/Header'
 import { Filters } from './skills/Filters'
@@ -42,7 +42,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
 
   useEffect(() => {
     fetchSkills()
-  }, [search, sourceFilter])
+  }, [fetchSkills, search, sourceFilter])
 
   const handleDeleteSkill = async (skillId: string) => {
     if (!confirm('Are you sure you want to delete this skill?')) return

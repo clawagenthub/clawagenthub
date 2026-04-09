@@ -1,11 +1,12 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { useEffect, useState, ReactNode } from 'react'
 import { Theme, ThemeContextType } from '@/lib/types/theme-types'
+import { ThemeContext } from './theme-context'
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+export { ThemeContext }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light')
   const [mounted, setMounted] = useState(false)
 
@@ -45,12 +46,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   )
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
-  return context
 }

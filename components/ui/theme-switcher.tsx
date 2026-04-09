@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { useTheme, type Theme } from '@/lib/contexts/theme-context'
+import { useTheme } from '@/lib/hooks/use-theme'
+import { type Theme } from '@/lib/types/theme-types'
 
 interface ThemeOption {
   id: Theme

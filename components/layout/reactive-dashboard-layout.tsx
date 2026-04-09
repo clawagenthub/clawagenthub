@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
-import { NavigationProvider, useNavigation } from '@/lib/contexts/navigation-context'
+import { NavigationProvider } from '@/lib/contexts/navigation-context'
+import { useNavigation } from '@/lib/hooks/use-navigation'
 import { getPageContentComponent, PageContentProps } from '@/components/pages'
 import { useUser } from '@/lib/query/hooks'
 
