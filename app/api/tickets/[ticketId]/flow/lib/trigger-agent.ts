@@ -5,6 +5,7 @@ import { modelHasVisionCapability, buildFlowPrompt } from './flow-helpers.js'
 import { findClientForAgent } from './find-client.js'
 import { parseAgentFlowResult, extractText } from './parse-result.js'
 import type { Ticket, Status } from './flow-types.js'
+import logger from '@/lib/logger/index.js'
 
 /**
  * Trigger waiting tickets when a flow slot becomes available
@@ -178,15 +179,25 @@ export async function triggerAgentForFlowStart(args: {
   let clientMatch = null
   let lastError: Error | null = null
 
+  logger.debug(
+    `[triggerAgentForFlowStart] Starting agent lookup for ${effectiveAgentId} with ${MAX_RETRIES} retries`
+  )
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const attemptStartTime = Date.now()
     clientMatch = await findClientForAgent(workspaceId, effectiveAgentId)
-    if (clientMatch) {
-      break
-    }
+    const attemptDuration = Date.now() - attemptStartTime
 
     logger.debug(
-      `[triggerAgentForFlowStart] Attempt ${attempt}/${MAX_RETRIES}: Agent ${effectiveAgentId} not yet reachable, retrying...`
+      `[triggerAgentForFlowStart] Attempt ${attempt}/${MAX_RETRIES} for agent ${effectiveAgentId}: found=${!!clientMatch}, duration=${attemptDuration}ms`
     )
+
+    if (clientMatch) {
+      logger.debug(
+        `[triggerAgentForFlowStart] Successfully found agent ${effectiveAgentId} on attempt ${attempt}`
+      )
+      break
+    }
 
     if (attempt < MAX_RETRIES) {
       // Exponential backoff: 1s, 2s, 4s, 8s

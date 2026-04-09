@@ -8,6 +8,8 @@ import logger, { logCategories } from '@/lib/logger/index.js'
  * Find a connected client for the specified agent
  */
 export async function findClientForAgent(workspaceId: string, agentId: string): Promise<AgentClientMatch | null> {
+  logger.debug(`[findClientForAgent] START: workspaceId=${workspaceId}, agentId=${agentId}`)
+
   let db
   try {
     db = getDatabase()
@@ -29,6 +31,13 @@ export async function findClientForAgent(workspaceId: string, agentId: string): 
   ).all(workspaceId) as Array<{ id: string; name: string }>
 
   logger.debug(`[findClientForAgent] Looking for agent ${agentId} in ${gateways.length} gateways`)
+
+  if (gateways.length === 0) {
+    logger.debug(`[findClientForAgent] No gateways found for workspace ${workspaceId}`)
+  }
+
+  const managerConnectionsCount = manager.connections?.size ?? (manager as any).connections?.size ?? 0
+  logger.debug(`[findClientForAgent] Gateway manager has ${managerConnectionsCount} active connections`)
 
   for (const gateway of gateways) {
     const client = manager.getClient(gateway.id)
