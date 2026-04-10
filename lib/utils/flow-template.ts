@@ -54,7 +54,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     <session_path_pattern>/api/{$sessionId}/tickets/{$ticketId}</session_path_pattern>
 
     <flow_read>
-      <endpoint method="GET">/api/tickets/{$ticketId}/flow/view</endpoint>
+      <endpoint method="GET">/api/{$sessionId}/tickets/{$ticketId}/flow/view</endpoint>
       <purpose>Get latest ticket, flow configuration, comments, and flow history.</purpose>
       <verification>
         <requires_session_id>true</requires_session_id>
@@ -63,7 +63,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     </flow_read>
 
     <comments>
-      <endpoint method="POST">/api/tickets/{$ticketId}/comments</endpoint>
+      <endpoint method="POST">/api/{$sessionId}/tickets/{$ticketId}/comments</endpoint>
       <required_before_terminal_action>true</required_before_terminal_action>
       <body_example><![CDATA[
 {
@@ -112,14 +112,26 @@ export const DEFAULT_FLOW_TEMPLATE = `
         </verification>
         <body_example><![CDATA[{ "notes": "Paused in status {$currentStatusName}. Required input: ... | Reason: ... | Resume when: ..." }]]></body_example>
       </callback>
+      <callback name="restart" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/restart">
+        <verification>
+          <requires_session_id>true</requires_session_id>
+          <session_id_location>path</session_id_location>
+          <ticket_id_verification>true</ticket_id_verification>
+          <action_specific_checks>
+            <check name="flow_enabled">Verify flow is enabled for this ticket</check>
+            <check name="flow_config_exists">Verify flow configuration exists</check>
+          </action_specific_checks>
+        </verification>
+        <body_example><![CDATA[{ "notes": "Restarting flow from beginning. Reason: ..." }]]></body_example>
+      </callback>
     </flow_callbacks>
 
     <ticket_management>
-      <endpoint method="GET">/api/tickets</endpoint>
-      <endpoint method="POST">/api/tickets</endpoint>
-      <endpoint method="GET">/api/tickets/{$ticketId}</endpoint>
-      <endpoint method="PATCH">/api/tickets/{$ticketId}</endpoint>
-      <endpoint method="DELETE">/api/tickets/{$ticketId}</endpoint>
+      <endpoint method="GET">/api/{$sessionId}/tickets</endpoint>
+      <endpoint method="POST">/api/{$sessionId}/tickets</endpoint>
+      <endpoint method="GET">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
+      <endpoint method="PATCH">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
+      <endpoint method="DELETE">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
     </ticket_management>
 
     <ticket_payload_keys>
@@ -145,7 +157,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     </creation_conditions>
 
     <required_actions>
-      <action>Use POST /api/tickets.</action>
+      <action>Use POST /api/{$sessionId}/tickets.</action>
       <action>Set isSubTicket=true.</action>
       <action>Set parentTicketId to current parent ticket ID.</action>
       <action>Set waitingFinishedTicketId to blocking ticket ID, otherwise null.</action>

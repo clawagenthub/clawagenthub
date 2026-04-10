@@ -115,6 +115,7 @@ All ticket operations now use session-scoped paths:
 | **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/next` | Advance to next flow stage |
 | **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/failed` | Mark flow step failed |
 | **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/pause` | Pause flow |
+| **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/restart` | Restart flow from beginning |
 | **Comments** | `GET /api/{sessionId}/tickets/:id/comments` | Get ticket comments |
 | **Comments** | `POST /api/{sessionId}/tickets/:id/comments` | Add a comment |
 | **Gateways** | `GET /api/{sessionId}/gateways` | List gateways |
@@ -142,6 +143,7 @@ All ticket operations now use session-scoped paths:
 | **Flow Next** | `/api/tickets/{id}_{token}/next` | `/api/{sessionId}/tickets/{id}/next` |
 | **Flow Failed** | `/api/tickets/{id}_{token}/failed` | `/api/{sessionId}/tickets/{id}/failed` |
 | **Flow Pause** | `/api/tickets/{id}_{token}/pause` | `/api/{sessionId}/tickets/{id}/pause` |
+| **Flow Restart** | `/api/tickets/{id}_{token}/restart` | `/api/{sessionId}/tickets/{id}/restart` |
 | **Comments** | `/api/tickets/{id}/comments` | `/api/{sessionId}/tickets/{id}/comments` |
 | **Gateway Pairing Status** | `/api/gateways/{id}/pairing-status` | **DEPRECATED** → Use `/api/{sessionId}/gateways` |
 | **Gateway Pair** | `/api/gateways/pair` | **DEPRECATED** → Use `/api/{sessionId}/gateways/{id}/connect` |
@@ -177,6 +179,17 @@ curl -X POST http://127.0.0.1:7777/api/{sessionId}/tickets/{ticketId}/next \
   -H "Content-Type: application/json" \
   -d '{
     "notes": "Advanced to next stage. Summary: ..."
+  }'
+```
+
+#### Example: Restart Flow
+
+```bash
+curl -X POST http://127.0.0.1:7777/api/{sessionId}/tickets/{ticketId}/restart \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes": "Restarting flow from beginning. Reason: ..."
   }'
 ```
 
