@@ -95,7 +95,7 @@ export class GatewayClient {
       throw new Error('Auth token is required for gateway connection')
     }
 
-    console.log('[GatewayClient] Initializing with token auth', {
+    console.warn('[GatewayClient] Initializing with token auth', {
       url: this.url,
       hasAuthToken: !!this.authToken,
     })
@@ -113,7 +113,7 @@ export class GatewayClient {
       try {
         // Determine origin to use for WebSocket connection
         const origin = this.origin || this.determineOrigin()
-        console.log('[GatewayClient] Connecting with origin:', origin)
+        console.warn('[GatewayClient] Connecting with origin:', origin)
 
         this.ws = new WebSocket(this.url, {
           maxPayload: 25 * 1024 * 1024,
@@ -132,7 +132,7 @@ export class GatewayClient {
       }, 10000)
 
       this.ws.on('open', () => {
-        console.log('[GatewayClient] WebSocket connection opened', {
+        console.warn('[GatewayClient] WebSocket connection opened', {
           url: this.url,
         })
         this.connected = true
@@ -142,7 +142,7 @@ export class GatewayClient {
       this.ws.on('message', (raw: WebSocket.Data) => {
         try {
           const parsed = JSON.parse(raw.toString())
-          // console.log('[GatewayClient] Received message', {
+          // console.warn('[GatewayClient] Received message', {
           //   type: parsed.type,
           //   event: parsed.event || 'N/A',
           //   id: parsed.id || 'N/A'
@@ -154,7 +154,7 @@ export class GatewayClient {
       })
 
       this.ws.on('close', () => {
-        console.log('[GatewayClient] WebSocket connection closed', {
+        console.warn('[GatewayClient] WebSocket connection closed', {
           url: this.url,
           wasAuthenticated: this.authenticated,
         })
@@ -243,7 +243,7 @@ export class GatewayClient {
       if (evt.event === 'connect.challenge') {
         const payload = evt.payload as { nonce?: string } | undefined
         const nonce = payload?.nonce
-        console.log('[GatewayClient] Received connect.challenge', {
+        console.warn('[GatewayClient] Received connect.challenge', {
           nonce: nonce || 'none',
         })
         this.sendConnectRequest(nonce, connectTimeout)
@@ -253,7 +253,7 @@ export class GatewayClient {
       // Broadcast to event listeners
       const listeners = this.eventListeners.get(evt.event)
       if (listeners && listeners.size > 0) {
-        console.log('[GatewayClient] Broadcasting event', {
+        console.warn('[GatewayClient] Broadcasting event', {
           event: evt.event,
           hasPayload: !!evt.payload,
           listenerCount: listeners.size,
@@ -306,7 +306,7 @@ export class GatewayClient {
   ): void {
     const id = randomUUID()
 
-    console.log('[GatewayClient] Sending connect request with token auth')
+    console.warn('[GatewayClient] Sending connect request with token auth')
 
     const frame: RequestFrame = {
       type: 'req',
@@ -334,7 +334,7 @@ export class GatewayClient {
       resolve: () => {
         if (connectTimeout) clearTimeout(connectTimeout)
         this.authenticated = true
-        console.log('[GatewayClient] Successfully authenticated')
+        console.warn('[GatewayClient] Successfully authenticated')
         this.connectResolve?.()
       },
       reject: (err: unknown) => {
@@ -364,7 +364,7 @@ export class GatewayClient {
       await this.connect()
     }
 
-    console.log('[GatewayClient] RPC call', {
+    console.warn('[GatewayClient] RPC call', {
       method,
       hasParams: !!params,
     })
@@ -411,10 +411,10 @@ export class GatewayClient {
   }
 
   async health(): Promise<HealthStatus> {
-    console.log('[GatewayClient] Calling health() RPC method')
+    console.warn('[GatewayClient] Calling health() RPC method')
     try {
       const result = await this.call('health', {})
-      console.log('[GatewayClient] health() response:', result)
+      console.warn('[GatewayClient] health() response:', result)
       return result as HealthStatus
     } catch (error) {
       console.error('[GatewayClient] Error calling health():', {
@@ -427,12 +427,12 @@ export class GatewayClient {
   }
 
   async listAgents(): Promise<GatewayAgent[]> {
-    console.log('[GatewayClient] Calling agents.list RPC method')
+    console.warn('[GatewayClient] Calling agents.list RPC method')
     try {
       const result = (await this.call('agents.list', {})) as {
         agents?: GatewayAgent[]
       }
-      console.log('[GatewayClient] agents.list response:', {
+      console.warn('[GatewayClient] agents.list response:', {
         hasAgents: !!result?.agents,
         agentCount: result?.agents?.length ?? 0,
         agents: result?.agents,
@@ -470,7 +470,7 @@ export class GatewayClient {
   ): Promise<{ runId: string; status: string }> {
     const idempotencyKey = options?.idempotencyKey || randomUUID()
 
-    console.log('[GatewayClient] Sending chat message', {
+    console.warn('[GatewayClient] Sending chat message', {
       sessionKey,
       messageLength: message.length,
       idempotencyKey,
@@ -549,7 +549,7 @@ export class GatewayClient {
   async sendAgentMessage(
     sessionKey: string,
     message: string,
-    metadata?: {
+    _metadata?: {
       label?: string
       id?: string
     }
@@ -571,14 +571,14 @@ export class GatewayClient {
    * @returns Promise with SessionGetResponse containing messages array
    */
   async getSessionHistory(sessionKey: string): Promise<SessionGetResponse> {
-    console.log('[GatewayClient] Getting session history', { sessionKey })
+    console.warn('[GatewayClient] Getting session history', { sessionKey })
 
     // OpenClaw v3.2 uses 'chat.history' method for session history
     const result = (await this.call('chat.history', {
       sessionKey: sessionKey,
     })) as SessionGetResponse | undefined
 
-    console.log('[GatewayClient] Session history response', {
+    console.warn('[GatewayClient] Session history response', {
       hasMessages: !!result?.messages,
       messageCount: result?.messages?.length ?? 0,
     })

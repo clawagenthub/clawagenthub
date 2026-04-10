@@ -56,7 +56,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
    * Handle chat events from OpenClaw gateway
    */
   private handleChatEvent = (event: any) => {
-    console.log('[GatewayEventBridge] Chat event received:', {
+    console.warn('[GatewayEventBridge] Chat event received:', {
       type: event.event,
       hasPayload: !!event.payload,
       sessionKey: event.payload?.sessionKey
@@ -72,7 +72,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     // Resolve session key to session ID
     const sessionId = this.resolveSessionId(sessionKey)
     if (!sessionId) {
-      console.log('[GatewayEventBridge] No session found for sessionKey:', sessionKey)
+      console.warn('[GatewayEventBridge] No session found for sessionKey:', sessionKey)
       return
     }
 
@@ -154,7 +154,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
    * Handle agent events from OpenClaw gateway
    */
   private handleAgentEvent = (event: any) => {
-    console.log('[GatewayEventBridge] Agent event received:', {
+    console.warn('[GatewayEventBridge] Agent event received:', {
       stream: event.payload?.stream,
       hasPayload: !!event.payload,
       sessionKey: event.payload?.sessionKey
@@ -300,7 +300,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     const client = manager.getClient(gatewayId)
     
     if (!client) {
-      console.log('[GatewayEventBridge] No client for gateway:', gatewayId)
+      console.warn('[GatewayEventBridge] No client for gateway:', gatewayId)
       return
     }
 
@@ -316,7 +316,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
       agentUnsub()
     })
     
-    console.log('[GatewayEventBridge] Subscribed to events from gateway:', gatewayId)
+    console.warn('[GatewayEventBridge] Subscribed to events from gateway:', gatewayId)
   }
 
   /**
@@ -324,11 +324,11 @@ class GatewayEventBridge implements GatewayEventForwarder {
    */
   start() {
     if (this.running) {
-      console.log('[GatewayEventBridge] Already running')
+      console.warn('[GatewayEventBridge] Already running')
       return
     }
 
-    console.log('[GatewayEventBridge] Starting gateway event bridge...')
+    console.warn('[GatewayEventBridge] Starting gateway event bridge...')
     
     // Also start the session status tracker
     const statusTracker = getSessionStatusTracker()
@@ -336,14 +336,12 @@ class GatewayEventBridge implements GatewayEventForwarder {
       statusTracker.start()
     }
     
-    const manager = getGatewayManager()
-    
     // Subscribe to all currently connected gateways
     // Note: We need to access the connections map which is private
     // For now, we'll hook into the gateway initialization
     
     this.running = true
-    console.log('[GatewayEventBridge] Gateway event bridge started')
+    console.warn('[GatewayEventBridge] Gateway event bridge started')
   }
 
   /**
@@ -354,7 +352,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
       return
     }
 
-    console.log('[GatewayEventBridge] Stopping gateway event bridge...')
+    console.warn('[GatewayEventBridge] Stopping gateway event bridge...')
     
     // Unsubscribe from all events
     for (const unsub of this.eventUnsubscribers.values()) {
@@ -369,7 +367,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     }
     
     this.running = false
-    console.log('[GatewayEventBridge] Gateway event bridge stopped')
+    console.warn('[GatewayEventBridge] Gateway event bridge stopped')
   }
 
   isRunning(): boolean {
