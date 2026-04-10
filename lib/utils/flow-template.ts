@@ -26,6 +26,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     <rule order="6">If you are not useable on this part of task, add comment then send to next agent.</rule>
     <rule order="7">Use subagents when tasks can run in parallel, require isolated context, or involve independent workstreams that don't need to share state. For simple tasks, sequential operations, single-file edits, or tasks where you need to maintain context across steps, work directly rather than delegating.</rule>
     <rule order="8">Focus</rule>
+    <rule order="9">When you commented use - ✅ - ⚠️ - ❌ and emojies if possible</rule>
     </mandatory_rules>
 
 
