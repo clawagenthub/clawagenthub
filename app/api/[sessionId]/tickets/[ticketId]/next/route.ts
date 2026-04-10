@@ -3,7 +3,10 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifySession } from '@/lib/session/verify'
 import { getDatabase } from '@/lib/db'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerAgentForFlowStart, triggerWaitingTickets } from '@/lib/flow/trigger-agent'
+import {
+  triggerAgentForFlowStart,
+  triggerWaitingTickets,
+} from '@/app/api/tickets/[ticketId]/flow/lib/trigger-agent'
 import type { Ticket, Status } from '@/lib/db/schema'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
+      workspaceId: sessionId,
     })
 
     if (!verification.valid) {
@@ -81,7 +84,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Validate transition
     if (currentStatus.name.toLowerCase() === 'done') {
       return NextResponse.json(
-        { error: 'INVALID_TRANSITION', message: "Cannot advance from 'done' - use /finished", hint: 'Call POST /finished' },
+        {
+          error: 'INVALID_TRANSITION',
+          message: "Cannot advance from 'done' - use /finished",
+          hint: 'Call POST /finished',
+        },
         { status: 400 }
       )
     }
@@ -94,7 +101,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Get current flow config
     const currentFlowConfig = db
-      .prepare('SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1')
+      .prepare(
+        'SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1'
+      )
       .get(ticket.id, ticket.status_id)
 
     if (!currentFlowConfig) {
@@ -106,12 +115,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Get next flow config
     const nextFlowConfig = db
-      .prepare('SELECT tfc.*, s.name as status_name, s.color as status_color FROM ticket_flow_configs tfc LEFT JOIN statuses s ON tfc.status_id = s.id WHERE tfc.ticket_id = ? AND tfc.flow_order > ? AND tfc.is_included = 1 ORDER BY tfc.flow_order ASC LIMIT 1')
+      .prepare(
+        'SELECT tfc.*, s.name as status_name, s.color as status_color FROM ticket_flow_configs tfc LEFT JOIN statuses s ON tfc.status_id = s.id WHERE tfc.ticket_id = ? AND tfc.flow_order > ? AND tfc.is_included = 1 ORDER BY tfc.flow_order ASC LIMIT 1'
+      )
       .get(ticket.id, (currentFlowConfig as any).flow_order) as any
 
     if (!nextFlowConfig) {
       return NextResponse.json(
-        { error: 'INVALID_TRANSITION', message: 'No next stage exists in the flow', hint: 'Use /finished' },
+        {
+          error: 'INVALID_TRANSITION',
+          message: 'No next stage exists in the flow',
+          hint: 'Use /finished',
+        },
         { status: 400 }
       )
     }
@@ -121,9 +136,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .get(nextFlowConfig.status_id) as Status
 
     // Determine flow transition
-    const nextFlowingStatus = (ticket.flow_mode === 'automatic' && nextFlowConfig.agent_id)
-      ? 'flowing'
-      : 'waiting'
+    const nextFlowingStatus =
+      ticket.flow_mode === 'automatic' && nextFlowConfig.agent_id
+        ? 'flowing'
+        : 'waiting'
 
     const shouldAutoTriggerNext = nextFlowingStatus === 'flowing'
 
@@ -168,7 +184,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
 
     // Clear current agent session
-    db.prepare('UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?').run(ticketId)
+    db.prepare(
+      'UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?'
+    ).run(ticketId)
 
     // Trigger next agent if auto mode
     if (shouldAutoTriggerNext) {
@@ -176,7 +194,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         ticketId,
         workspaceId,
         userId: verification.userId!,
-        sessionToken: sessionId
+        sessionToken: sessionId,
       })
     }
 
@@ -184,7 +202,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
       await triggerWaitingTickets(workspaceId)
     } catch (err) {
-      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed:', { error: err })
+      logger.error(
+        { category: logCategories.API_TICKETS },
+        'triggerWaitingTickets failed:',
+        { error: err }
+      )
     }
 
     logger.info(
@@ -197,13 +219,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       success: true,
       ticketId,
       transition: 'next',
-      previousStatus: { id: currentStatus.id, name: currentStatus.name, color: currentStatus.color },
-      newStatus: { id: newStatus.id, name: newStatus.name, color: newStatus.color },
+      previousStatus: {
+        id: currentStatus.id,
+        name: currentStatus.name,
+        color: currentStatus.color,
+      },
+      newStatus: {
+        id: newStatus.id,
+        name: newStatus.name,
+        color: newStatus.color,
+      },
       flowing_status: nextFlowingStatus,
       timestamp: now,
     })
   } catch (error) {
-    logger.error({ category: logCategories.API_TICKETS }, 'Error advancing ticket (session-scoped):', { error })
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
+    logger.error(
+      { category: logCategories.API_TICKETS },
+      'Error advancing ticket (session-scoped):',
+      { error }
+    )
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

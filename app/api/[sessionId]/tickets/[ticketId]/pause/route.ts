@@ -3,7 +3,7 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifySession } from '@/lib/session/verify'
 import { getDatabase } from '@/lib/db'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerWaitingTickets } from '@/lib/flow/trigger-agent'
+import { triggerWaitingTickets } from '@/app/api/tickets/[ticketId]/flow/lib/trigger-agent'
 import type { Ticket, Status } from '@/lib/db/schema'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
+      workspaceId: sessionId,
     })
 
     if (!verification.valid) {
@@ -81,7 +81,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if already paused (waiting) - idempotent
-    if (ticket.flowing_status === 'waiting' || ticket.flowing_status === 'waiting_to_flow') {
+    if (
+      ticket.flowing_status === 'waiting' ||
+      ticket.flowing_status === 'waiting_to_flow'
+    ) {
       return NextResponse.json({
         success: true,
         ticketId,
@@ -153,19 +156,31 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       'flow_stopped',
       verification.userId,
       'user',
-      JSON.stringify({ flowing_status: ticket.flowing_status, transition: 'pause' }),
-      JSON.stringify({ flowing_status: 'waiting', reason: notes || 'paused by user/agent' }),
+      JSON.stringify({
+        flowing_status: ticket.flowing_status,
+        transition: 'pause',
+      }),
+      JSON.stringify({
+        flowing_status: 'waiting',
+        reason: notes || 'paused by user/agent',
+      }),
       now
     )
 
     // Clear current agent session
-    db.prepare('UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?').run(ticketId)
+    db.prepare(
+      'UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?'
+    ).run(ticketId)
 
     // Trigger waiting tickets
     try {
       await triggerWaitingTickets(workspaceId)
     } catch (err) {
-      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed in /pause route:', { error: err })
+      logger.error(
+        { category: logCategories.API_TICKETS },
+        'triggerWaitingTickets failed in /pause route:',
+        { error: err }
+      )
     }
 
     logger.info(
@@ -192,7 +207,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       timestamp: now,
     })
   } catch (error) {
-    logger.error({ category: logCategories.API_TICKETS }, 'Error pausing ticket (session-scoped):', { error })
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
+    logger.error(
+      { category: logCategories.API_TICKETS },
+      'Error pausing ticket (session-scoped):',
+      { error }
+    )
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

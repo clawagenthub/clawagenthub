@@ -3,7 +3,7 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifySession } from '@/lib/session/verify'
 import { getDatabase } from '@/lib/db'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerWaitingTickets } from '@/lib/flow/trigger-agent'
+import { triggerWaitingTickets } from '@/app/api/tickets/[ticketId]/flow/lib/trigger-agent'
 import type { Ticket, Status } from '@/lib/db/schema'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
+      workspaceId: sessionId,
     })
 
     if (!verification.valid) {
@@ -104,15 +104,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Get current flow config to find on_failed_goto
     const currentFlowConfig = db
-      .prepare('SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1')
-      .get(ticketId, ticket.status_id) as {
-        id: string
-        status_id: string
-        flow_order: number
-        agent_id: string | null
-        on_failed_goto: string | null
-        ask_approve_to_continue: boolean
-      } | undefined
+      .prepare(
+        'SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1'
+      )
+      .get(ticketId, ticket.status_id) as
+      | {
+          id: string
+          status_id: string
+          flow_order: number
+          agent_id: string | null
+          on_failed_goto: string | null
+          ask_approve_to_continue: boolean
+        }
+      | undefined
 
     let nextStatusId: string | null = null
     let nextFlowingStatus: 'failed' | 'waiting' = 'failed'
@@ -123,7 +127,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     } else {
       // Find or create 'failed' status for this workspace
       let failedStatus = db
-        .prepare('SELECT * FROM statuses WHERE workspace_id = ? AND LOWER(name) = ?')
+        .prepare(
+          'SELECT * FROM statuses WHERE workspace_id = ? AND LOWER(name) = ?'
+        )
         .get(workspaceId, 'failed') as Status | undefined
 
       if (!failedStatus) {
@@ -133,7 +139,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Get max priority in workspace for ordering
         const maxPriority = db
-          .prepare('SELECT MAX(priority) as max_p FROM statuses WHERE workspace_id = ?')
+          .prepare(
+            'SELECT MAX(priority) as max_p FROM statuses WHERE workspace_id = ?'
+          )
           .get(workspaceId) as { max_p: number | null } | undefined
 
         const newPriority = (maxPriority?.max_p ?? 0) + 1
@@ -223,13 +231,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       'flow_transition',
       verification.userId,
       'user',
-      JSON.stringify({ from_status_id: ticket.status_id, transition: 'failed' }),
+      JSON.stringify({
+        from_status_id: ticket.status_id,
+        transition: 'failed',
+      }),
       JSON.stringify({ to_status_id: nextStatusId }),
       now
     )
 
     // Clear current agent session
-    db.prepare('UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?').run(ticketId)
+    db.prepare(
+      'UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?'
+    ).run(ticketId)
 
     // Get new status details
     const newStatus = db
@@ -240,13 +253,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
       await triggerWaitingTickets(workspaceId)
     } catch (err) {
-      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed in /failed route:', { error: err })
+      logger.error(
+        { category: logCategories.API_TICKETS },
+        'triggerWaitingTickets failed in /failed route:',
+        { error: err }
+      )
     }
 
     logger.info(
       { category: logCategories.API_TICKETS },
       'Ticket marked as failed (session-scoped)',
-      { ticketId, fromStatus: currentStatus.name, toStatus: newStatus.name, notes }
+      {
+        ticketId,
+        fromStatus: currentStatus.name,
+        toStatus: newStatus.name,
+        notes,
+      }
     )
 
     return NextResponse.json({
@@ -267,7 +289,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       timestamp: now,
     })
   } catch (error) {
-    logger.error({ category: logCategories.API_TICKETS }, 'Error marking ticket as failed (session-scoped):', { error })
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
+    logger.error(
+      { category: logCategories.API_TICKETS },
+      'Error marking ticket as failed (session-scoped):',
+      { error }
+    )
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
