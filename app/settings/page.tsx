@@ -49,6 +49,11 @@ export default function SettingsPage() {
   const [maxImagesPerPost, setMaxImagesPerPost] = useState(DEFAULT_MAX_IMAGES_PER_POST)
   const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
 
+  // Stale ticket cron state
+  const [staleTicketThreshold, setStaleTicketThreshold] = useState(20)
+  const [staleTicketTargetStatus, setStaleTicketTargetStatus] = useState('waiting')
+  const [workspaceStatuses, setWorkspaceStatuses] = useState<Array<{ id: string; name: string }>>([])
+
   // Prompt Templates state
   const [promptConverterAgentId, setPromptConverterAgentId] = useState('')
   const [promptTemplatesSaving, setPromptTemplatesSaving] = useState(false)
@@ -138,6 +143,15 @@ export default function SettingsPage() {
           setSelectedPromptTemplate(data.selected_prompt_template || '')
           setMaxImagesPerPost(data.max_images_per_post ? parseInt(data.max_images_per_post) : DEFAULT_MAX_IMAGES_PER_POST)
           setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
+          // Stale ticket settings
+          setStaleTicketThreshold(data.stale_ticket_threshold_minutes ? parseInt(data.stale_ticket_threshold_minutes) : 20)
+          setStaleTicketTargetStatus(data.stale_ticket_target_status || 'waiting')
+        }
+        // Fetch workspace statuses for the stale ticket dropdown
+        const statusesRes = await fetch('/api/statuses')
+        if (statusesRes.ok) {
+          const statusesData = await statusesRes.json()
+          setWorkspaceStatuses(statusesData.statuses || [])
         }
       } catch (error) {
         logger.error('Error fetching workspace settings:', error)
@@ -701,6 +715,8 @@ export default function SettingsPage() {
                           body: JSON.stringify({
                             max_images_per_post: String(maxImagesPerPost),
                             allow_pdf_attachments: String(allowPdfAttachments),
+                            stale_ticket_threshold_minutes: String(staleTicketThreshold),
+                            stale_ticket_target_status: staleTicketTargetStatus,
                           }),
                         })
                         if (!res.ok) throw new Error((await res.json()).message || 'Failed to save settings')
@@ -751,6 +767,38 @@ export default function SettingsPage() {
                   >
                     <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${allowPdfAttachments ? 'translate-x-6' : 'translate-x-0.5'}`} />
                   </button>
+                </div>
+                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+                  <div>
+                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Stale Ticket Auto-Transition</p>
+                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+                      Automatically move tickets to a status when no comments for X minutes. Requires cron job enabled.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      className="w-20 px-2 py-1 rounded border text-center"
+                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                      value={staleTicketThreshold}
+                      onChange={(e) => setStaleTicketThreshold(parseInt(e.target.value) || 20)}
+                    />
+                    <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>minutes →</span>
+                    <select
+                      className="px-3 py-1 rounded border"
+                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                      value={staleTicketTargetStatus}
+                      onChange={(e) => setStaleTicketTargetStatus(e.target.value)}
+                    >
+                      {workspaceStatuses.map((status) => (
+                        <option key={status.id} value={status.name}>
+                          {status.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div
                   className="flex items-center justify-between py-3 border-b"
