@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+pimport { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateTicketId, generateUserId } from '@/lib/auth/token.js'
-import type { Ticket, TicketFlowConfig, Status } from '@/lib/db/schema.js'
+import type { Ticket } from '@/lib/db/schema.js'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
 /**
@@ -100,28 +100,34 @@ export async function GET(request: NextRequest) {
     })[]
 
     // Transform the response to include nested objects
-    const transformedTickets = tickets.map(ticket => ({
+    const transformedTickets = tickets.map((ticket) => ({
       ...ticket,
       status: {
         id: ticket.status_id,
         name: ticket.status_name,
-        color: ticket.status_color
+        color: ticket.status_color,
       },
       created_by: {
         id: ticket.created_by,
         email: ticket.created_by_email,
-        name: ticket.created_by_name
+        name: ticket.created_by_name,
       },
-      assigned_to: ticket.assigned_to ? {
-        id: ticket.assigned_to,
-        email: ticket.assigned_to_email,
-        name: ticket.assigned_to_name
-      } : null
+      assigned_to: ticket.assigned_to
+        ? {
+            id: ticket.assigned_to,
+            email: ticket.assigned_to_email,
+            name: ticket.assigned_to_name,
+          }
+        : null,
     }))
 
     return NextResponse.json({ tickets: transformedTickets })
   } catch (error) {
-    logger.error({ category: logCategories.API_TICKETS }, 'Error fetching tickets', { error })
+    logger.error(
+      { category: logCategories.API_TICKETS },
+      'Error fetching tickets',
+      { error }
+    )
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -157,7 +163,53 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, status_id, assigned_to, flow_enabled, flow_configs, creation_status, flow_mode, isSubTicket, parentTicketId, waitingFinishedTicketId } = body
+    const {
+      title,
+      description,
+      status_id,
+      statusId,
+      assigned_to,
+      flow_enabled,
+      flowEnabled,
+      flow_configs,
+      flowConfigs,
+      creation_status,
+      flow_mode,
+      flowMode,
+      isSubTicket,
+      parentTicketId,
+      waitingFinishedTicketId,
+    } = body
+
+    const normalizedStatusId = status_id ?? statusId
+    const normalizedFlowEnabled =
+      flow_enabled !== undefined
+        ? Boolean(flow_enabled)
+        : flowEnabled !== undefined
+          ? Boolean(flowEnabled)
+          : true
+    const normalizedFlowMode =
+      flow_mode !== undefined
+        ? flow_mode
+        : flowMode !== undefined
+          ? flowMode
+          : 'manual'
+    const normalizedFlowConfigs = flow_configs ?? flowConfigs
+
+    logger.info(
+      { category: logCategories.API_TICKETS },
+      'Create ticket payload normalized',
+      {
+        has_status_id: normalizedStatusId !== undefined,
+        has_flow_enabled_raw:
+          flow_enabled !== undefined || flowEnabled !== undefined,
+        normalized_flow_enabled: normalizedFlowEnabled,
+        flow_mode: normalizedFlowMode,
+        flow_configs_count: Array.isArray(normalizedFlowConfigs)
+          ? normalizedFlowConfigs.length
+          : 0,
+      }
+    )
 
     // Validate inputs
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
@@ -198,20 +250,23 @@ export async function POST(request: NextRequest) {
     // Verify status exists in workspace
     const status = db
       .prepare('SELECT id FROM statuses WHERE id = ? AND workspace_id = ?')
-      .get(status_id, session.current_workspace_id) as { id: string } | undefined
+      .get(normalizedStatusId, session.current_workspace_id) as
+      | { id: string }
+      | undefined
 
     if (!status) {
-      return NextResponse.json(
-        { message: 'Invalid status' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Invalid status' }, { status: 400 })
     }
 
     // Get next ticket number for workspace
     let ticketNumber = 1
     const sequence = db
-      .prepare('SELECT next_ticket_number FROM workspace_ticket_sequences WHERE workspace_id = ?')
-      .get(session.current_workspace_id) as { next_ticket_number: number } | undefined
+      .prepare(
+        'SELECT next_ticket_number FROM workspace_ticket_sequences WHERE workspace_id = ?'
+      )
+      .get(session.current_workspace_id) as
+      | { next_ticket_number: number }
+      | undefined
 
     if (sequence) {
       ticketNumber = sequence.next_ticket_number
@@ -233,11 +288,11 @@ export async function POST(request: NextRequest) {
       ticketNumber,
       title.trim(),
       description?.trim() || null,
-      status_id,
+      normalizedStatusId,
       user.id,
       assigned_to || null,
-      flow_enabled !== undefined ? (flow_enabled ? 1 : 0) : 1,
-      flow_mode === 'automatic' ? 'automatic' : 'manual',
+      normalizedFlowEnabled ? 1 : 0,
+      normalizedFlowMode === 'automatic' ? 'automatic' : 'manual',
       creation_status || 'active',
       now,
       now,
@@ -269,13 +324,23 @@ export async function POST(request: NextRequest) {
       'created',
       user.id,
       'user',
-      JSON.stringify({ title, description, status_id }),
+      JSON.stringify({ title, description, status_id: normalizedStatusId }),
       now
     )
 
     // Initialize flow configs if provided
-    if (flow_enabled && flow_configs && Array.isArray(flow_configs)) {
-      for (const config of flow_configs) {
+    if (
+      normalizedFlowEnabled &&
+      normalizedFlowConfigs &&
+      Array.isArray(normalizedFlowConfigs)
+    ) {
+      logger.info(
+        { category: logCategories.API_TICKETS },
+        'Initializing ticket flow configs',
+        { ticketId, count: normalizedFlowConfigs.length }
+      )
+
+      for (const config of normalizedFlowConfigs) {
         const configId = generateUserId()
         db.prepare(
           `INSERT INTO ticket_flow_configs (
@@ -296,10 +361,22 @@ export async function POST(request: NextRequest) {
           now
         )
       }
+    } else {
+      logger.info(
+        { category: logCategories.API_TICKETS },
+        'Skipping ticket flow config initialization',
+        {
+          ticketId,
+          normalizedFlowEnabled,
+          hasFlowConfigsArray: Array.isArray(normalizedFlowConfigs),
+        }
+      )
     }
 
     // Fetch the created ticket with related data
-    const ticket = db.prepare(`
+    const ticket = db
+      .prepare(
+        `
       SELECT t.*, 
              s.name as status_name, s.color as status_color,
              cb.email as created_by_email,
@@ -309,25 +386,34 @@ export async function POST(request: NextRequest) {
       LEFT JOIN users cb ON t.created_by = cb.id
       LEFT JOIN users ub ON t.assigned_to = ub.id
       WHERE t.id = ?
-    `).get(ticketId) as Ticket & {
+    `
+      )
+      .get(ticketId) as Ticket & {
       status_name: string
       status_color: string
       created_by_email: string
       assigned_to_email: string | null
     }
 
-    return NextResponse.json({ 
-      ticket: {
-        ...ticket,
-        status: {
-          id: ticket.status_id,
-          name: ticket.status_name,
-          color: ticket.status_color
-        }
-      }
-    }, { status: 201 })
+    return NextResponse.json(
+      {
+        ticket: {
+          ...ticket,
+          status: {
+            id: ticket.status_id,
+            name: ticket.status_name,
+            color: ticket.status_color,
+          },
+        },
+      },
+      { status: 201 }
+    )
   } catch (error) {
-    logger.error({ category: logCategories.API_TICKETS }, 'Error creating ticket', { error })
+    logger.error(
+      { category: logCategories.API_TICKETS },
+      'Error creating ticket',
+      { error }
+    )
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

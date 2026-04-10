@@ -1,4 +1,3 @@
-import type { Ticket, Status } from '@/lib/db/schema.js'
 import type { BuildFlowPromptParams } from './flow-types.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template.js'
@@ -20,11 +19,20 @@ export function modelHasVisionCapability(model: unknown): boolean {
   if (!modelName) return false
   const lowerModel = modelName.toLowerCase()
   const visionIndicators = [
-    'vision', 'vl-', 'gpt-4v', 'gpt-4-vision', 'claude-3-opus',
-    'claude-3-sonnet', 'claude-3-5', 'multimodal', 'gemma3',
-    'pixtral', 'mistral-large', 'CommandR+'
+    'vision',
+    'vl-',
+    'gpt-4v',
+    'gpt-4-vision',
+    'claude-3-opus',
+    'claude-3-sonnet',
+    'claude-3-5',
+    'multimodal',
+    'gemma3',
+    'pixtral',
+    'mistral-large',
+    'CommandR+',
   ]
-  return visionIndicators.some(indicator => lowerModel.includes(indicator))
+  return visionIndicators.some((indicator) => lowerModel.includes(indicator))
 }
 
 /**
@@ -46,22 +54,38 @@ export function replaceTemplateVariables(
  * Build flow prompt for agent execution
  */
 export function buildFlowPrompt(params: BuildFlowPromptParams): string {
-  const { ticket, currentStatus, agentId, statusInstructions, recentComments, workspaceId, hasVisionCapability, sessionToken } = params
+  const {
+    ticket,
+    currentStatus,
+    agentId,
+    statusInstructions,
+    recentComments,
+    workspaceId,
+    sessionToken,
+  } = params
   const db = getDatabase()
 
-  const customTemplateSetting = db.prepare(
-    'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
-  ).get(workspaceId, 'flow_prompt_template') as { setting_value: string | null } | undefined
+  const customTemplateSetting = db
+    .prepare(
+      'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
+    )
+    .get(workspaceId, 'flow_prompt_template') as
+    | { setting_value: string | null }
+    | undefined
 
   const template = customTemplateSetting?.setting_value || DEFAULT_FLOW_TEMPLATE
 
-  const skills = db.prepare(`
+  const skills = db
+    .prepare(
+      `
     SELECT s.id, s.skill_name, s.skill_description
     FROM status_skills ss
     JOIN skills s ON ss.skill_id = s.id
     WHERE ss.status_id = ? AND s.workspace_id = ? AND s.is_active = 1
     ORDER BY ss.priority ASC
-  `).all(currentStatus.id, workspaceId) as Array<{
+  `
+    )
+    .all(currentStatus.id, workspaceId) as Array<{
     id: string
     skill_name: string
     skill_description: string | null
@@ -70,10 +94,10 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
   let skillsSection = ''
   if (skills.length > 0) {
     skillsSection = JSON.stringify(
-      skills.map(skill => ({
+      skills.map((skill) => ({
         id: skill.id,
         name: skill.skill_name,
-        description: skill.skill_description || ''
+        description: skill.skill_description || '',
       })),
       null,
       2
@@ -81,6 +105,39 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
   } else {
     skillsSection = '[]'
   }
+
+  const statuses = db
+    .prepare(
+      `
+    SELECT id, name, priority, is_flow_included, agent_id, on_failed_goto, ask_approve_to_continue
+    FROM statuses
+    WHERE workspace_id = ?
+    ORDER BY priority ASC, name ASC
+  `
+    )
+    .all(workspaceId) as Array<{
+    id: string
+    name: string
+    priority: number
+    is_flow_included: number | boolean
+    agent_id: string | null
+    on_failed_goto: string | null
+    ask_approve_to_continue: number | boolean
+  }>
+
+  const statusesSection = JSON.stringify(
+    statuses.map((status) => ({
+      id: status.id,
+      name: status.name,
+      priority: status.priority,
+      flow_default_enabled: Boolean(status.is_flow_included),
+      default_agent_id: status.agent_id,
+      on_failed_goto: status.on_failed_goto,
+      ask_approve_to_continue: Boolean(status.ask_approve_to_continue),
+    })),
+    null,
+    2
+  )
 
   // Add role-based user attribution to comments
   const commentsWithRole = recentComments.map((comment) => {
@@ -105,11 +162,15 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     }
   })
   const commentsJson = JSON.stringify(commentsWithRole, null, 2)
-  const ticketJson = JSON.stringify({
-    ...ticket,
-    description: null,
-    task_todo: ticket.description
-  }, null, 2)
+  const ticketJson = JSON.stringify(
+    {
+      ...ticket,
+      description: null,
+      task_todo: ticket.description,
+    },
+    null,
+    2
+  )
 
   const variables = {
     ticketId: ticket.id,
@@ -118,13 +179,15 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     ticketDescription: ticket.description || 'No description',
     currentStatusId: currentStatus.id,
     currentStatusName: currentStatus.name,
-    currentStatusDescription: currentStatus.description || 'No status description provided.',
+    currentStatusDescription:
+      currentStatus.description || 'No status description provided.',
     agentId: agentId,
     statusInstructions: statusInstructions || 'No extra instructions provided.',
     commentsJson: commentsJson,
     ticketJson: ticketJson,
     workspaceId: workspaceId,
     skills: skillsSection,
+    statuses: statusesSection,
     tempPath: '/tmp',
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,

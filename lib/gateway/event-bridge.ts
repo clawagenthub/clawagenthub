@@ -2,6 +2,7 @@ import { getGatewayManager } from '@/lib/gateway/manager'
 import { getWebSocketManager } from '@/lib/websocket/manager'
 import { getDatabase } from '@/lib/db'
 import { getSessionStatusTracker } from '@/lib/session/status-tracker'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 interface GatewayEventForwarder {
   start(): void
@@ -56,11 +57,8 @@ class GatewayEventBridge implements GatewayEventForwarder {
    * Handle chat events from OpenClaw gateway
    */
   private handleChatEvent = (event: any) => {
-    console.warn('[GatewayEventBridge] Chat event received:', {
-      type: event.event,
-      hasPayload: !!event.payload,
-      sessionKey: event.payload?.sessionKey
-    })
+    logger.debug({ category: logCategories.GATEWAY_EVENTS }, 'Chat event received: type=%s, hasPayload=%s, sessionKey=%s',
+      event.event, !!event.payload, event.payload?.sessionKey)
 
     const payload = event.payload || event
     const sessionKey = payload.sessionKey
@@ -72,7 +70,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     // Resolve session key to session ID
     const sessionId = this.resolveSessionId(sessionKey)
     if (!sessionId) {
-      console.warn('[GatewayEventBridge] No session found for sessionKey:', sessionKey)
+      logger.debug({ category: logCategories.GATEWAY_EVENTS }, 'No session found for sessionKey: %s', sessionKey)
       return
     }
 
@@ -154,11 +152,8 @@ class GatewayEventBridge implements GatewayEventForwarder {
    * Handle agent events from OpenClaw gateway
    */
   private handleAgentEvent = (event: any) => {
-    console.warn('[GatewayEventBridge] Agent event received:', {
-      stream: event.payload?.stream,
-      hasPayload: !!event.payload,
-      sessionKey: event.payload?.sessionKey
-    })
+    logger.debug({ category: logCategories.GATEWAY_EVENTS }, 'Agent event received: stream=%s, hasPayload=%s, sessionKey=%s',
+      event.payload?.stream, !!event.payload, event.payload?.sessionKey)
 
     const payload = event.payload || event
     const sessionKey = payload.sessionKey
@@ -300,7 +295,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     const client = manager.getClient(gatewayId)
     
     if (!client) {
-      console.warn('[GatewayEventBridge] No client for gateway:', gatewayId)
+      logger.warn({ category: logCategories.GATEWAY_EVENTS }, 'No client for gateway: %s', gatewayId)
       return
     }
 
@@ -316,7 +311,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
       agentUnsub()
     })
     
-    console.warn('[GatewayEventBridge] Subscribed to events from gateway:', gatewayId)
+    logger.debug({ category: logCategories.GATEWAY_EVENTS }, 'Subscribed to events from gateway: %s', gatewayId)
   }
 
   /**
@@ -324,11 +319,11 @@ class GatewayEventBridge implements GatewayEventForwarder {
    */
   start() {
     if (this.running) {
-      console.warn('[GatewayEventBridge] Already running')
+      logger.debug({ category: logCategories.GATEWAY_EVENTS }, 'Already running')
       return
     }
 
-    console.warn('[GatewayEventBridge] Starting gateway event bridge...')
+    logger.info({ category: logCategories.GATEWAY_EVENTS }, 'Starting gateway event bridge...')
     
     // Also start the session status tracker
     const statusTracker = getSessionStatusTracker()
@@ -341,7 +336,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     // For now, we'll hook into the gateway initialization
     
     this.running = true
-    console.warn('[GatewayEventBridge] Gateway event bridge started')
+    logger.info({ category: logCategories.GATEWAY_EVENTS }, 'Gateway event bridge started')
   }
 
   /**
@@ -352,7 +347,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
       return
     }
 
-    console.warn('[GatewayEventBridge] Stopping gateway event bridge...')
+    logger.info({ category: logCategories.GATEWAY_EVENTS }, 'Stopping gateway event bridge...')
     
     // Unsubscribe from all events
     for (const unsub of this.eventUnsubscribers.values()) {
@@ -367,7 +362,7 @@ class GatewayEventBridge implements GatewayEventForwarder {
     }
     
     this.running = false
-    console.warn('[GatewayEventBridge] Gateway event bridge stopped')
+    logger.info({ category: logCategories.GATEWAY_EVENTS }, 'Gateway event bridge stopped')
   }
 
   isRunning(): boolean {

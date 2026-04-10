@@ -18,9 +18,6 @@ import {
   broadcastToClients,
 } from './session-events.js'
 import {
-  buildChatDeltaEvent,
-  buildChatFinalEvent,
-  buildChatErrorEvent,
   buildAgentTypingEvent,
   sendConnectedEvent,
   broadcastErrorEvent,
@@ -40,12 +37,6 @@ import type {
   InstanceEvent,
   InstanceState,
   InstanceStateChangedEvent,
-  InstanceChatDeltaEvent,
-  InstanceChatFinalEvent,
-  InstanceChatErrorEvent,
-  InstanceConnectedEvent,
-  InstanceErrorEvent,
-  InstanceAgentTypingEvent,
 } from './protocol.js'
 import logger, { logCategories } from '@/lib/logger/index.js'
 import type {
@@ -55,6 +46,7 @@ import type {
   ClientMessage,
   SessionStatus,
 } from './session-types.js'
+import { createStateChangedEvent, extractBufferedEvents } from './session-instance-types.js'
 
 export class GatewaySessionInstance {
   private readonly sessionId: string
@@ -463,23 +455,14 @@ export class GatewaySessionInstance {
   }
 
   private sendBufferedEvents(client: ClientConnection): void {
-    const events = this.eventBuffer.getSince(client.lastSeq ?? 0) as Array<{
-      event: string
-      payload: ChatEventPayload
-      seq: number
-    }>
+    const events = extractBufferedEvents(client, this.eventBuffer)
     sendBufferedChatEventsToClient(client, this.sessionId, events)
   }
 
   private setState(state: InstanceState, error?: string): void {
     const { state: newState } = this.stateMachine.transition(state, error)
     this.error = error
-    const event: InstanceStateChangedEvent = {
-      type: 'state.changed',
-      sessionId: this.sessionId,
-      state: newState,
-      error,
-    }
+    const event = createStateChangedEvent(this.sessionId, newState, error)
     broadcastToClients(this.clients, event)
     this.eventManager.notify(event)
   }

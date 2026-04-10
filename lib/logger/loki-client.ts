@@ -108,11 +108,30 @@ export class LokiClient {
         const sourceInfo = meta.source.file
           ? ` (${meta.source.function || 'unknown'}@${meta.source.file}:${meta.source.line}:${meta.source.column})`
           : ''
-        message = `${message}${sourceInfo} | error_name=${meta.name} error_msg=${meta.message} error_stack=${meta.stack || 'none'} error_ts=${meta.timestamp}`
+        // Build error metadata object and JSON stringify it
+        const errorMetaObj = {
+          error_name: meta.name,
+          error_msg: meta.message,
+          error_stack: meta.stack || 'none',
+          error_ts: meta.timestamp,
+          ...(meta.source.file && {
+            source_file: meta.source.file,
+            source_function: meta.source.function || 'unknown',
+            source_line: meta.source.line,
+            source_column: meta.source.column,
+          }),
+        }
+        message = `${message}${sourceInfo} | metadata=${JSON.stringify(errorMetaObj)}`
       } else if (log.callerMetadata?.file) {
-        // Add caller location metadata for non-error logs
+        // Add caller location metadata for non-error logs - JSON stringified
         const cm = log.callerMetadata
-        message = `${message} | source_file=${cm.file} source_function=${cm.function || 'anonymous'} source_line=${cm.line}`
+        const metaObj = {
+          source_file: cm.file,
+          source_function: cm.function || 'anonymous',
+          source_line: cm.line,
+          ...(cm.column && { source_column: cm.column }),
+        }
+        message = `${message} | metadata=${JSON.stringify(metaObj)}`
       }
       streams[labelKey].values.push([String(log.timestamp), message])
     }

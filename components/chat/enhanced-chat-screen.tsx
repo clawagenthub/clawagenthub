@@ -12,6 +12,7 @@ import { ChatHeader } from './chat-header'
 import { ChatInput } from './chat-input'
 import { useChatHeader } from './hooks/useChatHeader'
 import { useWSMessageHandler } from './hooks/useWSMessageHandler'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 interface ChatScreenProps {
   session: ChatSession
@@ -77,7 +78,7 @@ export function EnhancedChatScreen({ session }: ChatScreenProps) {
         if (result?.runId) startStream(result.runId)
       }
     } catch (error) {
-      console.error('Failed to send message:', error)
+      logger.error({ category: logCategories.CHAT }, 'Failed to send message: %s', error)
       setIsTyping(false)
     }
   }
