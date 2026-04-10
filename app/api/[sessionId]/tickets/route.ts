@@ -25,7 +25,6 @@ export async function GET(
     // Verify session using sessionId from URL path
     const verification = verifySession({
       sessionToken: sessionId, // sessionId from URL IS the session token
-      workspaceId: sessionId,
     })
 
     if (!verification.valid) {
@@ -146,7 +145,6 @@ export async function POST(
     // Verify session
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId,
     })
 
     if (!verification.valid || !verification.user) {

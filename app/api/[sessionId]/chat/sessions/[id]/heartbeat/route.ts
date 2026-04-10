@@ -21,7 +21,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid) {

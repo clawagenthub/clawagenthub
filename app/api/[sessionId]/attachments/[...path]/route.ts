@@ -18,7 +18,6 @@ export async function GET(
     // Verify session
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid) {

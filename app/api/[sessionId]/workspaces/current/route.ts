@@ -14,7 +14,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid || !verification.session) {

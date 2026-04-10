@@ -15,7 +15,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid || !verification.user) {
@@ -70,7 +69,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid || !verification.user) {

@@ -21,7 +21,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Verify session
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid) {
@@ -158,7 +157,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid || !verification.user) {
@@ -378,7 +376,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const verification = verifySession({
       sessionToken: sessionId,
-      workspaceId: sessionId
     })
 
     if (!verification.valid) {
