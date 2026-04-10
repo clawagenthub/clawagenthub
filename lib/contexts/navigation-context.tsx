@@ -1,6 +1,6 @@
 /**
  * Navigation Context - Manages SPA-style navigation state
- * 
+ *
  * Provides reactive navigation without full page reloads.
  * Updates URL and renders content based on current route.
  */
@@ -9,8 +9,8 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, ReactNode } from 'react'
-import { AppRoute, NavigationContextValue } from '@/lib/types/navigation-types'
-import { NavigationContext } from './navigation-context'
+import { AppRoute } from '@/lib/types/navigation-types'
+import { NavigationContext } from './navigation-context-object'
 
 export { NavigationContext }
 

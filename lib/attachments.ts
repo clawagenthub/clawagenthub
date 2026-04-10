@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import fs from 'fs/promises'
 import path from 'path'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 export type StoredAttachmentKind = 'image' | 'pdf' | 'file'

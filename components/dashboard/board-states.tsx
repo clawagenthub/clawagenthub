@@ -1,8 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import type { TicketWithRelations } from '@/lib/query/hooks'
-import type { Status } from '@/lib/query/hooks'
 
 interface LoadingStateProps {
   count?: number

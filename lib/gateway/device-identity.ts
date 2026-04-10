@@ -1,5 +1,5 @@
 import { createHash, sign } from 'crypto'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 /**

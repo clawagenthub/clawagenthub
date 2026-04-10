@@ -57,6 +57,7 @@ export default tseslint.config(
     rules: {
       ...js.configs.recommended.rules,
       ...nextPlugin.configs.recommended.rules,
+      'react-hooks/exhaustive-deps': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],

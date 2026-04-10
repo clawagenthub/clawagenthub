@@ -6,7 +6,7 @@
 
 import type { EventFrame, ResponseFrame } from './protocol.js'
 import type { PendingRequest } from './session-types.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 export interface MessageHandlers {

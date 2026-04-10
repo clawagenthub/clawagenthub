@@ -18,7 +18,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface PairingModalProps {

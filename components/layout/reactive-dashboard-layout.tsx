@@ -22,12 +22,12 @@ interface ReactiveDashboardLayoutProps {
 /**
  * Internal component that uses the navigation context
  */
-function ReactiveDashboardContent({ user, noPadding }: ReactiveDashboardLayoutProps) {
+function ReactiveDashboardContent({ noPadding }: ReactiveDashboardLayoutProps) {
   const router = useRouter()
   const { currentRoute } = useNavigation()
   const { user: userData, isLoading, mustChangePassword } = useUser()
   
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [_isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
 
   // Simple auth check - TanStack Query handles all refetching logic
   useEffect(() => {

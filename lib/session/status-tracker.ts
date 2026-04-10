@@ -34,7 +34,7 @@ class SessionStatusTracker {
   private status: Map<string, SessionStatus> = new Map()
   private readonly TIMEOUT_MS: number
   private readonly CLEANUP_INTERVAL_MS: number
-  private cleanupTimer: NodeJS.Timeout | null = null
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
   private started = false
 
   constructor(options: SessionStatusTrackerOptions = {}) {

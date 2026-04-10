@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
     const workspaceId = session.current_workspace_id
 
     // Get ALL eligible tickets (flow_enabled=1, active, NOT flowing)

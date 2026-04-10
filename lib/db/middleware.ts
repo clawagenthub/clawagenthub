@@ -24,7 +24,7 @@ function tablesExist(): boolean {
       .get() as CountResult
 
     return result.count > 0
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -59,9 +59,9 @@ export async function ensureDatabase(): Promise<void> {
 
       isInitialized = true
       logger.debug({ category: logCategories.DATABASE }, '✓ Database ready')
-    } catch (error) {
-      logger.error('❌ Database initialization failed:', error)
-      throw error
+    } catch (_error: any) {
+      logger.error('❌ Database initialization failed:', _error)
+      throw _error
     } finally {
       initializationPromise = null
     }

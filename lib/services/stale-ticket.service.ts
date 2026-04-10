@@ -36,6 +36,26 @@ export interface StaleTicketSettings {
 const DEFAULT_THRESHOLD_MINUTES = 20
 const DEFAULT_TARGET_STATUS = 'waiting'
 
+/**
+ * Get a valid system user ID for audit logs and comments
+ * Uses workspace owner, superuser, or first available user as fallback
+ */
+function getSystemUserId(db: ReturnType<typeof getDatabase>): string {
+  const superuser = db
+    .prepare('SELECT id FROM users WHERE is_superuser = 1 LIMIT 1')
+    .get() as { id: string } | undefined
+  if (superuser?.id) {
+    return superuser.id
+  }
+  const firstUser = db.prepare('SELECT id FROM users LIMIT 1').get() as
+    | { id: string }
+    | undefined
+  if (firstUser?.id) {
+    return firstUser.id
+  }
+  return 'system'
+}
+
 export class StaleTicketService {
   /**
    * Get stale ticket settings for a workspace
@@ -140,13 +160,17 @@ export class StaleTicketService {
       WHERE id = ?
     `).run(newStatusId, now, ticketId)
 
+    // Get valid system user ID for audit logs and comments
+    const systemUserId = getSystemUserId(db)
+
     // Create audit log entry
     db.prepare(`
       INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at)
-      VALUES (?, ?, 'status_changed', 'system', 'system', ?, ?, ?)
+      VALUES (?, ?, 'status_changed', ?, 'system', ?, ?, ?)
     `).run(
       `stale_cron_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
       ticketId,
+      systemUserId,
       previousStatusId,
       newStatusId,
       now
@@ -158,11 +182,12 @@ export class StaleTicketService {
 
     db.prepare(`
       INSERT INTO ticket_comments (id, ticket_id, content, created_by, created_at, updated_at, is_agent_completion_signal)
-      VALUES (?, ?, ?, 'system', ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
     `).run(
       `stale_comment_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
       ticketId,
       `Automatically moved from **${previousStatus?.name || previousStatusId}** to **${newStatus?.name || newStatusId}** due to no comments within the configured threshold.`,
+      systemUserId,
       now,
       now
     )

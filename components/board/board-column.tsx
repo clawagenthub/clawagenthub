@@ -12,7 +12,7 @@ import type {
   StartAllConfirmProps,
   StopAllConfirmProps,
 } from './lib/board-types'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 function StartAllConfirm({ count, onConfirm, onCancel }: StartAllConfirmProps) {
   return (
@@ -99,7 +99,7 @@ function ColumnHeader({
   isSomeSelected,
   eligibleForFlowStart,
   eligibleForFlowStop,
-  allFlowingTickets,
+  _allFlowingTickets,
   showStopAll,
   isBulkStartingFlow,
   isBulkStoppingFlow,

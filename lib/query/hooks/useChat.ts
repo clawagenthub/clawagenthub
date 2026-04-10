@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { AgentInfo, ChatSession, ChatMessage } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 // Fetch available agents from connected gateways
@@ -101,7 +101,7 @@ export function useSendMessage() {
       const data = await res.json()
       return data.message as ChatMessage
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate messages query to fetch the agent's response
       queryClient.invalidateQueries({
         queryKey: ['chat', 'messages', variables.sessionId],
@@ -187,7 +187,7 @@ export function useGenerateSessionSummary() {
       const data = await res.json()
       return data as { title: string; description: string; sessionId: string }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // Invalidate sessions query to reflect the updated title/description
       queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
     },

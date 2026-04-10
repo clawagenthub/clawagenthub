@@ -18,7 +18,7 @@ export function useSessionActivity({
   heartbeatInterval = 30000, // Default: every 30 seconds
 }: UseSessionActivityOptions) {
   const lastHeartbeatRef = useRef<number>(0)
-  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const heartbeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   /**
    * Send heartbeat to server to update session activity

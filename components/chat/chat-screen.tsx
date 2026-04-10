@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
 import { TypingIndicator } from './typing-indicator'
 import { useChatMessages, useSendMessage } from '@/lib/query/hooks/useChat'
 import { useChatWebSocket, type WSEvent } from '@/lib/hooks/useChatWebSocket'
 import type { ChatSession, MCPActivity } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface ChatScreenProps {

@@ -1,5 +1,6 @@
 import type { RetentionClass } from './shared.js'
 import type { ErrorMetadata } from './shared.js'
+import type { CallerMetadata } from './caller-metadata.js'
 
 export interface LokiLogEntry {
   timestamp: number
@@ -7,6 +8,7 @@ export interface LokiLogEntry {
   labels: Record<string, string>
   retentionClass?: RetentionClass
   errorMetadata?: ErrorMetadata
+  callerMetadata?: CallerMetadata
 }
 
 export interface LokiClientOptions {
@@ -107,6 +109,10 @@ export class LokiClient {
           ? ` (${meta.source.function || 'unknown'}@${meta.source.file}:${meta.source.line}:${meta.source.column})`
           : ''
         message = `${message}${sourceInfo} | error_name=${meta.name} error_msg=${meta.message} error_stack=${meta.stack || 'none'} error_ts=${meta.timestamp}`
+      } else if (log.callerMetadata?.file) {
+        // Add caller location metadata for non-error logs
+        const cm = log.callerMetadata
+        message = `${message} | source_file=${cm.file} source_function=${cm.function || 'anonymous'} source_line=${cm.line}`
       }
       streams[labelKey].values.push([String(log.timestamp), message])
     }

@@ -7,7 +7,7 @@
 
 import { getDatabase } from '../db/index.js'
 import type { Gateway } from '../db/schema.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 // ============================================================================

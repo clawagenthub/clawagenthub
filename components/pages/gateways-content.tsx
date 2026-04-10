@@ -8,7 +8,7 @@ import { useGateways } from '@/lib/query/hooks'
 import type { Gateway } from '@/lib/db/schema'
 import type { PageContentProps } from './index'
 
-export function GatewaysPageContent({ user }: PageContentProps) {
+export function GatewaysPageContent({ user: _user }: PageContentProps) {
   const { gateways, isLoading: gatewaysLoading, refresh } = useGateways()
   
   const loading = gatewaysLoading
@@ -34,7 +34,7 @@ export function GatewaysPageContent({ user }: PageContentProps) {
     }
   }
 
-  const handleDelete = async (gatewayId: string) => {
+  const handleDelete = async (_gatewayId: string) => {
     // Optimistically remove from UI, then refresh to sync with server
     await refresh()
   }

@@ -17,7 +17,7 @@ import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-mo
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
 import type { PageContentProps } from './index'
 import type { Gateway } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'

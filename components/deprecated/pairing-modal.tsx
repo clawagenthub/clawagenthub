@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { CommandBlock } from './CommandBlock'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface PairingModalProps {
@@ -73,9 +73,10 @@ function ConnectionMethodTabs({ connectionMethod, onChange }: { connectionMethod
   )
 }
 
-function TokenConnectionForm({ gatewayToken, onTokenChange }: {
+function TokenConnectionForm({ gatewayToken, onTokenChange, checking }: {
   gatewayToken: string
   onTokenChange: (token: string) => void
+  checking: boolean
 }) {
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
@@ -107,7 +108,7 @@ function TokenConnectionForm({ gatewayToken, onTokenChange }: {
   )
 }
 
-function SpinnerButton({ checking, label }: { checking: boolean, label: string }) {
+function SpinnerButton({ checking: _checking, label }: { checking: boolean, label: string }) {
   return (
     <span className="flex items-center">
       <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

@@ -1,14 +1,14 @@
 import { atom } from 'jotai'
 import { atomWithRefresh } from 'jotai/utils'
 import type { Gateway } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 /**
  * Base atom that fetches gateways data from /api/gateways
  * This atom uses atomWithRefresh to allow manual refresh after CRUD operations
  */
-export const gatewaysAtom = atomWithRefresh(async (get) => {
+export const gatewaysAtom = atomWithRefresh(async (_get) => {
   try {
     const response = await fetch('/api/gateways')
     

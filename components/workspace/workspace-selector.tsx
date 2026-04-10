@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Dropdown, type DropdownItem } from '@/components/ui/dropdown'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -49,7 +49,7 @@ export function WorkspaceSelector({
         const data = await response.json()
         setError(data.message || 'Failed to create workspace')
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred while creating the workspace')
     } finally {
       setIsCreating(false)

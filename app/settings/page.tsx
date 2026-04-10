@@ -1,8 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useUser, useWorkspacePrompts, useUpdateWorkspacePrompts, useDeletePromptMutation, useAddCustomPrompt, type WorkspacePrompt } from '@/lib/query/hooks'
+import { useSearchParams } from 'next/navigation'
+import {
+  useUser,
+  useWorkspacePrompts,
+  useUpdateWorkspacePrompts,
+  useDeletePromptMutation,
+  useAddCustomPrompt,
+  type WorkspacePrompt,
+} from '@/lib/query/hooks'
 import { useUserSettings } from '@/lib/query/hooks/useUserSettings'
 import { useAgents } from '@/lib/query/hooks/useChat'
 import { useGateways } from '@/lib/query/hooks'
@@ -15,44 +22,73 @@ import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
 import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
 import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
-type SettingsTab = 'general' | 'chat' | 'flow' | 'workspace' | 'gateway' | 'defaultprompts' | 'prompttemplates' | 'skillsmp' | 'danger'
+type SettingsTab =
+  | 'general'
+  | 'chat'
+  | 'flow'
+  | 'workspace'
+  | 'gateway'
+  | 'defaultprompts'
+  | 'prompttemplates'
+  | 'skillsmp'
+  | 'danger'
 
-const VALID_TABS: SettingsTab[] = ['general', 'chat', 'flow', 'workspace', 'gateway', 'defaultprompts', 'prompttemplates', 'skillsmp', 'danger']
+const VALID_TABS: SettingsTab[] = [
+  'general',
+  'chat',
+  'flow',
+  'workspace',
+  'gateway',
+  'defaultprompts',
+  'prompttemplates',
+  'skillsmp',
+  'danger',
+]
 
 const DEFAULT_MAX_IMAGES_PER_POST = 5
 
 export default function SettingsPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isLoading } = useUser()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const { data: settings, isLoading: settingsLoading } = useUserSettings()
   const { data: agents, isLoading: agentsLoading } = useAgents()
   const { gateways, isLoading: gatewaysLoading, refresh } = useGateways()
-  const [summarizerAgentId, setSummarizerAgentId] = useState(settings?.summarizer_agent_id ?? '')
-  const [autoSummaryEnabled, setAutoSummaryEnabled] = useState(settings?.auto_summary_enabled ?? true)
-  const [idleTimeout, setIdleTimeout] = useState(settings?.idle_timeout_minutes ?? 2)
+  const [summarizerAgentId, setSummarizerAgentId] = useState(
+    settings?.summarizer_agent_id ?? ''
+  )
+  const [autoSummaryEnabled, setAutoSummaryEnabled] = useState(
+    settings?.auto_summary_enabled ?? true
+  )
+  const [idleTimeout, setIdleTimeout] = useState(
+    settings?.idle_timeout_minutes ?? 2
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
-  
+
   // Flow template state
   const [flowPromptTemplate, setFlowPromptTemplate] = useState('')
   const [flowTemplateLoading, setFlowTemplateLoading] = useState(true)
   const [loadMessage, setLoadMessage] = useState('')
-  
+
   // SkillsMP API key state
   const [skillsmpApiKey, setSkillsmpApiKey] = useState('')
   const [skillsmpSaving, setSkillsmpSaving] = useState(false)
   const [skillsmpMessage, setSkillsmpMessage] = useState('')
-  const [maxImagesPerPost, setMaxImagesPerPost] = useState(DEFAULT_MAX_IMAGES_PER_POST)
+  const [maxImagesPerPost, setMaxImagesPerPost] = useState(
+    DEFAULT_MAX_IMAGES_PER_POST
+  )
   const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
 
   // Stale ticket cron state
   const [staleTicketThreshold, setStaleTicketThreshold] = useState(20)
-  const [staleTicketTargetStatus, setStaleTicketTargetStatus] = useState('waiting')
-  const [workspaceStatuses, setWorkspaceStatuses] = useState<Array<{ id: string; name: string }>>([])
+  const [staleTicketTargetStatus, setStaleTicketTargetStatus] =
+    useState('waiting')
+  const [workspaceStatuses, setWorkspaceStatuses] = useState<
+    Array<{ id: string; name: string }>
+  >([])
 
   // Prompt Templates state
   const [promptConverterAgentId, setPromptConverterAgentId] = useState('')
@@ -64,7 +100,9 @@ export default function SettingsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
 
   // Default prompts state
-  const [selectedPrompt, setSelectedPrompt] = useState<WorkspacePrompt | null>(null)
+  const [selectedPrompt, setSelectedPrompt] = useState<WorkspacePrompt | null>(
+    null
+  )
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
   const [isLoadDefaultsModalOpen, setIsLoadDefaultsModalOpen] = useState(false)
   const [isAddCustomModalOpen, setIsAddCustomModalOpen] = useState(false)
@@ -86,7 +124,9 @@ export default function SettingsPage() {
         alert(data.message || 'Failed to connect to gateway')
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to connect to gateway')
+      alert(
+        error instanceof Error ? error.message : 'Failed to connect to gateway'
+      )
     }
   }
 
@@ -113,11 +153,11 @@ export default function SettingsPage() {
   useEffect(() => {
     const handlePopState = () => {
       // useSearchParams will trigger the effect above via dependency
-      router.refresh()
+      // router.refresh() removed - it causes Sidebar remount → workspace fetch loop
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [router])
+  }, [])
 
   // Sync local state when settings are loaded
   useEffect(() => {
@@ -127,7 +167,7 @@ export default function SettingsPage() {
       setIdleTimeout(settings.idle_timeout_minutes ?? 2)
     }
   }, [settings])
-  
+
   // Fetch workspace flow template and SkillsMP API key
   useEffect(() => {
     async function fetchWorkspaceSettings() {
@@ -141,11 +181,25 @@ export default function SettingsPage() {
           setPromptConverterAgentId(data.prompt_converter_agent_id || '')
           setAutoPromptTemplate(data.auto_prompt_template || '')
           setSelectedPromptTemplate(data.selected_prompt_template || '')
-          setMaxImagesPerPost(data.max_images_per_post ? parseInt(data.max_images_per_post) : DEFAULT_MAX_IMAGES_PER_POST)
-          setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
+          setMaxImagesPerPost(
+            data.max_images_per_post
+              ? parseInt(data.max_images_per_post)
+              : DEFAULT_MAX_IMAGES_PER_POST
+          )
+          setAllowPdfAttachments(
+            data.allow_pdf_attachments
+              ? data.allow_pdf_attachments === 'true'
+              : true
+          )
           // Stale ticket settings
-          setStaleTicketThreshold(data.stale_ticket_threshold_minutes ? parseInt(data.stale_ticket_threshold_minutes) : 20)
-          setStaleTicketTargetStatus(data.stale_ticket_target_status || 'waiting')
+          setStaleTicketThreshold(
+            data.stale_ticket_threshold_minutes
+              ? parseInt(data.stale_ticket_threshold_minutes)
+              : 20
+          )
+          setStaleTicketTargetStatus(
+            data.stale_ticket_target_status || 'waiting'
+          )
         }
         // Fetch workspace statuses for the stale ticket dropdown
         const statusesRes = await fetch('/api/statuses')
@@ -200,367 +254,232 @@ export default function SettingsPage() {
         style={{ backgroundColor: `rgb(var(--bg-secondary))` }}
       >
         <Sidebar user={user} />
-      <main className="flex-1 p-8" style={{ color: `rgb(var(--text-primary))` }}>
-        <div className="max-w-4xl">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold" style={{ color: 'rgb(var(--text-primary))' }}>
-              Settings
-            </h1>
-            <p className="mt-2" style={{ color: 'rgb(var(--text-secondary))' }}>
-              Configure your application settings and preferences
-            </p>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex border-b mb-6" style={{ borderColor: 'rgb(var(--border-color))' }}>
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => handleTabChange(tab.key)}
-                className={`px-4 py-3 font-medium transition-colors relative ${
-                  activeTab === tab.key ? '' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-                style={{
-                  color: activeTab === tab.key ? 'rgb(var(--primary-color))' : 'rgb(var(--text-secondary))',
-                }}
+        <main
+          className="flex-1 p-8"
+          style={{ color: `rgb(var(--text-primary))` }}
+        >
+          <div className="max-w-4xl">
+            {/* Header */}
+            <div className="mb-6">
+              <h1
+                className="text-3xl font-bold"
+                style={{ color: 'rgb(var(--text-primary))' }}
               >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-                {activeTab === tab.key && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{ backgroundColor: 'rgb(var(--primary-color))' }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+                Settings
+              </h1>
+              <p
+                className="mt-2"
+                style={{ color: 'rgb(var(--text-secondary))' }}
+              >
+                Configure your application settings and preferences
+              </p>
+            </div>
 
-          {/* Tab Content */}
-          <div
-            className="rounded-lg border p-6 shadow-sm"
-            style={{
-              backgroundColor: 'rgb(var(--bg-primary))',
-              borderColor: 'rgb(var(--border-color))',
-            }}
-          >
-            {activeTab === 'general' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    General Settings
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isSaving}
-                    onClick={async () => {
-                      setIsSaving(true)
-                      setSaveMessage('Saving...')
-                      setTimeout(() => {
-                        setIsSaving(false)
-                        setSaveMessage('Saved!')
-                        setTimeout(() => setSaveMessage(''), 2000)
-                      }, 500)
-                    }}
-                  >
-                    {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
-                  </button>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3 border-b"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Notifications
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Manage your notification preferences
-                    </p>
-                  </div>
-                  <button
-                    className="px-4 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
-                  >
-                    Configure
-                  </button>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3 border-b"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Theme
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Customize your appearance settings
-                    </p>
-                  </div>
-                  <button
-                    className="px-4 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
-                  >
-                    Customize
-                  </button>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Language
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Select your preferred language
-                    </p>
-                  </div>
-                  <button
-                    className="px-4 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
-                  >
-                    Change
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'chat' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Chat Summary Settings
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isSaving || settingsLoading || agentsLoading}
-                    onClick={async () => {
-                      setIsSaving(true)
-                      setSaveMessage('Saving...')
-                      try {
-                        const selectedAgent = agents?.find((a) => a.agentId === summarizerAgentId)
-                        const body: any = {
-                          auto_summary_enabled: autoSummaryEnabled,
-                          idle_timeout_minutes: idleTimeout,
-                        }
-                        // Only include agent fields if an agent is selected
-                        if (summarizerAgentId && selectedAgent) {
-                          body.summarizer_agent_id = summarizerAgentId
-                          body.summarizer_gateway_id = selectedAgent.gatewayId
-                        } else {
-                          body.summarizer_agent_id = null
-                          body.summarizer_gateway_id = null
-                        }
-                        
-                        const res = await fetch('/api/user/settings', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(body),
-                        })
-                        
-                        if (!res.ok) {
-                          const errorData = await res.json()
-                          throw new Error(errorData.error || 'Failed to save settings')
-                        }
-                        
-                        setSaveMessage('Saved!')
-                        setTimeout(() => setSaveMessage(''), 2000)
-                      } catch (error) {
-                        logger.error('Error saving settings:', error)
-                        setSaveMessage('Error saving')
-                        setTimeout(() => setSaveMessage(''), 2000)
-                      } finally {
-                        setIsSaving(false)
-                      }
-                    }}
-                  >
-                    {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
-                  </button>
-                </div>
-
-                {settingsLoading || agentsLoading ? (
-                  <div className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    Loading settings...
-                  </div>
-                ) : (
-                  <>
-                    {/* Summarizer Agent Selection */}
-                    <div
-                      className="flex flex-col gap-2 py-3 border-b"
-                      style={{ borderColor: 'rgb(var(--border-color))' }}
-                    >
-                      <div>
-                        <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                          Summarizer Agent
-                        </p>
-                        <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                          Select an agent to automatically generate chat summaries when sessions become idle
-                        </p>
-                      </div>
-                      <select
-                        className="px-3 py-2 rounded-lg border"
-                        style={{
-                          backgroundColor: 'rgb(var(--bg-secondary))',
-                          borderColor: 'rgb(var(--border-color))',
-                          color: 'rgb(var(--text-primary))',
-                        }}
-                        value={summarizerAgentId}
-                        onChange={(e) => setSummarizerAgentId(e.target.value)}
-                      >
-                        <option value="">None selected</option>
-                        {agents?.map((agent) => (
-                          <option key={agent.agentId} value={agent.agentId}>
-                            {agent.agentName} ({agent.gatewayName})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Auto-Summary Toggle */}
-                    <div
-                      className="flex items-center justify-between py-3 border-b"
-                      style={{ borderColor: 'rgb(var(--border-color))' }}
-                    >
-                      <div>
-                        <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                          Auto-Summary on Idle
-                        </p>
-                        <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                          Automatically summarize chat when session becomes idle
-                        </p>
-                      </div>
-                      <button
-                        className={`w-12 h-6 rounded-full transition-colors ${
-                          autoSummaryEnabled ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
-                        onClick={() => setAutoSummaryEnabled(!autoSummaryEnabled)}
-                      >
-                        <div
-                          className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-                            autoSummaryEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Idle Timeout */}
-                    <div
-                      className="flex items-center justify-between py-3"
-                      style={{ borderColor: 'rgb(var(--border-color))' }}
-                    >
-                      <div>
-                        <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                          Idle Timeout
-                        </p>
-                        <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                          Minutes of inactivity before auto-summary
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
-                          className="w-16 px-2 py-1 rounded border text-center"
-                          style={{
-                            backgroundColor: 'rgb(var(--bg-secondary))',
-                            borderColor: 'rgb(var(--border-color))',
-                            color: 'rgb(var(--text-primary))',
-                          }}
-                          value={idleTimeout}
-                          onChange={(e) => setIdleTimeout(parseInt(e.target.value) || 2)}
-                        />
-                        <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                          minutes
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Info Card */}
-                <div
-                  className="mt-4 p-4 rounded-lg border"
+            {/* Tabs */}
+            <div
+              className="mb-6 flex border-b"
+              style={{ borderColor: 'rgb(var(--border-color))' }}
+            >
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleTabChange(tab.key)}
+                  className={`relative px-4 py-3 font-medium transition-colors ${
+                    activeTab === tab.key
+                      ? ''
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
                   style={{
-                    backgroundColor: 'rgb(var(--bg-secondary))',
-                    borderColor: 'rgb(var(--border-color))',
+                    color:
+                      activeTab === tab.key
+                        ? 'rgb(var(--primary-color))'
+                        : 'rgb(var(--text-secondary))',
                   }}
                 >
-                  <h4 className="font-semibold mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
-                    How it works
-                  </h4>
-                  <ul className="space-y-1 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    <li>1. Select a summarizer agent from your connected gateways</li>
-                    <li>2. Enable auto-summary to automatically generate summaries when idle</li>
-                    <li>3. Adjust the idle timeout (default: 2 minutes)</li>
-                    <li>4. Manually trigger summaries using "📝 Summarize" button in chat</li>
-                    <li>5. Generated summaries update the chat title and description</li>
-                  </ul>
-                </div>
-              </div>
-            )}
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                  {activeTab === tab.key && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-0.5"
+                      style={{ backgroundColor: 'rgb(var(--primary-color))' }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
 
-            {activeTab === 'flow' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Flow Prompt Template
-                  </h2>
-                  <div className="flex items-center gap-3">
-                    {/* Load Default Template Button */}
+            {/* Tab Content */}
+            <div
+              className="rounded-lg border p-6 shadow-sm"
+              style={{
+                backgroundColor: 'rgb(var(--bg-primary))',
+                borderColor: 'rgb(var(--border-color))',
+              }}
+            >
+              {activeTab === 'general' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      General Settings
+                    </h2>
                     <button
-                      className="px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isSaving}
+                      onClick={async () => {
+                        setIsSaving(true)
+                        setSaveMessage('Saving...')
+                        setTimeout(() => {
+                          setIsSaving(false)
+                          setSaveMessage('Saved!')
+                          setTimeout(() => setSaveMessage(''), 2000)
+                        }, 500)
+                      }}
+                    >
+                      {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
+                    </button>
+                  </div>
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Notifications
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Manage your notification preferences
+                      </p>
+                    </div>
+                    <button
+                      className="rounded-lg border px-4 py-2"
                       style={{
                         backgroundColor: 'rgb(var(--bg-secondary))',
                         borderColor: 'rgb(var(--border-color))',
                         color: 'rgb(var(--text-primary))',
                       }}
-                      disabled={flowTemplateLoading}
-                      onClick={() => {
-                        setFlowPromptTemplate(DEFAULT_FLOW_TEMPLATE)
-                        setLoadMessage('Default template loaded')
-                        setTimeout(() => setLoadMessage(''), 2000)
+                    >
+                      Configure
+                    </button>
+                  </div>
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Theme
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Customize your appearance settings
+                      </p>
+                    </div>
+                    <button
+                      className="rounded-lg border px-4 py-2"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
                       }}
                     >
-                      {loadMessage || 'Load Default Template'}
+                      Customize
                     </button>
-                    
-                    {/* Save Template Button */}
+                  </div>
+                  <div
+                    className="flex items-center justify-between py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Language
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Select your preferred language
+                      </p>
+                    </div>
                     <button
-                      className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isSaving || flowTemplateLoading}
+                      className="rounded-lg border px-4 py-2"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'chat' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Chat Summary Settings
+                    </h2>
+                    <button
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isSaving || settingsLoading || agentsLoading}
                       onClick={async () => {
                         setIsSaving(true)
                         setSaveMessage('Saving...')
                         try {
-                          const res = await fetch('/api/workspaces/settings', {
+                          const selectedAgent = agents?.find(
+                            (a) => a.agentId === summarizerAgentId
+                          )
+                          const body: any = {
+                            auto_summary_enabled: autoSummaryEnabled,
+                            idle_timeout_minutes: idleTimeout,
+                          }
+                          // Only include agent fields if an agent is selected
+                          if (summarizerAgentId && selectedAgent) {
+                            body.summarizer_agent_id = summarizerAgentId
+                            body.summarizer_gateway_id = selectedAgent.gatewayId
+                          } else {
+                            body.summarizer_agent_id = null
+                            body.summarizer_gateway_id = null
+                          }
+
+                          const res = await fetch('/api/user/settings', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ flow_prompt_template: flowPromptTemplate }),
+                            body: JSON.stringify(body),
                           })
-                          if (res.ok) {
-                            setSaveMessage('Saved!')
-                            setTimeout(() => setSaveMessage(''), 2000)
-                          } else {
+
+                          if (!res.ok) {
                             const errorData = await res.json()
-                            throw new Error(errorData.message || 'Failed to save template')
+                            throw new Error(
+                              errorData.error || 'Failed to save settings'
+                            )
                           }
+
+                          setSaveMessage('Saved!')
+                          setTimeout(() => setSaveMessage(''), 2000)
                         } catch (error) {
-                          logger.error('Error saving flow template:', error)
+                          logger.error('Error saving settings:', error)
                           setSaveMessage('Error saving')
                           setTimeout(() => setSaveMessage(''), 2000)
                         } finally {
@@ -568,438 +487,891 @@ export default function SettingsPage() {
                         }
                       }}
                     >
-                      {isSaving ? 'Saving...' : saveMessage || 'Save Template'}
+                      {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
                     </button>
                   </div>
-                </div>
 
-                {flowTemplateLoading ? (
-                  <div className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    Loading template...
+                  {settingsLoading || agentsLoading ? (
+                    <div
+                      className="text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      Loading settings...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summarizer Agent Selection */}
+                      <div
+                        className="flex flex-col gap-2 border-b py-3"
+                        style={{ borderColor: 'rgb(var(--border-color))' }}
+                      >
+                        <div>
+                          <p
+                            className="font-medium"
+                            style={{ color: 'rgb(var(--text-primary))' }}
+                          >
+                            Summarizer Agent
+                          </p>
+                          <p
+                            className="text-sm"
+                            style={{ color: 'rgb(var(--text-secondary))' }}
+                          >
+                            Select an agent to automatically generate chat
+                            summaries when sessions become idle
+                          </p>
+                        </div>
+                        <select
+                          className="rounded-lg border px-3 py-2"
+                          style={{
+                            backgroundColor: 'rgb(var(--bg-secondary))',
+                            borderColor: 'rgb(var(--border-color))',
+                            color: 'rgb(var(--text-primary))',
+                          }}
+                          value={summarizerAgentId}
+                          onChange={(e) => setSummarizerAgentId(e.target.value)}
+                        >
+                          <option value="">None selected</option>
+                          {agents?.map((agent) => (
+                            <option key={agent.agentId} value={agent.agentId}>
+                              {agent.agentName} ({agent.gatewayName})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Auto-Summary Toggle */}
+                      <div
+                        className="flex items-center justify-between border-b py-3"
+                        style={{ borderColor: 'rgb(var(--border-color))' }}
+                      >
+                        <div>
+                          <p
+                            className="font-medium"
+                            style={{ color: 'rgb(var(--text-primary))' }}
+                          >
+                            Auto-Summary on Idle
+                          </p>
+                          <p
+                            className="text-sm"
+                            style={{ color: 'rgb(var(--text-secondary))' }}
+                          >
+                            Automatically summarize chat when session becomes
+                            idle
+                          </p>
+                        </div>
+                        <button
+                          className={`h-6 w-12 rounded-full transition-colors ${
+                            autoSummaryEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                          }`}
+                          onClick={() =>
+                            setAutoSummaryEnabled(!autoSummaryEnabled)
+                          }
+                        >
+                          <div
+                            className={`h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                              autoSummaryEnabled
+                                ? 'translate-x-6'
+                                : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Idle Timeout */}
+                      <div
+                        className="flex items-center justify-between py-3"
+                        style={{ borderColor: 'rgb(var(--border-color))' }}
+                      >
+                        <div>
+                          <p
+                            className="font-medium"
+                            style={{ color: 'rgb(var(--text-primary))' }}
+                          >
+                            Idle Timeout
+                          </p>
+                          <p
+                            className="text-sm"
+                            style={{ color: 'rgb(var(--text-secondary))' }}
+                          >
+                            Minutes of inactivity before auto-summary
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="60"
+                            className="w-16 rounded border px-2 py-1 text-center"
+                            style={{
+                              backgroundColor: 'rgb(var(--bg-secondary))',
+                              borderColor: 'rgb(var(--border-color))',
+                              color: 'rgb(var(--text-primary))',
+                            }}
+                            value={idleTimeout}
+                            onChange={(e) =>
+                              setIdleTimeout(parseInt(e.target.value) || 2)
+                            }
+                          />
+                          <span
+                            className="text-sm"
+                            style={{ color: 'rgb(var(--text-secondary))' }}
+                          >
+                            minutes
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Info Card */}
+                  <div
+                    className="mt-4 rounded-lg border p-4"
+                    style={{
+                      backgroundColor: 'rgb(var(--bg-secondary))',
+                      borderColor: 'rgb(var(--border-color))',
+                    }}
+                  >
+                    <h4
+                      className="mb-2 font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      How it works
+                    </h4>
+                    <ul
+                      className="space-y-1 text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      <li>
+                        1. Select a summarizer agent from your connected
+                        gateways
+                      </li>
+                      <li>
+                        2. Enable auto-summary to automatically generate
+                        summaries when idle
+                      </li>
+                      <li>3. Adjust the idle timeout (default: 2 minutes)</li>
+                      <li>
+                        4. Manually trigger summaries using "📝 Summarize"
+                        button in chat
+                      </li>
+                      <li>
+                        5. Generated summaries update the chat title and
+                        description
+                      </li>
+                    </ul>
                   </div>
-                ) : (
-                  <>
-                    {/* Template Editor */}
-                    <div className="space-y-2">
-                      <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                        Custom Prompt Template
-                      </label>
-                      <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                        Customize the prompt sent to agents during ticket flow execution. Leave empty to use the default template.
-                      </p>
-                      <textarea
-                        className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
+                </div>
+              )}
+
+              {activeTab === 'flow' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Flow Prompt Template
+                    </h2>
+                    <div className="flex items-center gap-3">
+                      {/* Load Default Template Button */}
+                      <button
+                        className="rounded-lg border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         style={{
                           backgroundColor: 'rgb(var(--bg-secondary))',
                           borderColor: 'rgb(var(--border-color))',
                           color: 'rgb(var(--text-primary))',
-                          minHeight: '400px',
-                          fontFamily: 'monospace',
                         }}
-                        value={flowPromptTemplate}
-                        onChange={(e) => setFlowPromptTemplate(e.target.value)}
-                        placeholder="Enter custom template or leave empty for default..."
-                      />
-                    </div>
+                        disabled={flowTemplateLoading}
+                        onClick={() => {
+                          setFlowPromptTemplate(DEFAULT_FLOW_TEMPLATE)
+                          setLoadMessage('Default template loaded')
+                          setTimeout(() => setLoadMessage(''), 2000)
+                        }}
+                      >
+                        {loadMessage || 'Load Default Template'}
+                      </button>
 
-                    {/* Variable Reference */}
+                      {/* Save Template Button */}
+                      <button
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isSaving || flowTemplateLoading}
+                        onClick={async () => {
+                          setIsSaving(true)
+                          setSaveMessage('Saving...')
+                          try {
+                            const res = await fetch(
+                              '/api/workspaces/settings',
+                              {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  flow_prompt_template: flowPromptTemplate,
+                                }),
+                              }
+                            )
+                            if (res.ok) {
+                              setSaveMessage('Saved!')
+                              setTimeout(() => setSaveMessage(''), 2000)
+                            } else {
+                              const errorData = await res.json()
+                              throw new Error(
+                                errorData.message || 'Failed to save template'
+                              )
+                            }
+                          } catch (error) {
+                            logger.error('Error saving flow template:', error)
+                            setSaveMessage('Error saving')
+                            setTimeout(() => setSaveMessage(''), 2000)
+                          } finally {
+                            setIsSaving(false)
+                          }
+                        }}
+                      >
+                        {isSaving
+                          ? 'Saving...'
+                          : saveMessage || 'Save Template'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {flowTemplateLoading ? (
                     <div
-                      className="p-4 rounded-lg border"
-                      style={{
-                        backgroundColor: 'rgb(var(--bg-secondary))',
-                        borderColor: 'rgb(var(--border-color))',
-                      }}
+                      className="text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
                     >
-                      <h4 className="font-semibold mb-3" style={{ color: 'rgb(var(--text-primary))' }}>
-                        Available Variables
-                      </h4>
-                      <p className="text-sm mb-3" style={{ color: 'rgb(var(--text-secondary))' }}>
-                        Use these variables in your template. They will be replaced with actual values when the agent is triggered.
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$ticketId}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket ID</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$ticketNumber}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket number</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$ticketTitle}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket title</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$ticketDescription}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket description</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$currentStatusId}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Current status ID</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$currentStatusName}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Current status name</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$currentStatusDescription}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Status description</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$agentId}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Agent ID</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$statusInstructions}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Status instructions</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$commentsJson}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Comments JSON</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$ticketJson}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Ticket JSON</span>
-                        </div>
-                        <div>
-                          <code className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'rgb(var(--bg-primary))' }}>
-                            {'{$workspaceId}'}
-                          </code>
-                          <span className="text-sm ml-2" style={{ color: 'rgb(var(--text-secondary))' }}>Workspace ID</span>
+                      Loading template...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Template Editor */}
+                      <div className="space-y-2">
+                        <label
+                          className="font-medium"
+                          style={{ color: 'rgb(var(--text-primary))' }}
+                        >
+                          Custom Prompt Template
+                        </label>
+                        <p
+                          className="text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          Customize the prompt sent to agents during ticket flow
+                          execution. Leave empty to use the default template.
+                        </p>
+                        <textarea
+                          className="w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                          style={{
+                            backgroundColor: 'rgb(var(--bg-secondary))',
+                            borderColor: 'rgb(var(--border-color))',
+                            color: 'rgb(var(--text-primary))',
+                            minHeight: '400px',
+                            fontFamily: 'monospace',
+                          }}
+                          value={flowPromptTemplate}
+                          onChange={(e) =>
+                            setFlowPromptTemplate(e.target.value)
+                          }
+                          placeholder="Enter custom template or leave empty for default..."
+                        />
+                      </div>
+
+                      {/* Variable Reference */}
+                      <div
+                        className="rounded-lg border p-4"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                        }}
+                      >
+                        <h4
+                          className="mb-3 font-semibold"
+                          style={{ color: 'rgb(var(--text-primary))' }}
+                        >
+                          Available Variables
+                        </h4>
+                        <p
+                          className="mb-3 text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          Use these variables in your template. They will be
+                          replaced with actual values when the agent is
+                          triggered.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$ticketId}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Ticket ID
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$ticketNumber}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Ticket number
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$ticketTitle}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Ticket title
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$ticketDescription}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Ticket description
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$currentStatusId}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Current status ID
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$currentStatusName}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Current status name
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$currentStatusDescription}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Status description
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$agentId}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Agent ID
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$statusInstructions}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Status instructions
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$commentsJson}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Comments JSON
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$ticketJson}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Ticket JSON
+                            </span>
+                          </div>
+                          <div>
+                            <code
+                              className="rounded px-2 py-1 text-xs"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-primary))',
+                              }}
+                            >
+                              {'{$workspaceId}'}
+                            </code>
+                            <span
+                              className="ml-2 text-sm"
+                              style={{ color: 'rgb(var(--text-secondary))' }}
+                            >
+                              Workspace ID
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                    </>
+                  )}
+                </div>
+              )}
 
-            {activeTab === 'workspace' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Workspace Settings
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isSaving}
-                    onClick={async () => {
-                      setIsSaving(true)
-                      setSaveMessage('Saving...')
-                      try {
-                        const res = await fetch('/api/workspaces/settings', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            max_images_per_post: String(maxImagesPerPost),
-                            allow_pdf_attachments: String(allowPdfAttachments),
-                            stale_ticket_threshold_minutes: String(staleTicketThreshold),
-                            stale_ticket_target_status: staleTicketTargetStatus,
-                          }),
-                        })
-                        if (!res.ok) throw new Error((await res.json()).message || 'Failed to save settings')
-                        setSaveMessage('Saved!')
-                        setTimeout(() => setSaveMessage(''), 2000)
-                      } catch (error) {
-                        logger.error('Error saving workspace settings:', error)
-                        setSaveMessage('Error saving')
-                        setTimeout(() => setSaveMessage(''), 2000)
-                      } finally {
-                        setIsSaving(false)
-                      }
-                    }}
-                  >
-                    {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
-                  </button>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Max images per post</p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Controls how many pasted or dropped images are allowed by default in chat and ticket editors.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      className="w-20 px-2 py-1 rounded border text-center"
-                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                      value={maxImagesPerPost}
-                      onChange={(e) => setMaxImagesPerPost(parseInt(e.target.value) || DEFAULT_MAX_IMAGES_PER_POST)}
-                    />
-                    <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>images</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Allow PDF attachments</p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Enables PDF files in the shared text area component alongside image paste and drag-drop.
-                    </p>
-                  </div>
-                  <button
-                    className={`w-12 h-6 rounded-full transition-colors ${allowPdfAttachments ? 'bg-blue-500' : 'bg-gray-300'}`}
-                    onClick={() => setAllowPdfAttachments(!allowPdfAttachments)}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${allowPdfAttachments ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Stale Ticket Auto-Transition</p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Automatically move tickets to a status when no comments for X minutes. Requires cron job enabled.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="1440"
-                      className="w-20 px-2 py-1 rounded border text-center"
-                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                      value={staleTicketThreshold}
-                      onChange={(e) => setStaleTicketThreshold(parseInt(e.target.value) || 20)}
-                    />
-                    <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>minutes →</span>
-                    <select
-                      className="px-3 py-1 rounded border"
-                      style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                      value={staleTicketTargetStatus}
-                      onChange={(e) => setStaleTicketTargetStatus(e.target.value)}
+              {activeTab === 'workspace' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
                     >
-                      {workspaceStatuses.map((status) => (
-                        <option key={status.id} value={status.name}>
-                          {status.name}
-                        </option>
-                      ))}
-                    </select>
+                      Workspace Settings
+                    </h2>
+                    <button
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isSaving}
+                      onClick={async () => {
+                        setIsSaving(true)
+                        setSaveMessage('Saving...')
+                        try {
+                          const res = await fetch('/api/workspaces/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              max_images_per_post: String(maxImagesPerPost),
+                              allow_pdf_attachments:
+                                String(allowPdfAttachments),
+                              stale_ticket_threshold_minutes:
+                                String(staleTicketThreshold),
+                              stale_ticket_target_status:
+                                staleTicketTargetStatus,
+                            }),
+                          })
+                          if (!res.ok)
+                            throw new Error(
+                              (await res.json()).message ||
+                                'Failed to save settings'
+                            )
+                          setSaveMessage('Saved!')
+                          setTimeout(() => setSaveMessage(''), 2000)
+                        } catch (error) {
+                          logger.error(
+                            'Error saving workspace settings:',
+                            error
+                          )
+                          setSaveMessage('Error saving')
+                          setTimeout(() => setSaveMessage(''), 2000)
+                        } finally {
+                          setIsSaving(false)
+                        }
+                      }}
+                    >
+                      {isSaving ? 'Saving...' : saveMessage || 'Save Settings'}
+                    </button>
                   </div>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3 border-b"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Members
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Manage workspace members and permissions
-                    </p>
-                  </div>
-                  <button
-                    className="px-4 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
                   >
-                    Manage
-                  </button>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Billing
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      View and manage your subscription
-                    </p>
-                  </div>
-                  <button
-                    className="px-4 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
-                  >
-                    View
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'gateway' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-2xl font-bold" style={{ color: 'rgb(var(--text-primary))' }}>Gateways</h2>
-                    <p className="mt-2" style={{ color: 'rgb(var(--text-secondary))' }}>Manage your OpenClaw Gateway connections</p>
-                  </div>
-                  <Button onClick={() => setShowAddModal(true)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
-                    <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Gateway
-                  </Button>
-                </div>
-                {gatewaysLoading ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4" style={{ color: 'rgb(var(--text-secondary))' }}>Loading gateways...</p>
-                  </div>
-                ) : gateways.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No gateways</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by adding your first gateway.</p>
-                    <div className="mt-6">
-                      <Button onClick={() => setShowAddModal(true)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
-                        <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Gateway
-                      </Button>
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Max images per post
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Controls how many pasted or dropped images are allowed
+                        by default in chat and ticket editors.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        className="w-20 rounded border px-2 py-1 text-center"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                        value={maxImagesPerPost}
+                        onChange={(e) =>
+                          setMaxImagesPerPost(
+                            parseInt(e.target.value) ||
+                              DEFAULT_MAX_IMAGES_PER_POST
+                          )
+                        }
+                      />
+                      <span
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        images
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {gateways.map((gateway: any) => <GatewayCard key={gateway.id} gateway={gateway} onConnect={handleConnect} onDelete={handleDelete} onUpdate={refresh} />)}
-                  </div>
-                )}
-                <AddGatewayModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={handleAddSuccess} />
-              </div>
-            )}
-
-            {activeTab === 'defaultprompts' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Default Prompts
-                  </h2>
-                  <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Allow PDF attachments
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Enables PDF files in the shared text area component
+                        alongside image paste and drag-drop.
+                      </p>
+                    </div>
                     <button
-                      onClick={() => setIsLoadDefaultsModalOpen(true)}
-                      className="px-4 py-2 rounded-lg border transition-colors"
+                      className={`h-6 w-12 rounded-full transition-colors ${allowPdfAttachments ? 'bg-blue-500' : 'bg-gray-300'}`}
+                      onClick={() =>
+                        setAllowPdfAttachments(!allowPdfAttachments)
+                      }
+                    >
+                      <div
+                        className={`h-5 w-5 transform rounded-full bg-white shadow transition-transform ${allowPdfAttachments ? 'translate-x-6' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Stale Ticket Auto-Transition
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Automatically move tickets to a status when no comments
+                        for X minutes. Requires cron job enabled.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="1440"
+                        className="w-20 rounded border px-2 py-1 text-center"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                        value={staleTicketThreshold}
+                        onChange={(e) =>
+                          setStaleTicketThreshold(
+                            parseInt(e.target.value) || 20
+                          )
+                        }
+                      />
+                      <span
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        minutes →
+                      </span>
+                      <select
+                        className="rounded border px-3 py-1"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                        value={staleTicketTargetStatus}
+                        onChange={(e) =>
+                          setStaleTicketTargetStatus(e.target.value)
+                        }
+                      >
+                        {workspaceStatuses.map((status) => (
+                          <option key={status.id} value={status.name}>
+                            {status.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div
+                    className="flex items-center justify-between border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Members
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Manage workspace members and permissions
+                      </p>
+                    </div>
+                    <button
+                      className="rounded-lg border px-4 py-2"
                       style={{
                         backgroundColor: 'rgb(var(--bg-secondary))',
                         borderColor: 'rgb(var(--border-color))',
                         color: 'rgb(var(--text-primary))',
                       }}
                     >
-                      Load Default Prompts
+                      Manage
                     </button>
+                  </div>
+                  <div
+                    className="flex items-center justify-between py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Billing
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        View and manage your subscription
+                      </p>
+                    </div>
                     <button
-                      onClick={() => setIsAddCustomModalOpen(true)}
-                      className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      className="rounded-lg border px-4 py-2"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
                     >
-                      Add Custom Prompt
+                      View
                     </button>
                   </div>
                 </div>
+              )}
 
-                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                  Manage prompts that can be loaded into ticket descriptions. Click on a prompt to view details.
-                </p>
-
-                {promptsLoading ? (
-                  <div className="text-center py-8" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    Loading prompts...
-                  </div>
-                ) : prompts && prompts.length > 0 ? (
-                  <div
-                    className="border rounded-lg overflow-hidden"
-                    style={{ borderColor: 'rgb(var(--border-color))' }}
-                  >
-                    {prompts.map((prompt) => (
-                      <div
-                        key={prompt.id}
-                        className="p-4 border-b last:border-b-0 cursor-pointer hover:bg-opacity-50 transition-colors"
-                        style={{ borderColor: 'rgb(var(--border-color))' }}
-                        onClick={() => {
-                          setSelectedPrompt(prompt)
-                          setIsPromptModalOpen(true)
-                        }}
+              {activeTab === 'gateway' && (
+                <div className="space-y-4">
+                  <div className="mb-8 flex items-center justify-between">
+                    <div>
+                      <h2
+                        className="text-2xl font-bold"
+                        style={{ color: 'rgb(var(--text-primary))' }}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                                {prompt.name}
-                              </p>
-                              {prompt.isCustom && (
-                                <span
-                                  className="px-1.5 py-0.5 text-xs rounded"
-                                  style={{
-                                    backgroundColor: 'rgb(var(--primary-color))',
-                                    color: 'white',
-                                  }}
-                                >
-                                  Custom
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm mt-1" style={{ color: 'rgb(var(--text-secondary))' }}>
-                              {prompt.description}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (confirm('Are you sure you want to delete this prompt?')) {
-                                deletePrompt.mutate({
-                                  promptId: prompt.id,
-                                  currentPrompts: prompts,
-                                })
-                              }
-                            }}
-                            className="px-3 py-1.5 text-xs font-medium rounded transition-colors hover:bg-red-100"
-                            style={{
-                              backgroundColor: 'rgb(var(--bg-secondary))',
-                              color: 'rgb(239 68 68)',
-                              border: '1px solid rgb(239 68 68)',
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                        Gateways
+                      </h2>
+                      <p
+                        className="mt-2"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Manage your OpenClaw Gateway connections
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setShowAddModal(true)}
+                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      <svg
+                        className="mr-2 inline-block h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Add Gateway
+                    </Button>
                   </div>
-                ) : (
-                  <div className="text-center py-8 border rounded-lg" style={{ borderColor: 'rgb(var(--border-color))', borderStyle: 'dashed' }}>
-                    <p className="text-lg mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
-                      No prompts configured
-                    </p>
-                    <p className="text-sm mb-4" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Load default prompts or add your own custom prompts.
-                    </p>
-                    <div className="flex justify-center gap-2">
+                  {gatewaysLoading ? (
+                    <div className="py-12 text-center">
+                      <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                      <p
+                        className="mt-4"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Loading gateways...
+                      </p>
+                    </div>
+                  ) : gateways.length === 0 ? (
+                    <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12 text-center">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                        />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        No gateways
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Get started by adding your first gateway.
+                      </p>
+                      <div className="mt-6">
+                        <Button
+                          onClick={() => setShowAddModal(true)}
+                          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                        >
+                          <svg
+                            className="mr-2 inline-block h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                          Add Gateway
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {gateways.map((gateway: any) => (
+                        <GatewayCard
+                          key={gateway.id}
+                          gateway={gateway}
+                          onConnect={handleConnect}
+                          onDelete={handleDelete}
+                          onUpdate={refresh}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <AddGatewayModal
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={handleAddSuccess}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'defaultprompts' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Default Prompts
+                    </h2>
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => setIsLoadDefaultsModalOpen(true)}
-                        className="px-4 py-2 rounded-lg border transition-colors"
+                        className="rounded-lg border px-4 py-2 transition-colors"
                         style={{
                           backgroundColor: 'rgb(var(--bg-secondary))',
                           borderColor: 'rgb(var(--border-color))',
@@ -1010,307 +1382,534 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => setIsAddCustomModalOpen(true)}
-                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
                       >
                         Add Custom Prompt
                       </button>
                     </div>
                   </div>
-                )}
 
-                <PromptDetailModal
-                  isOpen={isPromptModalOpen}
-                  onClose={() => setIsPromptModalOpen(false)}
-                  prompt={selectedPrompt}
-                />
-
-                <LoadDefaultPromptsModal
-                  isOpen={isLoadDefaultsModalOpen}
-                  onClose={() => setIsLoadDefaultsModalOpen(false)}
-                  onLoad={(newPrompts) => {
-                    updatePrompts.mutate([...(prompts || []), ...newPrompts])
-                  }}
-                  existingPromptIds={prompts?.map(p => p.id) || []}
-                />
-
-                <AddCustomPromptModal
-                  isOpen={isAddCustomModalOpen}
-                  onClose={() => setIsAddCustomModalOpen(false)}
-                  onAdd={async (prompt) => {
-                    await addCustomPrompt(prompt)
-                  }}
-                />
-              </div>
-            )}
-
-            {activeTab === 'prompttemplates' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Prompt Templates Settings
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={promptTemplatesSaving || agentsLoading}
-                    onClick={async () => {
-                      setPromptTemplatesSaving(true)
-                      setPromptTemplatesMessage('Saving...')
-                      try {
-                        const selectedAgent = agents?.find((a: any) => a.agentId === promptConverterAgentId)
-                        const body: Record<string, string | null> = {
-                          prompt_converter_agent_id: promptConverterAgentId || null,
-                          auto_prompt_template: autoPromptTemplate || null,
-                          selected_prompt_template: selectedPromptTemplate || null,
-                          prompt_converter_gateway_id: selectedAgent?.gatewayId || null,
-                        }
-
-                        const res = await fetch('/api/workspaces/settings', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(body),
-                        })
-
-                        if (!res.ok) {
-                          const errorData = await res.json()
-                          throw new Error(errorData.error || 'Failed to save settings')
-                        }
-
-                        setPromptTemplatesMessage('Saved!')
-                        setTimeout(() => setPromptTemplatesMessage(''), 2000)
-                      } catch (error) {
-                        logger.error('Error saving prompt template settings:', error)
-                        setPromptTemplatesMessage('Error saving')
-                        setTimeout(() => setPromptTemplatesMessage(''), 2000)
-                      } finally {
-                        setPromptTemplatesSaving(false)
-                      }
-                    }}
+                  <p
+                    className="text-sm"
+                    style={{ color: 'rgb(var(--text-secondary))' }}
                   >
-                    {promptTemplatesSaving ? 'Saving...' : promptTemplatesMessage || 'Save Settings'}
-                  </button>
-                </div>
-
-                <div
-                  className="flex flex-col gap-2 py-3 border-b"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      Prompt Converter Agent
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Select an agent for Auto Prompt and Auto Format conversion features. If empty, the workspace summarizer agent is used as fallback.
-                    </p>
-                  </div>
-                  <select
-                    className="px-3 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                    }}
-                    value={promptConverterAgentId}
-                    onChange={(e) => setPromptConverterAgentId(e.target.value)}
-                  >
-                    <option value="">None selected (use summarizer fallback)</option>
-                    {agents?.map((agent: any) => (
-                      <option key={agent.agentId} value={agent.agentId}>
-                        {agent.agentName} ({agent.gatewayName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2 mt-4">
-                  <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Auto Prompt Template (Optional)
-                  </label>
-                  <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    Leave empty to use the default template. Variables: {'{$targetText}'}, {'{$promptFormats}'}
+                    Manage prompts that can be loaded into ticket descriptions.
+                    Click on a prompt to view details.
                   </p>
-                  <textarea
-                    className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                      minHeight: '150px',
-                      fontFamily: 'monospace',
-                    }}
-                    value={autoPromptTemplate}
-                    onChange={(e) => setAutoPromptTemplate(e.target.value)}
-                    placeholder="Leave empty for default template..."
-                  />
-                </div>
 
-                <div className="space-y-2 mt-4">
-                  <label className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                    Selected Prompt Template (Optional)
-                  </label>
-                  <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    Leave empty to use the default template. Variables: {'{$targetText}'}, {'{$selectedFormat}'}
-                  </p>
-                  <textarea
-                    className="w-full px-3 py-2 rounded-lg border font-mono text-sm"
-                    style={{
-                      backgroundColor: 'rgb(var(--bg-secondary))',
-                      borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
-                      minHeight: '150px',
-                      fontFamily: 'monospace',
-                    }}
-                    value={selectedPromptTemplate}
-                    onChange={(e) => setSelectedPromptTemplate(e.target.value)}
-                    placeholder="Leave empty for default template..."
-                  />
-                </div>
-
-                <div className="mt-4 p-4 rounded-lg border" style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}>
-                  <h4 className="font-semibold mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
-                    How it works
-                  </h4>
-                  <ul className="space-y-1 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    <li>1. Auto Prompt builds a conversion instruction from the description and all available formats.</li>
-                    <li>2. Auto Format builds a similar conversion instruction from the current ticket description.</li>
-                    <li>3. The selected agent handles these conversion requests when backend integration uses these settings.</li>
-                    <li>4. Custom templates let you override the default converter prompt text.</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'skillsmp' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold" style={{ color: 'rgb(var(--text-primary))' }}>
-                    SkillsMP Integration
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={skillsmpSaving}
-                    onClick={async () => {
-                      setSkillsmpSaving(true)
-                      setSkillsmpMessage('Saving...')
-                      try {
-                        const res = await fetch('/api/workspaces/settings', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            skillsmp_api_key: skillsmpApiKey || null,
-                          }),
-                        })
-                        
-                        if (!res.ok) {
-                          const errorData = await res.json()
-                          throw new Error(errorData.error || 'Failed to save settings')
-                        }
-                        
-                        setSkillsmpMessage('Saved!')
-                        setTimeout(() => setSkillsmpMessage(''), 2000)
-                      } catch (error) {
-                        logger.error('Error saving SkillsMP settings:', error)
-                        setSkillsmpMessage('Error saving')
-                        setTimeout(() => setSkillsmpMessage(''), 2000)
-                      } finally {
-                        setSkillsmpSaving(false)
-                      }
-                    }}
-                  >
-                    {skillsmpSaving ? 'Saving...' : skillsmpMessage || 'Save Settings'}
-                  </button>
-                </div>
-
-                {/* API Key Input */}
-                <div
-                  className="flex flex-col gap-2 py-3 border-b"
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                >
-                  <div>
-                    <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>
-                      SkillsMP API Key
-                    </p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Enter your SkillsMP API key to enable marketplace search. Get your API key from{' '}
-                      <a
-                        href="https://skillsmp.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
+                  {promptsLoading ? (
+                    <div
+                      className="py-8 text-center"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      Loading prompts...
+                    </div>
+                  ) : prompts && prompts.length > 0 ? (
+                    <div
+                      className="overflow-hidden rounded-lg border"
+                      style={{ borderColor: 'rgb(var(--border-color))' }}
+                    >
+                      {prompts.map((prompt) => (
+                        <div
+                          key={prompt.id}
+                          className="cursor-pointer border-b p-4 transition-colors last:border-b-0 hover:bg-opacity-50"
+                          style={{ borderColor: 'rgb(var(--border-color))' }}
+                          onClick={() => {
+                            setSelectedPrompt(prompt)
+                            setIsPromptModalOpen(true)
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p
+                                  className="font-medium"
+                                  style={{ color: 'rgb(var(--text-primary))' }}
+                                >
+                                  {prompt.name}
+                                </p>
+                                {prompt.isCustom && (
+                                  <span
+                                    className="rounded px-1.5 py-0.5 text-xs"
+                                    style={{
+                                      backgroundColor:
+                                        'rgb(var(--primary-color))',
+                                      color: 'white',
+                                    }}
+                                  >
+                                    Custom
+                                  </span>
+                                )}
+                              </div>
+                              <p
+                                className="mt-1 text-sm"
+                                style={{ color: 'rgb(var(--text-secondary))' }}
+                              >
+                                {prompt.description}
+                              </p>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (
+                                  confirm(
+                                    'Are you sure you want to delete this prompt?'
+                                  )
+                                ) {
+                                  deletePrompt.mutate({
+                                    promptId: prompt.id,
+                                    currentPrompts: prompts,
+                                  })
+                                }
+                              }}
+                              className="rounded px-3 py-1.5 text-xs font-medium transition-colors hover:bg-red-100"
+                              style={{
+                                backgroundColor: 'rgb(var(--bg-secondary))',
+                                color: 'rgb(239 68 68)',
+                                border: '1px solid rgb(239 68 68)',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="rounded-lg border py-8 text-center"
+                      style={{
+                        borderColor: 'rgb(var(--border-color))',
+                        borderStyle: 'dashed',
+                      }}
+                    >
+                      <p
+                        className="mb-2 text-lg"
+                        style={{ color: 'rgb(var(--text-primary))' }}
                       >
-                        skillsmp.com
-                      </a>
-                    </p>
+                        No prompts configured
+                      </p>
+                      <p
+                        className="mb-4 text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Load default prompts or add your own custom prompts.
+                      </p>
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => setIsLoadDefaultsModalOpen(true)}
+                          className="rounded-lg border px-4 py-2 transition-colors"
+                          style={{
+                            backgroundColor: 'rgb(var(--bg-secondary))',
+                            borderColor: 'rgb(var(--border-color))',
+                            color: 'rgb(var(--text-primary))',
+                          }}
+                        >
+                          Load Default Prompts
+                        </button>
+                        <button
+                          onClick={() => setIsAddCustomModalOpen(true)}
+                          className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                        >
+                          Add Custom Prompt
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <PromptDetailModal
+                    isOpen={isPromptModalOpen}
+                    onClose={() => setIsPromptModalOpen(false)}
+                    prompt={selectedPrompt}
+                  />
+
+                  <LoadDefaultPromptsModal
+                    isOpen={isLoadDefaultsModalOpen}
+                    onClose={() => setIsLoadDefaultsModalOpen(false)}
+                    onLoad={(newPrompts) => {
+                      updatePrompts.mutate([...(prompts || []), ...newPrompts])
+                    }}
+                    existingPromptIds={prompts?.map((p) => p.id) || []}
+                  />
+
+                  <AddCustomPromptModal
+                    isOpen={isAddCustomModalOpen}
+                    onClose={() => setIsAddCustomModalOpen(false)}
+                    onAdd={async (prompt) => {
+                      await addCustomPrompt(prompt)
+                    }}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'prompttemplates' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Prompt Templates Settings
+                    </h2>
+                    <button
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={promptTemplatesSaving || agentsLoading}
+                      onClick={async () => {
+                        setPromptTemplatesSaving(true)
+                        setPromptTemplatesMessage('Saving...')
+                        try {
+                          const selectedAgent = agents?.find(
+                            (a: any) => a.agentId === promptConverterAgentId
+                          )
+                          const body: Record<string, string | null> = {
+                            prompt_converter_agent_id:
+                              promptConverterAgentId || null,
+                            auto_prompt_template: autoPromptTemplate || null,
+                            selected_prompt_template:
+                              selectedPromptTemplate || null,
+                            prompt_converter_gateway_id:
+                              selectedAgent?.gatewayId || null,
+                          }
+
+                          const res = await fetch('/api/workspaces/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body),
+                          })
+
+                          if (!res.ok) {
+                            const errorData = await res.json()
+                            throw new Error(
+                              errorData.error || 'Failed to save settings'
+                            )
+                          }
+
+                          setPromptTemplatesMessage('Saved!')
+                          setTimeout(() => setPromptTemplatesMessage(''), 2000)
+                        } catch (error) {
+                          logger.error(
+                            'Error saving prompt template settings:',
+                            error
+                          )
+                          setPromptTemplatesMessage('Error saving')
+                          setTimeout(() => setPromptTemplatesMessage(''), 2000)
+                        } finally {
+                          setPromptTemplatesSaving(false)
+                        }
+                      }}
+                    >
+                      {promptTemplatesSaving
+                        ? 'Saving...'
+                        : promptTemplatesMessage || 'Save Settings'}
+                    </button>
                   </div>
-                  <input
-                    type="password"
-                    className="px-3 py-2 rounded-lg border font-mono text-sm"
+
+                  <div
+                    className="flex flex-col gap-2 border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Prompt Converter Agent
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Select an agent for Auto Prompt and Auto Format
+                        conversion features. If empty, the workspace summarizer
+                        agent is used as fallback.
+                      </p>
+                    </div>
+                    <select
+                      className="rounded-lg border px-3 py-2"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
+                      value={promptConverterAgentId}
+                      onChange={(e) =>
+                        setPromptConverterAgentId(e.target.value)
+                      }
+                    >
+                      <option value="">
+                        None selected (use summarizer fallback)
+                      </option>
+                      {agents?.map((agent: any) => (
+                        <option key={agent.agentId} value={agent.agentId}>
+                          {agent.agentName} ({agent.gatewayName})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <label
+                      className="font-medium"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Auto Prompt Template (Optional)
+                    </label>
+                    <p
+                      className="text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      Leave empty to use the default template. Variables:{' '}
+                      {'{$targetText}'}, {'{$promptFormats}'}
+                    </p>
+                    <textarea
+                      className="w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                        minHeight: '150px',
+                        fontFamily: 'monospace',
+                      }}
+                      value={autoPromptTemplate}
+                      onChange={(e) => setAutoPromptTemplate(e.target.value)}
+                      placeholder="Leave empty for default template..."
+                    />
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <label
+                      className="font-medium"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      Selected Prompt Template (Optional)
+                    </label>
+                    <p
+                      className="text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      Leave empty to use the default template. Variables:{' '}
+                      {'{$targetText}'}, {'{$selectedFormat}'}
+                    </p>
+                    <textarea
+                      className="w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                        minHeight: '150px',
+                        fontFamily: 'monospace',
+                      }}
+                      value={selectedPromptTemplate}
+                      onChange={(e) =>
+                        setSelectedPromptTemplate(e.target.value)
+                      }
+                      placeholder="Leave empty for default template..."
+                    />
+                  </div>
+
+                  <div
+                    className="mt-4 rounded-lg border p-4"
                     style={{
                       backgroundColor: 'rgb(var(--bg-secondary))',
                       borderColor: 'rgb(var(--border-color))',
-                      color: 'rgb(var(--text-primary))',
                     }}
-                    value={skillsmpApiKey}
-                    onChange={(e) => setSkillsmpApiKey(e.target.value)}
-                    placeholder="sk_live_..."
-                  />
-                </div>
-
-                {/* Info Card */}
-                <div
-                  className="mt-4 p-4 rounded-lg border"
-                  style={{
-                    backgroundColor: 'rgb(var(--bg-secondary))',
-                    borderColor: 'rgb(var(--border-color))',
-                  }}
-                >
-                  <h4 className="font-semibold mb-2" style={{ color: 'rgb(var(--text-primary))' }}>
-                    About SkillsMP
-                  </h4>
-                  <ul className="space-y-1 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                    <li>• SkillsMP is a marketplace for AI skills and prompts</li>
-                    <li>• Browse and import skills directly into your workspace</li>
-                    <li>• API key is required to search the marketplace</li>
-                    <li>• Your API key is stored securely in your workspace settings</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'danger' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-red-600" style={{ color: 'rgb(239 68 68)' }}>
-                    Danger Zone
-                  </h2>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isSaving}
                   >
-                    Delete Workspace
-                  </button>
-                </div>
-                <div
-                  className="flex items-center justify-between py-3 border rounded-lg"
-                  style={{ borderColor: 'rgb(239 68 68)' }}
-                >
-                  <div>
-                    <p className="font-medium text-red-600">Delete Workspace</p>
-                    <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
-                      Permanently delete your workspace and all data
-                    </p>
+                    <h4
+                      className="mb-2 font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      How it works
+                    </h4>
+                    <ul
+                      className="space-y-1 text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      <li>
+                        1. Auto Prompt builds a conversion instruction from the
+                        description and all available formats.
+                      </li>
+                      <li>
+                        2. Auto Format builds a similar conversion instruction
+                        from the current ticket description.
+                      </li>
+                      <li>
+                        3. The selected agent handles these conversion requests
+                        when backend integration uses these settings.
+                      </li>
+                      <li>
+                        4. Custom templates let you override the default
+                        converter prompt text.
+                      </li>
+                    </ul>
                   </div>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  >
-                    Delete
-                  </button>
                 </div>
-              </div>
-            )}
+              )}
+
+              {activeTab === 'skillsmp' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      SkillsMP Integration
+                    </h2>
+                    <button
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={skillsmpSaving}
+                      onClick={async () => {
+                        setSkillsmpSaving(true)
+                        setSkillsmpMessage('Saving...')
+                        try {
+                          const res = await fetch('/api/workspaces/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              skillsmp_api_key: skillsmpApiKey || null,
+                            }),
+                          })
+
+                          if (!res.ok) {
+                            const errorData = await res.json()
+                            throw new Error(
+                              errorData.error || 'Failed to save settings'
+                            )
+                          }
+
+                          setSkillsmpMessage('Saved!')
+                          setTimeout(() => setSkillsmpMessage(''), 2000)
+                        } catch (error) {
+                          logger.error('Error saving SkillsMP settings:', error)
+                          setSkillsmpMessage('Error saving')
+                          setTimeout(() => setSkillsmpMessage(''), 2000)
+                        } finally {
+                          setSkillsmpSaving(false)
+                        }
+                      }}
+                    >
+                      {skillsmpSaving
+                        ? 'Saving...'
+                        : skillsmpMessage || 'Save Settings'}
+                    </button>
+                  </div>
+
+                  {/* API Key Input */}
+                  <div
+                    className="flex flex-col gap-2 border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div>
+                      <p
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        SkillsMP API Key
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Enter your SkillsMP API key to enable marketplace
+                        search. Get your API key from{' '}
+                        <a
+                          href="https://skillsmp.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          skillsmp.com
+                        </a>
+                      </p>
+                    </div>
+                    <input
+                      type="password"
+                      className="rounded-lg border px-3 py-2 font-mono text-sm"
+                      style={{
+                        backgroundColor: 'rgb(var(--bg-secondary))',
+                        borderColor: 'rgb(var(--border-color))',
+                        color: 'rgb(var(--text-primary))',
+                      }}
+                      value={skillsmpApiKey}
+                      onChange={(e) => setSkillsmpApiKey(e.target.value)}
+                      placeholder="sk_live_..."
+                    />
+                  </div>
+
+                  {/* Info Card */}
+                  <div
+                    className="mt-4 rounded-lg border p-4"
+                    style={{
+                      backgroundColor: 'rgb(var(--bg-secondary))',
+                      borderColor: 'rgb(var(--border-color))',
+                    }}
+                  >
+                    <h4
+                      className="mb-2 font-semibold"
+                      style={{ color: 'rgb(var(--text-primary))' }}
+                    >
+                      About SkillsMP
+                    </h4>
+                    <ul
+                      className="space-y-1 text-sm"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
+                      <li>
+                        • SkillsMP is a marketplace for AI skills and prompts
+                      </li>
+                      <li>
+                        • Browse and import skills directly into your workspace
+                      </li>
+                      <li>• API key is required to search the marketplace</li>
+                      <li>
+                        • Your API key is stored securely in your workspace
+                        settings
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'danger' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className="text-lg font-semibold text-red-600"
+                      style={{ color: 'rgb(239 68 68)' }}
+                    >
+                      Danger Zone
+                    </h2>
+                    <button
+                      className="rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isSaving}
+                    >
+                      Delete Workspace
+                    </button>
+                  </div>
+                  <div
+                    className="flex items-center justify-between rounded-lg border py-3"
+                    style={{ borderColor: 'rgb(239 68 68)' }}
+                  >
+                    <div>
+                      <p className="font-medium text-red-600">
+                        Delete Workspace
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: 'rgb(var(--text-secondary))' }}
+                      >
+                        Permanently delete your workspace and all data
+                      </p>
+                    </div>
+                    <button className="rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
     </NavigationProvider>
   )
 }

@@ -5,6 +5,7 @@ import {
   getLokiClient,
 } from './loki-client.js'
 import { formatMessage, type LogOptions, type LoggerApi, type ErrorMetadata } from './shared.js'
+import { captureCallerLocation, type CallerMetadata } from './caller-metadata.js'
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'debug'
 const NODE_ENV = process.env.NODE_ENV || 'development'
@@ -29,7 +30,8 @@ async function sendToLoki(
   category: string,
   message: string,
   retention: LogOptions['retention'],
-  errorMetadata?: ErrorMetadata | null
+  errorMetadata?: ErrorMetadata | null,
+  callerMetadata?: CallerMetadata | null
 ): Promise<void> {
   if (!LOKI_ENABLED || !loki) return
 
@@ -42,9 +44,16 @@ async function sendToLoki(
       env: NODE_ENV,
       service_name: LOKI_SERVICE_NAME,
       service: LOKI_SERVICE_NAME,
+      // Add source location labels for Grafana queries
+      ...(callerMetadata?.file && {
+        source_file: callerMetadata.file,
+        source_function: callerMetadata.function || 'anonymous',
+        source_line: String(callerMetadata.line || 0),
+      }),
     },
     retentionClass: retention ?? 'short',
     errorMetadata,
+    callerMetadata,
   }
 
   await loki.push([entry])
@@ -59,11 +68,13 @@ class ServerLogger implements LoggerApi {
     errorMetadata?: ErrorMetadata | null
   ): void {
     const formattedMessage = formatMessage(message, args)
+    // Capture caller location for ALL log levels to enable traceback in Grafana
+    const callerMetadata = captureCallerLocation()
     pinoLogger[level](
       { category: opts.category },
       `${opts.category} ${formattedMessage}`
     )
-    sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata).catch(
+    sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata, callerMetadata).catch(
       () => {}
     )
   }

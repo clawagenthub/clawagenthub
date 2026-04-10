@@ -1,6 +1,6 @@
 import { atom } from 'jotai'
 import { atomWithRefresh } from 'jotai/utils'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 export interface UserInfo {
@@ -15,7 +15,7 @@ export interface UserInfo {
  * This atom uses atomWithRefresh to allow manual refresh capability
  * The useUser hook will set up auto-refresh every 60 seconds
  */
-export const userAtom = atomWithRefresh(async (get) => {
+export const userAtom = atomWithRefresh(async (_get) => {
   try {
     const response = await fetch('/api/auth/me', {
       credentials: 'include',

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useUpdateSessionTitle, useGenerateSessionTitle, useGenerateSessionSummary } from '@/lib/query/hooks/useChat'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface UseChatHeaderProps {

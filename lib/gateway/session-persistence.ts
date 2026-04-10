@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 export interface PersistMessageOptions {
   sessionId: string

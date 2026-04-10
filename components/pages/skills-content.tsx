@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigation } from '@/lib/hooks/use-navigation'
 import { Skill, SkillsPageContentProps } from './skills/types'
 import { Header } from './skills/Header'
@@ -8,7 +8,7 @@ import { Filters } from './skills/Filters'
 import { SkillsGrid } from './skills/SkillsGrid'
 import { SkillModal } from './skills/SkillModal'
 import { SkillsMarketplaceModal } from './skills/SkillsMarketplaceModal'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
@@ -21,7 +21,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
   const [showMarketplaceModal, setShowMarketplaceModal] = useState(false)
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null)
 
-  const fetchSkills = async () => {
+  const fetchSkills = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -38,7 +38,7 @@ export function SkillsPageContent({ user: _user }: SkillsPageContentProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [search, sourceFilter])
 
   useEffect(() => {
     fetchSkills()

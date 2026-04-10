@@ -7,10 +7,10 @@ import { DeleteStatusModal } from '@/components/status/delete-status-modal'
 import { useStatuses } from '@/lib/query/hooks/useStatuses'
 import type { PageContentProps } from './index'
 import type { Status } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
-export function StatusesPageContent({ user }: PageContentProps) {
+export function StatusesPageContent({ user: _user }: PageContentProps) {
   const { data: statuses = [], isLoading, error } = useStatuses()
 
   const [showModal, setShowModal] = useState(false)
@@ -65,7 +65,7 @@ export function StatusesPageContent({ user }: PageContentProps) {
         })
       } else {
         // Create new status
-        logger.debug({ category: logCategories.CHAT }, '[DEBUG] Creating new status')
+        logger.debug({ category: _logCategories.CHAT }, '[DEBUG] Creating new status')
         response = await fetch('/api/statuses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

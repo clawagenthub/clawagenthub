@@ -1,4 +1,4 @@
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 /**
  * Gateway Session Heartbeat & Idle Management

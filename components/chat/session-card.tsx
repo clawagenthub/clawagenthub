@@ -12,17 +12,11 @@ interface SessionCardProps {
 }
 
 export function SessionCard({ session, isActive = false }: SessionCardProps) {
-  const router = useRouter()
+  const _router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState(session.title || 'New Chat')
   const updateTitle = useUpdateSessionTitle()
-
-  const handleClick = () => {
-    if (!isEditingTitle) {
-      router.push(`/chat/${session.id}`)
-    }
-  }
 
   const handleTitleClick = (e: React.MouseEvent) => {
     e.stopPropagation()

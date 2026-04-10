@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface UseWSMessageHandlerProps {
@@ -23,7 +23,7 @@ interface UseWSMessageHandlerProps {
 export function useWSMessageHandler({
   sessionId,
   stream,
-  activity,
+  activity: _activity,
   toolCalls,
   appendDelta,
   completeStream,

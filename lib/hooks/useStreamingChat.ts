@@ -114,7 +114,7 @@ export function useStreamingChat(
     if (!enabled) return null
     
     const finalText = streamBufferRef.current.get(runId) || ''
-    const startedAt = streamStartTimeRef.current.get(runId) || Date.now()
+    const _startedAt = streamStartTimeRef.current.get(runId) || Date.now()
     const now = Date.now()
     
     // Clean up refs

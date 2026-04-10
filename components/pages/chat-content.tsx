@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUser } from '@/lib/query/hooks'
 import { useChatSessions } from '@/lib/query/hooks/useChat'
 import { EnhancedChatScreen } from '@/components/chat/enhanced-chat-screen'
 import { EnhancedSessionsPanel } from '@/components/chat/enhanced-sessions-panel'
 import { NewChatPanel } from '@/components/chat/new-chat-panel'
 import type { PageContentProps } from './index'
 
-export function ChatPageContent({ user }: PageContentProps) {
+export function ChatPageContent(_props: PageContentProps) {
   const { data: sessions = [], isLoading: sessionsLoading } = useChatSessions()
   
   const [activeTab, setActiveTab] = useState<'chat' | 'sessions' | 'new'>('sessions')

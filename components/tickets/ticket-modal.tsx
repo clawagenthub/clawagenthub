@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -21,13 +21,11 @@ import {
   useWorkspacePrompts,
   useTickets,
 } from '@/lib/query/hooks'
-import { buildSelectedTicketConverterPrompt } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import type { TicketCreationStatus, TicketFlowMode } from '@/lib/db/schema'
 import {
   loadDraftFromStorage,
   saveDraftToStorage,
   clearDraftFromStorage,
-  getStorageKey,
 } from './ticket-modal-draft-storage'
 import type { FlowConfig } from './ticket-modal-flow-utils'
 import { buildDefaultFlowConfigs, mapExternalFlowConfig, isGatewayAuthError, getGatewayAuthErrorMessage } from './ticket-modal-flow-utils'
@@ -37,9 +35,7 @@ import {
   useWaitForTicketOptions,
   getInitialFormState,
   FLOW_MODE_OPTIONS,
-  buildSubmitTicketData,
 } from './ticket-modal-form-utils'
-import { buildAutoTicketConverterPrompt } from '@/lib/utils/prompts/autoTicketConverterPrompt'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
 
@@ -375,7 +371,7 @@ export function TicketModal({
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [title, description, statusId, assignedTo, flowEnabled, flowMode, draftTicketId, isOpen, workspaceId, initialData, createTicket, updateTicket, statuses])
+  }, [title, description, statusId, assignedTo, flowEnabled, flowMode, flowConfigs, draftTicketId, isOpen, workspaceId, initialData, createTicket, updateTicket, statuses])
 
   // -------------------------------------------------------------------------
   // Clear draft when form is empty on modal close

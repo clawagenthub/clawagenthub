@@ -6,7 +6,7 @@
 
 import type { InstanceEvent } from './protocol.js'
 import type { ClientConnection } from './session-types.js'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 /**

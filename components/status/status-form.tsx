@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAgents, useStatuses } from '@/lib/query/hooks'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 import { StatusFormProps, Skill, STATUS_COLORS } from '@/lib/types/status-form-types'
 
 export function StatusForm({
@@ -15,7 +15,7 @@ export function StatusForm({
   initialOnFailedGoto = null,
   initialAskApproveToContinue = false,
   editingStatusId,
-  initialSkillIds = [],
+  initialSkillIds: _initialSkillIds = [],
   onSubmit,
   onCancel,
   isSubmitting = false,
@@ -49,22 +49,8 @@ export function StatusForm({
   
   // Fetch statuses for on_failed_goto dropdown
   const { data: statuses = [] } = useStatuses()
-  
-  // Fetch available skills when component mounts or skills section expands
-  useEffect(() => {
-    if (isSkillsExpanded && availableSkills.length === 0) {
-      fetchSkills()
-    }
-  }, [isSkillsExpanded, availableSkills.length])
-  
-  // Fetch initial skills for editing
-  useEffect(() => {
-    if (isEditing && editingStatusId) {
-      fetchStatusSkills()
-    }
-  }, [isEditing, editingStatusId, fetchStatusSkills])
-  
-  const fetchSkills = async () => {
+
+  const fetchSkills = useCallback(async () => {
     setIsLoadingSkills(true)
     setSkillsError(null)
     try {
@@ -80,9 +66,9 @@ export function StatusForm({
     } finally {
       setIsLoadingSkills(false)
     }
-  }
-  
-  const fetchStatusSkills = async () => {
+  }, [])
+
+  const fetchStatusSkills = useCallback(async () => {
     if (!editingStatusId) return
     try {
       const response = await fetch(`/api/statuses/${editingStatusId}/skills`)
@@ -97,7 +83,21 @@ export function StatusForm({
       logger.error('Error fetching status skills:', error)
       setSelectedSkills([])
     }
-  }
+  }, [editingStatusId])
+
+  // Fetch available skills when component mounts or skills section expands
+  useEffect(() => {
+    if (isSkillsExpanded && availableSkills.length === 0) {
+      fetchSkills()
+    }
+  }, [isSkillsExpanded, availableSkills.length, fetchSkills])
+
+  // Fetch initial skills for editing
+  useEffect(() => {
+    if (isEditing && editingStatusId) {
+      fetchStatusSkills()
+    }
+  }, [isEditing, editingStatusId, fetchStatusSkills])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { SessionCard } from './session-card'
+import { SessionCard as _SessionCard } from './session-card'
 import { useChatSessions } from '@/lib/query/hooks/useChat'
 import { useSessionStatus } from '@/lib/hooks/useSessionStatus'
 import { SessionStatusIndicator } from './session-status-indicator'

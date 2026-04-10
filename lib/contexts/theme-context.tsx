@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, ReactNode } from 'react'
-import { Theme, ThemeContextType } from '@/lib/types/theme-types'
-import { ThemeContext } from './theme-context'
+import { Theme } from '@/lib/types/theme-types'
+import { ThemeContext } from './theme-context-object'
 
 export { ThemeContext }
 
@@ -14,7 +14,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setMounted(true)
     // Load theme from localStorage
     const savedTheme = localStorage.getItem('clawhub-theme') as Theme
-    if (savedTheme && ['light', 'dark', 'blue', 'black-red'].includes(savedTheme)) {
+    if (
+      savedTheme &&
+      ['light', 'dark', 'blue', 'black-red'].includes(savedTheme)
+    ) {
       setThemeState(savedTheme)
       document.documentElement.setAttribute('data-theme', savedTheme)
       // Apply theme to body element

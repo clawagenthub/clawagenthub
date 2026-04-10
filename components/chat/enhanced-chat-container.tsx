@@ -5,7 +5,7 @@ import { EnhancedChatScreen } from './enhanced-chat-screen'
 import { EnhancedSessionsPanel } from './enhanced-sessions-panel'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ChatSession } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface EnhancedChatContainerProps {
@@ -30,7 +30,7 @@ export function EnhancedChatContainer({ initialSession, onSessionChange }: Enhan
     previousTabRef.current = activeTab
   }, [activeTab, queryClient])
 
-  const handleSessionSelect = (sessionId: string) => {
+  const handleSessionSelect = (_sessionId: string) => {
     // In a real app, you'd fetch the session details here
     // For now, we'll just trigger the session change callback
     if (onSessionChange) {

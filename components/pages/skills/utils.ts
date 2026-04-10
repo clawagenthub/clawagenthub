@@ -1,5 +1,3 @@
-import { Skill } from './types'
-
 export function getSourceBadgeColor(source: string): string {
   switch (source) {
     case 'custom': return 'bg-blue-100 text-blue-800'

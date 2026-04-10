@@ -4,7 +4,7 @@ import { getDatabase } from '@/lib/db/index.js'
 import type { Session } from '@/lib/db/schema.js'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
-const publicRoutes = ['/login', '/setup', '/api/setup/check', '/api/setup/create', '/api/auth/login']
+const publicRoutes = ['/login', '/setup', '/api/setup/check', '/api/setup/create', '/api/auth/login', '/api/cron/stale-check']
 
 const skipRoutes = ['/_next', '/favicon.ico', '/api/auth/login']
 

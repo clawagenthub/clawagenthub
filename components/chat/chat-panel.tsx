@@ -6,7 +6,7 @@ import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
 import { useAgents, useCreateSession, useChatMessages, useSendMessage } from '@/lib/query/hooks/useChat'
 import type { AgentInfo } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 export function ChatPanel() {

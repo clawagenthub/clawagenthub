@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { StatusCard } from './status-card'
 import { useReorderStatuses } from '@/lib/query/hooks/useStatuses'
 import type { Status } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
 
 interface StatusListProps {

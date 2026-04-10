@@ -2,7 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { useState } from 'react'
 
 // Create a client factory to avoid sharing state between users
 function makeQueryClient() {
@@ -37,7 +36,7 @@ function getQueryClient() {
   return browserQueryClient
 }
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
+export function QueryProvider({ children }: { children: import('react').ReactNode }) {
   const queryClient = getQueryClient()
 
   return (

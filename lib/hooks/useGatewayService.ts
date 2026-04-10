@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import {
   getGatewayService,
   type GatewayServiceState,
@@ -15,7 +15,7 @@ import {
 } from '../services/gateway-service'
 import type { AgentInfo, Gateway } from '../db/schema'
 import type { GatewayServiceEvents } from '../services/gateway-service'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 // ============================================================================
@@ -157,7 +157,7 @@ export function useSetGatewayService(): GatewayServiceActions {
 export function useGatewayEvent<K extends keyof GatewayServiceEvents>(
   eventType: K,
   callback: (payload: GatewayServiceEvents[K]) => void,
-  deps: React.DependencyList = []
+  deps: readonly React.DependencyList = []
 ): void {
   useEffect(() => {
     const service = getGatewayService()

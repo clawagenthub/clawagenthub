@@ -72,8 +72,8 @@ export function checkDatabaseHealth(): HealthCheckResult {
           .prepare('SELECT COUNT(*) as count FROM users WHERE is_superuser = 1')
           .get() as CountResult
         result.superuserCount = superuserCount.count
-      } catch (error) {
-        result.errors.push(`Failed to count users: ${error}`)
+      } catch (_error: any) {
+        result.errors.push(`Failed to count users: ${_error}`)
       }
     }
 
@@ -84,8 +84,8 @@ export function checkDatabaseHealth(): HealthCheckResult {
           .prepare('SELECT COUNT(*) as count FROM migrations')
           .get() as CountResult
         result.migrationCount = migrationCount.count
-      } catch (error) {
-        result.errors.push(`Failed to count migrations: ${error}`)
+      } catch (_error: any) {
+        result.errors.push(`Failed to count migrations: ${_error}`)
       }
     }
   } catch (error) {
@@ -109,7 +109,7 @@ export function isDatabaseReady(): boolean {
       .get() as CountResult
 
     return result.count > 0
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -125,7 +125,7 @@ export function hasSuperuser(): boolean {
       .get() as CountResult
 
     return result.count > 0
-  } catch (error) {
+  } catch {
     return false
   }
 }

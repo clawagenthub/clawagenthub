@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { ChangePasswordForm } from '@/components/auth/change-password-form'
 import { BoardColumn } from '@/components/board/board-column'
@@ -17,66 +17,14 @@ import {
 import type { TicketWithRelations } from '@/lib/query/hooks'
 import type { PageContentProps } from './index'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 import {
   BoardLoadingState,
   BoardErrorState,
   BoardEmptyState,
 } from '@/components/dashboard/board-states'
 
-// Hooks for ticket filtering and selection logic
-function useTicketSelection(
-  tickets: TicketWithRelations[],
-  filteredTickets: TicketWithRelations[],
-  selectedTicketIds: string[]
-) {
-  const handleTicketSelect = (ticketId: string, selected: boolean) => {
-    // This will be handled by parent via callback
-  }
-
-  const handleSelectAllInColumn = (statusId: string, selected: boolean) => {
-    const columnTicketIds = filteredTickets
-      .filter((t) => t.status_id === statusId && t.creation_status === 'active')
-      .map((t) => t.id)
-    return selected
-      ? [...new Set([...selectedTicketIds, ...columnTicketIds])]
-      : selectedTicketIds.filter((id) => !columnTicketIds.includes(id))
-  }
-
-  const isAllSelectedInColumn = (statusId: string) => {
-    const columnTicketIds = filteredTickets
-      .filter((t) => t.status_id === statusId && t.creation_status === 'active')
-      .map((t) => t.id)
-    return (
-      columnTicketIds.length > 0 &&
-      columnTicketIds.every((id) => selectedTicketIds.includes(id))
-    )
-  }
-
-  const isSomeSelectedInColumn = (statusId: string) => {
-    const columnTicketIds = filteredTickets
-      .filter((t) => t.status_id === statusId && t.creation_status === 'active')
-      .map((t) => t.id)
-    const selectedCount = columnTicketIds.filter((id) =>
-      selectedTicketIds.includes(id)
-    ).length
-    return selectedCount > 0 && selectedCount < columnTicketIds.length
-  }
-
-  const getColumnSelectedCount = (statusId: string) => {
-    return filteredTickets
-      .filter((t) => t.status_id === statusId && t.creation_status === 'active')
-      .filter((t) => selectedTicketIds.includes(t.id)).length
-  }
-
-  return {
-    handleTicketSelect,
-    handleSelectAllInColumn,
-    isAllSelectedInColumn,
-    isSomeSelectedInColumn,
-    getColumnSelectedCount,
-  }
-}
+// Selection logic inlined into component
 
 // Bulk action handlers
 function useBulkActions(
@@ -169,9 +117,9 @@ function useTicketDrag(tickets: TicketWithRelations[], updateMutation: any) {
   }
 }
 
-export function DashboardPageContent({ user }: PageContentProps) {
+export function DashboardPageContent({ user: _user }: PageContentProps) {
   // Use TanStack Query hook for user state management with auto-refresh
-  const { mustChangePassword, refetch } = useUser()
+  const { mustChangePassword, refetch: _refetch } = useUser()
 
   // Fetch statuses from the API (ordered by priority)
   const {
@@ -250,23 +198,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
   }, [tickets, searchQuery, flowStatusFilter])
 
   // Selection handlers
-  const {
-    handleTicketSelect,
-    handleSelectAllInColumn,
-    isAllSelectedInColumn,
-    isSomeSelectedInColumn,
-    getColumnSelectedCount,
-  } = useTicketSelection(tickets, filteredTickets, selectedTicketIds)
-
-  // Bulk action handlers
-  const { handleBulkMoveTo, handleBulkDelete } = useBulkActions(
-    selectedTicketIds,
-    updateMutation,
-    deleteMutation
-  )
-
-  // Local selection state management
-  const handleTicketSelectLocal = (ticketId: string, selected: boolean) => {
+  const handleTicketSelect = (ticketId: string, selected: boolean) => {
     if (selected) {
       setSelectedTicketIds((prev) => [...prev, ticketId])
     } else {
@@ -274,7 +206,8 @@ export function DashboardPageContent({ user }: PageContentProps) {
     }
   }
 
-  const handleSelectAllInColumnLocal = (
+
+  const handleSelectAllInColumn = (
     statusId: string,
     selected: boolean
   ) => {
@@ -295,7 +228,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
     }
   }
 
-  const isAllSelectedInColumnLocal = (statusId: string) => {
+  const isAllSelectedInColumn = (statusId: string) => {
     const columnTicketIds = filteredTickets
       .filter((t) => t.status_id === statusId && t.creation_status === 'active')
       .map((t) => t.id)
@@ -305,7 +238,7 @@ export function DashboardPageContent({ user }: PageContentProps) {
     )
   }
 
-  const isSomeSelectedInColumnLocal = (statusId: string) => {
+  const isSomeSelectedInColumn = (statusId: string) => {
     const columnTicketIds = filteredTickets
       .filter((t) => t.status_id === statusId && t.creation_status === 'active')
       .map((t) => t.id)
@@ -315,17 +248,25 @@ export function DashboardPageContent({ user }: PageContentProps) {
     return selectedCount > 0 && selectedCount < columnTicketIds.length
   }
 
-  const getColumnSelectedCountLocal = (statusId: string) => {
+  const getColumnSelectedCount = (statusId: string) => {
     return filteredTickets
       .filter((t) => t.status_id === statusId && t.creation_status === 'active')
       .filter((t) => selectedTicketIds.includes(t.id)).length
   }
 
+  // Bulk action handlers
+  const { handleBulkMoveTo, handleBulkDelete } = useBulkActions(
+    selectedTicketIds,
+    updateMutation,
+    deleteMutation
+  )
+
+  // Local selection state management
   // Ticket action handlers
   async function handleCreateTicket(data: any, switchToView = false) {
     if (data?.id) {
       try {
-        const updatedTicket = await updateMutation.mutateAsync({
+        const _updatedTicket = await updateMutation.mutateAsync({
           id: data.id,
           title: data.title,
           description: data.description,
@@ -483,11 +424,11 @@ export function DashboardPageContent({ user }: PageContentProps) {
                     onTicketDrop={handleTicketDrop}
                     draggedTicketId={draggedTicketId}
                     selectedTicketIds={selectedTicketIds}
-                    onTicketSelect={handleTicketSelectLocal}
-                    onSelectAll={handleSelectAllInColumnLocal}
-                    isAllSelected={isAllSelectedInColumnLocal(status.id)}
-                    isSomeSelected={isSomeSelectedInColumnLocal(status.id)}
-                    selectedCount={getColumnSelectedCountLocal(status.id)}
+                    onTicketSelect={handleTicketSelect}
+                    onSelectAll={handleSelectAllInColumn}
+                    isAllSelected={isAllSelectedInColumn(status.id)}
+                    isSomeSelected={isSomeSelectedInColumn(status.id)}
+                    selectedCount={getColumnSelectedCount(status.id)}
                     allFlowingTickets={filteredTickets.filter(
                       (t) => t.flowing_status === 'flowing'
                     )}

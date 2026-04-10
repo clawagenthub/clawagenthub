@@ -15,8 +15,8 @@
  */
 
 import { getDatabase } from '@/lib/db'
-import type { Ticket, TicketFlowingStatus } from '@/lib/db/schema'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import type { TicketFlowingStatus } from '@/lib/db/schema'
+import logger from '@/lib/logger/index.js'
 
 
 export interface AutoFinishResult {

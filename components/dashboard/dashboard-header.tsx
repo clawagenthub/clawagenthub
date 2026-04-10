@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 
 // Local storage key for show drafts toggle
 const SHOW_DRAFTS_KEY = 'dashboard-show-drafts'

@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue } from 'jotai'
 import { useEffect, useRef } from 'react'
 import { userAtom, isAuthenticatedAtom, mustChangePasswordAtom } from '../atoms/userAtom'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import logger from '@/lib/logger/index.js'
 
 
 const REFRESH_INTERVAL = 60000 // 60 seconds (1 minute)
@@ -26,7 +26,7 @@ export function useUser() {
   const [user, refreshUser] = useAtom(userAtom)
   const isAuthenticated = useAtomValue(isAuthenticatedAtom)
   const mustChangePassword = useAtomValue(mustChangePasswordAtom)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     // Set up auto-refresh interval

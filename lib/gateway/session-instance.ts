@@ -17,6 +17,16 @@ import {
   sendToClient,
   broadcastToClients,
 } from './session-events.js'
+import {
+  buildChatDeltaEvent,
+  buildChatFinalEvent,
+  buildChatErrorEvent,
+  buildAgentTypingEvent,
+  sendConnectedEvent,
+  broadcastErrorEvent,
+  handleChatPayloadState,
+  sendBufferedChatEventsToClient,
+} from './session-instance-chat-events.js'
 import { IdleTimerManager } from './session-heartbeat.js'
 import { SessionStateMachine } from './session-state-machine.js'
 import { parseGatewayMessage } from './session-message-handlers.js'
@@ -132,21 +142,17 @@ export class GatewaySessionInstance {
     }
     this.clients.set(clientId, client)
     this.idleTimer.updateActivity()
-    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client added: %s %s', this.sessionId, clientCount)
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client added: %s %s', this.sessionId, this.clients.size)
 
     if (sinceSeq !== undefined) this.sendBufferedEvents(client)
-    sendToClient(client, {
-      type: 'connected',
-      sessionId: this.sessionId,
-      currentSeq: this.eventBuffer.getLatestSeq(),
-    } as InstanceConnectedEvent)
+    sendConnectedEvent(client, this.sessionId, this.eventBuffer.getLatestSeq())
   }
 
   removeClient(clientId: string): void {
     const client = this.clients.get(clientId)
     if (!client) return
     this.clients.delete(clientId)
-    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client removed: %s %s', this.sessionId, remainingClients)
+    logger.debug({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Client removed: %s %s', this.sessionId, this.clients.size)
     if (this.clients.size === 0) this.idleTimer.schedule()
   }
 
@@ -339,40 +345,15 @@ export class GatewaySessionInstance {
     const seq = this.eventBuffer.add('chat', payload, frameSeq)
     this.idleTimer.updateActivity()
 
-    switch (payload.state) {
-      case 'delta':
-        broadcastToClients(this.clients, {
-          type: 'chat.delta',
-          sessionId: this.sessionId,
-          runId: payload.runId,
-          seq,
-          delta: payload.message?.content ?? '',
-        } as InstanceChatDeltaEvent)
-        break
-      case 'final':
-        persistAssistantMessage(
-          this.sessionId,
-          payload.runId,
-          payload.message?.content ?? ''
-        )
-        broadcastToClients(this.clients, {
-          type: 'chat.final',
-          sessionId: this.sessionId,
-          runId: payload.runId,
-          seq,
-          message: payload.message!,
-        } as InstanceChatFinalEvent)
-        break
-      case 'error':
-        broadcastToClients(this.clients, {
-          type: 'chat.error',
-          sessionId: this.sessionId,
-          runId: payload.runId,
-          seq,
-          error: payload.errorMessage ?? 'Unknown error',
-        } as InstanceChatErrorEvent)
-        break
+    if (payload.state === 'final') {
+      persistAssistantMessage(
+        this.sessionId,
+        payload.runId,
+        payload.message?.content ?? ''
+      )
     }
+
+    handleChatPayloadState(this.clients, this.sessionId, payload, seq)
   }
 
   private handleAgentEvent(frame: {
@@ -382,12 +363,12 @@ export class GatewaySessionInstance {
   }): void {
     const { payload } = frame
     this.bufferEvent(frame)
-    broadcastToClients(this.clients, {
-      type: 'agent.typing',
-      sessionId: this.sessionId,
-      agentId: payload.agentId ?? this.agentId,
-      isTyping: payload.isTyping ?? true,
-    } as InstanceAgentTypingEvent)
+    buildAgentTypingEvent(
+      this.clients,
+      this.sessionId,
+      payload.agentId ?? this.agentId,
+      payload.isTyping ?? true
+    )
   }
 
   private bufferEvent(frame: {
@@ -463,12 +444,11 @@ export class GatewaySessionInstance {
       })
     } catch (error) {
       logger.error({ category: logCategories.GATEWAY_INSTANCE }, '[SessionInstance] Failed to send chat message: %s', String(error))
-      broadcastToClients(this.clients, {
-        type: 'error',
-        sessionId: this.sessionId,
-        error:
-          error instanceof Error ? error.message : 'Failed to send message',
-      } as InstanceErrorEvent)
+      broadcastErrorEvent(
+        this.clients,
+        this.sessionId,
+        error instanceof Error ? error.message : 'Failed to send message'
+      )
       throw error
     }
   }
@@ -483,46 +463,12 @@ export class GatewaySessionInstance {
   }
 
   private sendBufferedEvents(client: ClientConnection): void {
-    const events = this.eventBuffer.getSince(client.lastSeq ?? 0)
-    for (const event of events) {
-      const buffered = event as {
-        event: string
-        payload: ChatEventPayload
-        seq: number
-      }
-      if (buffered.event === 'chat') {
-        const payload = buffered.payload
-        switch (payload.state) {
-          case 'delta':
-            sendToClient(client, {
-              type: 'chat.delta',
-              sessionId: this.sessionId,
-              runId: payload.runId,
-              seq: buffered.seq,
-              delta: payload.message?.content ?? '',
-            } as InstanceChatDeltaEvent)
-            break
-          case 'final':
-            sendToClient(client, {
-              type: 'chat.final',
-              sessionId: this.sessionId,
-              runId: payload.runId,
-              seq: buffered.seq,
-              message: payload.message!,
-            } as InstanceChatFinalEvent)
-            break
-          case 'error':
-            sendToClient(client, {
-              type: 'chat.error',
-              sessionId: this.sessionId,
-              runId: payload.runId,
-              seq: buffered.seq,
-              error: payload.errorMessage ?? 'Unknown error',
-            } as InstanceChatErrorEvent)
-            break
-        }
-      }
-    }
+    const events = this.eventBuffer.getSince(client.lastSeq ?? 0) as Array<{
+      event: string
+      payload: ChatEventPayload
+      seq: number
+    }>
+    sendBufferedChatEventsToClient(client, this.sessionId, events)
   }
 
   private setState(state: InstanceState, error?: string): void {

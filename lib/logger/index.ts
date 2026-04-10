@@ -5,6 +5,7 @@ import {
   type LoggerApi,
   type RetentionClass,
   type ErrorMetadata,
+  type ErrorSource,
 } from './shared.js'
 import { extractErrorMetadataDeep } from './error-metadata.js'
 
