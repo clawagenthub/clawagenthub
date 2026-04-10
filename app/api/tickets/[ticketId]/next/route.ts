@@ -31,6 +31,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await ensureDatabase()
     const { ticketId } = await params
 
+    // Parse request body for finished flag
+    const body = await request.json().catch(() => ({}))
+    const explicitFinished = body.finished === true
+
     const auth = await validateAuth(request)
     if (auth.error) return auth.error
 
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    const { nextFlowingStatus, shouldAutoTriggerNext } = determineFlowTransition(ticket.data, flowConfigs)
+    const { nextFlowingStatus, shouldAutoTriggerNext } = determineFlowTransition(ticket.data, flowConfigs, explicitFinished)
 
     await updateTicketStatus(auth.db, ticket.data, flowConfigs, now, auth.user.id, nextFlowingStatus)
 
@@ -137,8 +141,10 @@ async function getFlowConfigs(db: any, ticket: Ticket): Promise<FlowConfigs | { 
   return { currentFlowConfig, nextFlowConfig, currentStatus, newStatus }
 }
 
-function determineFlowTransition(ticket: Ticket, flowConfigs: FlowConfigs): { nextFlowingStatus: 'flowing' | 'waiting'; shouldAutoTriggerNext: boolean } {
-  if (ticket.flow_mode === 'automatic' && flowConfigs.nextFlowConfig.agent_id) {
+function determineFlowTransition(ticket: Ticket, flowConfigs: FlowConfigs, explicitFinished?: boolean): { nextFlowingStatus: 'flowing' | 'waiting'; shouldAutoTriggerNext: boolean } {
+  // Auto-trigger if: automatic mode OR explicit finished=true signal from client
+  const shouldAutoTrigger = (ticket.flow_mode === 'automatic' || explicitFinished) && flowConfigs.nextFlowConfig.agent_id
+  if (shouldAutoTrigger) {
     return { nextFlowingStatus: 'flowing', shouldAutoTriggerNext: true }
   }
   return { nextFlowingStatus: 'waiting', shouldAutoTriggerNext: false }

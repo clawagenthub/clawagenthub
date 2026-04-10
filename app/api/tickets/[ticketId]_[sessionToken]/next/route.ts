@@ -23,6 +23,9 @@ export async function POST(request: NextRequest, context: RouteParams) {
     await ensureDatabase()
 
     const { ticketId_sessionToken } = await context.params
+    // Parse request body for finished flag
+    const body = await request.json().catch(() => ({}))
+    const explicitFinished = body.finished === true
     // Split only on first underscore to separate ticketId from sessionToken
     // sessionToken may contain underscores, so we use split with limit 2
     const parts = ticketId_sessionToken.split('_', 2)
@@ -190,13 +193,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
 
 
     // Determine new flowing status
-    let nextFlowingStatus: 'flowing' | 'waiting' = 'waiting'
-    let shouldAutoTriggerNext = false
-
-    if (ticket.flow_mode === 'automatic' && nextFlowConfig.agent_id) {
-      nextFlowingStatus = 'flowing'
-      shouldAutoTriggerNext = true
-    }
+    // Auto-trigger if: automatic mode OR explicit finished=true signal
+    const shouldAutoTrigger = (ticket.flow_mode === 'automatic' || explicitFinished) && nextFlowConfig.agent_id
+    let nextFlowingStatus: 'flowing' | 'waiting' = shouldAutoTrigger ? 'flowing' : 'waiting'
+    let shouldAutoTriggerNext = shouldAutoTrigger
 
     // Update ticket to next status
     db.prepare(
