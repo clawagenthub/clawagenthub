@@ -88,27 +88,76 @@ Ticket operations support two authentication methods:
 
 ### Session-Token Based API Endpoints
 
+> ⚠️ **Migration Notice**: API paths have been updated from flat paths to **session-scoped paths**. Old endpoints are deprecated. See [Migration Guide](#migration-guide) below.
+
 The following endpoints use session-token based routing:
 
 ```
-POST /api/{sessionToken}/ticket/create     - Create a new ticket
-GET  /api/{sessionToken}/ticket/details   - Get ticket details
-PATCH /api/{sessionToken}/ticket/update   - Update ticket fields
-DELETE /api/{sessionToken}/ticket/delete  - Delete a ticket
+POST /api/{sessionId}/tickets/create  - Create a new ticket (CRUD)
+GET  /api/{sessionId}/tickets       - List tickets
+GET  /api/{sessionId}/tickets/:id    - Get ticket details
+PATCH /api/{sessionId}/tickets/:id   - Update ticket fields
+DELETE /api/{sessionId}/tickets/:id  - Delete a ticket
 ```
 
-### Flow Control Endpoints
+### Session-Scoped API Endpoints
 
-```
-POST /api/{sessionToken}/ticket/{ticketId}/next - Advance to next flow stage
-POST /api/{sessionToken}/ticket/{ticketId}/failed   - Mark flow step failed
-POST /api/{sessionToken}/ticket/{ticketId}/pause     - Pause flow
-```
+All ticket operations now use session-scoped paths:
 
-### Example: Creating a Ticket with Flow
+| Category | Endpoint | Description |
+|----------|----------|-------------|
+| **Tickets** | `GET /api/{sessionId}/tickets` | List all tickets |
+| **Tickets** | `POST /api/{sessionId}/tickets` | Create a ticket |
+| **Tickets** | `GET /api/{sessionId}/tickets/:id` | Get ticket details |
+| **Tickets** | `PATCH /api/{sessionId}/tickets/:id` | Update a ticket |
+| **Tickets** | `DELETE /api/{sessionId}/tickets/:id` | Delete a ticket |
+| **Flow View** | `GET /api/{sessionId}/tickets/:id/flow/view` | Get flow configuration and history |
+| **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/next` | Advance to next flow stage |
+| **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/failed` | Mark flow step failed |
+| **Flow Callbacks** | `POST /api/{sessionId}/tickets/:id/pause` | Pause flow |
+| **Comments** | `GET /api/{sessionId}/tickets/:id/comments` | Get ticket comments |
+| **Comments** | `POST /api/{sessionId}/tickets/:id/comments` | Add a comment |
+| **Gateways** | `GET /api/{sessionId}/gateways` | List gateways |
+| **Gateways** | `POST /api/{sessionId}/gateways/:id/connect` | Connect gateway |
+| **Gateways** | `GET /api/{sessionId}/gateways/check-paired` | Check pairing status |
+| **Statuses** | `GET /api/{sessionId}/statuses` | List statuses |
+| **Skills** | `GET /api/{sessionId}/skills` | List skills |
+| **Workspaces** | `GET /api/{sessionId}/workspaces` | List workspaces |
+| **Projects** | `GET /api/{sessionId}/projects` | List projects |
+| **Chat** | `GET /api/{sessionId}/chat` | Chat history |
+| **Cron** | `GET /api/{sessionId}/cron` | List cron jobs |
+| **Agent Tools** | `GET /api/{sessionId}/agent-tools` | List agent tools |
+| **Attachments** | `GET /api/{sessionId}/attachments` | List attachments |
+| **Logs** | `GET /api/{sessionId}/logs` | Get logs |
+| **User** | `GET /api/{sessionId}/user` | Get user info |
+
+### Migration Guide
+
+#### Old (Deprecated) → New (Session-Scoped) Endpoints
+
+| Category | Old Path (Deprecated) | New Path |
+|----------|------------------------|----------|
+| **Tickets CRUD** | `/api/tickets` | `/api/{sessionId}/tickets` |
+| **Ticket Details** | `/api/tickets/{id}` | `/api/{sessionId}/tickets/{id}` |
+| **Flow Next** | `/api/tickets/{id}_{token}/next` | `/api/{sessionId}/tickets/{id}/next` |
+| **Flow Failed** | `/api/tickets/{id}_{token}/failed` | `/api/{sessionId}/tickets/{id}/failed` |
+| **Flow Pause** | `/api/tickets/{id}_{token}/pause` | `/api/{sessionId}/tickets/{id}/pause` |
+| **Comments** | `/api/tickets/{id}/comments` | `/api/{sessionId}/tickets/{id}/comments` |
+| **Gateway Pairing Status** | `/api/gateways/{id}/pairing-status` | **DEPRECATED** → Use `/api/{sessionId}/gateways` |
+| **Gateway Pair** | `/api/gateways/pair` | **DEPRECATED** → Use `/api/{sessionId}/gateways/{id}/connect` |
+| **Gateway Connect with Token** | `/api/gateways/connect-with-token` | **DEPRECATED** → Use `/api/{sessionId}/gateways/{id}/connect` |
+
+#### Key Changes
+
+1. **Session ID replaces Session Token in URL path**: `{sessionId}` is now used directly in the path instead of embedding the token in the URL
+2. **Unified structure**: All endpoints follow `/api/{sessionId}/resource` pattern
+3. **Authentication**: Session token is passed via `Authorization: Bearer <token>` header, not embedded in URLs
+4. **Deprecated endpoints**: Three gateway endpoints are marked deprecated and should not be used
+
+#### Example: Creating a Ticket with Flow (Updated)
 
 ```bash
-curl -X POST http://127.0.0.1:7777/api/tickets \
+curl -X POST http://127.0.0.1:7777/api/{sessionId}/tickets \
   -H "Authorization: Bearer $SESSION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -117,6 +166,17 @@ curl -X POST http://127.0.0.1:7777/api/tickets \
     "statusId": 1,
     "flowEnabled": true,
     "flowMode": "automatic"
+  }'
+```
+
+#### Example: Advance Flow (Updated)
+
+```bash
+curl -X POST http://127.0.0.1:7777/api/{sessionId}/tickets/{ticketId}/next \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes": "Advanced to next stage. Summary: ..."
   }'
 ```
 
