@@ -85,19 +85,6 @@ export const DEFAULT_FLOW_TEMPLATE = `
         </verification>
         <body_example><![CDATA[{ "notes": "Advanced to next stage. Summary: ..." }]]></body_example>
       </callback>
-      <callback name="finished" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/finished">
-        <verification>
-          <requires_session_id>true</requires_session_id>
-          <session_id_location>path</session_id_location>
-          <ticket_id_verification>true</ticket_id_verification>
-          <action_specific_checks>
-            <check name="status_objective_met">Verify status objective is complete with evidence</check>
-            <check name="required_outputs_present">Verify all required outputs delivered</check>
-            <check name="no_handoff_blockers">Verify no pending handoff dependencies</check>
-          </action_specific_checks>
-        </verification>
-        <body_example><![CDATA[{ "notes": "Completed status {$currentStatusName}. Summary: ... | Evidence: ... | Handoff: ..." }]]></body_example>
-      </callback>
       <callback name="failed" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/failed">
         <verification>
           <requires_session_id>true</requires_session_id>

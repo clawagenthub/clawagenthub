@@ -58,20 +58,9 @@ $flowConfig = [
 ]
 ```
 
-#### $flowMode (String)
+When an agent completes their task, they call the `/next` API endpoint to advance the flow to the next stage. The `/next` endpoint handles flow configuration lookup, status transitions, task sending to the next agent, and automatic triggering.
 
-Controls automatic vs manual flow progression:
 
-- `automatic`: Flow advances automatically after each agent completes
-- `manual`: Flow requires explicit approval before advancing
-
-#### $name (String)
-
-Human-readable name for the flow configuration.
-
-#### $statusId (Number)
-
-Current status ID in the flow sequence.
 
 ### Status ID Mappings
 
@@ -111,7 +100,7 @@ DELETE /api/{sessionToken}/ticket/delete  - Delete a ticket
 ### Flow Control Endpoints
 
 ```
-POST /api/{sessionToken}/ticket/{ticketId}/finished - Mark flow step finished
+POST /api/{sessionToken}/ticket/{ticketId}/next - Advance to next flow stage
 POST /api/{sessionToken}/ticket/{ticketId}/failed   - Mark flow step failed
 POST /api/{sessionToken}/ticket/{ticketId}/pause     - Pause flow
 ```
