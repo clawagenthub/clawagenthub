@@ -131,7 +131,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       flow_history: latestHistory,
       api_actions: {
         comment: `/api/tickets/${ticketId}/comments`,
-        finished: `/api/tickets/${ticketId}/finished`,
+        next: `/api/tickets/${ticketId}/next`,
         failed: `/api/tickets/${ticketId}/failed`,
       },
     })
