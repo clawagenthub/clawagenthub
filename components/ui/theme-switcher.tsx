@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
+import { useOnMount, useOnDestroy } from '@/lib/hooks/use-lifecycle'
 import { useTheme } from '@/lib/hooks/use-theme'
 import { type Theme } from '@/lib/types/theme-types'
 
@@ -63,21 +64,22 @@ export function ThemeSwitcher() {
   const [isOpen, setIsOpen] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+  const handleClickOutside = (event: MouseEvent) => {
+    if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+      setIsOpen(false)
     }
+  }
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
+  useOnMount(() => {
+    document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen])
+  })
+
+  useOnDestroy(() => {
+    document.removeEventListener('mousedown', handleClickOutside)
+  })
 
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme)

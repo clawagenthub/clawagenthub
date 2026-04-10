@@ -261,8 +261,7 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
     deleteMutation
   )
 
-  // Local selection state management
-  // Ticket action handlers
+  // Bulk action handlers
   async function handleCreateTicket(data: any, switchToView = false) {
     if (data?.id) {
       try {

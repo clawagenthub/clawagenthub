@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useOnMount } from '@/lib/hooks/use-lifecycle'
 
 interface ToastProps {
   message: string
@@ -12,14 +13,14 @@ interface ToastProps {
 export function Toast({ message, type, duration = 3000, onClose }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true)
 
-  useEffect(() => {
+  useOnMount(() => {
     const timer = setTimeout(() => {
       setIsVisible(false)
       setTimeout(onClose, 300) // Wait for fade out animation
     }, duration)
 
     return () => clearTimeout(timer)
-  }, [duration, onClose])
+  })
 
   const bgColor = {
     success: 'bg-green-500',

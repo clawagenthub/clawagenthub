@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { useOnMount } from '@/lib/hooks/use-lifecycle'
 
 type ActivityState = {
   state: 'idle' | 'thinking' | 'searching' | 'calling_mcp' | 'writing' | 'error'
@@ -60,7 +61,7 @@ const getStateConfig = (state: ActivityState['state'], message?: string, toolNam
 export function ActivityStatusBar({ activity }: ActivityStatusBarProps) {
   const [elapsed, setElapsed] = useState(0)
 
-  useEffect(() => {
+  useOnMount(() => {
     if (activity.state === 'idle' || !activity.startedAt) {
       setElapsed(0)
       return
@@ -71,7 +72,7 @@ export function ActivityStatusBar({ activity }: ActivityStatusBarProps) {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [activity.state, activity.startedAt])
+  })
 
   const config = getStateConfig(activity.state, activity.message, activity.toolName)
 

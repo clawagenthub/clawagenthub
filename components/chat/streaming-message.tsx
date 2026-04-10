@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useRef } from 'react'
+import { useOnMount } from '@/lib/hooks/use-lifecycle'
 
 interface StreamingMessageProps {
   content: string
@@ -13,13 +14,12 @@ export function StreamingMessage({ content, isStreaming = false, agentName = 'AI
   const prevContentRef = useRef('')
 
   // Auto-scroll to keep cursor in view during streaming
-  useEffect(() => {
-    if (isStreaming && contentRef.current && content !== prevContentRef.current) {
-      // Scroll into view smoothly if needed
+  useOnMount(() => {
+    if (contentRef.current && content !== prevContentRef.current) {
       containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
     prevContentRef.current = content
-  }, [content, isStreaming])
+  })
 
   const extractTextFromContent = (contentStr: string): string => {
     try {
