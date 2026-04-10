@@ -1,3 +1,5 @@
+<img width="1024" height="1024" alt="Gemini_Generated_Image_sabq7qsabq7qsabq (1)" src="https://github.com/user-attachments/assets/84c4ff27-312f-4b54-af3b-01b48f0d1b52" />
+
 # ClawAgentHub
 
 ClawAgentHub is a multi-agent workspace dashboard for OpenClaw, designed for Jira-style multitasking with multiple agents working in parallel.
@@ -46,13 +48,13 @@ Defines the sequence of flow steps with failure handling:
 ```typescript
 $flowConfig = [
   {
-    statusId: string,           // Status ID for this step
-    statusName: string,         // Human-readable status name
-    flowOrder: number,          // Sequence order (1, 2, 3...)
-    agentId: string,            // Agent responsible for this step
+    statusId: string, // Status ID for this step
+    statusName: string, // Human-readable status name
+    flowOrder: number, // Sequence order (1, 2, 3...)
+    agentId: string, // Agent responsible for this step
     onFailedGoto: string | null, // Status to goto on failure, null=stop flow
-    askApproveToContinue: boolean // Pause for manual approval
-  }
+    askApproveToContinue: boolean, // Pause for manual approval
+  },
 ]
 ```
 
@@ -75,16 +77,17 @@ Current status ID in the flow sequence.
 
 #### Flow-Specific Statuses
 
-| status_id | Name        | Description                    | Notes                    |
-| --------- | ----------- | ------------------------------ | ------------------------ |
-| 1         | waiting     | Initial flow state             | Set when flow starts     |
-| 2         | finished    | Flow step completed            | Advances to next step   |
+| status_id | Name     | Description         | Notes                 |
+| --------- | -------- | ------------------- | --------------------- |
+| 1         | waiting  | Initial flow state  | Set when flow starts  |
+| 2         | finished | Flow step completed | Advances to next step |
 
 ### API Authentication
 
 Ticket operations support two authentication methods:
 
 1. **Session Token (Cookie):**
+
    ```
    Cookie: session_token=<token>
    ```
@@ -131,9 +134,11 @@ curl -X POST http://127.0.0.1:7777/api/tickets \
 ### Example: User Request Interpretation
 
 When a user says:
+
 > "create for each ticket for every issue with status waiting_flow, with flow mode automatic, with flow config is default flowconfiguration"
 
 The system interprets:
+
 - `$flowMode = "automatic"`
 - `$flowConfig = [configured flow steps from default flowconfiguration]`
 - Initial status ID = 1 (waiting/initial state)
@@ -146,6 +151,7 @@ Each flow step can define an `onFailedGoto` property:
 - **statusId string**: Flow redirects to specified status on failure
 
 Example:
+
 ```typescript
 {
   statusId: "2",
@@ -249,9 +255,6 @@ Each workspace is isolated.
 A workspace can have its own gateways, settings, statuses, and ticket flows.
 
 ## UI Views
-
-
-
 
 Dashboard view
 <img width="1510" height="862" alt="image" src="https://github.com/user-attachments/assets/4823084a-fb13-48b7-94a2-d8c55fa54ed5" />
