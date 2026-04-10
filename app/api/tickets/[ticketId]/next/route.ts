@@ -63,7 +63,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await updateTicketStatus(auth.db, ticket.data, flowConfigs, now, auth.user.id, nextFlowingStatus)
 
     if (shouldAutoTriggerNext) {
-      await triggerAgentForFlowStart({ ticketId, workspaceId: auth.workspaceId, userId: auth.user.id, sessionToken: auth.sessionToken })
+      try {
+        await triggerAgentForFlowStart({ ticketId, workspaceId: auth.workspaceId, userId: auth.user.id, sessionToken: auth.sessionToken })
+      } catch (err) {
+        logger.error({ category: logCategories.API_TICKETS }, 'triggerAgentForFlowStart failed in /next route:', { error: err })
+      }
     }
 
     try { await triggerWaitingTickets(auth.workspaceId) } catch (err) { logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed:', { error: err }) }

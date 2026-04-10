@@ -332,20 +332,11 @@ export async function triggerAgentForFlowStart(args: {
 
   const clientMatch = await findAgentClient(workspaceId, context.effectiveAgentId)
   if (!clientMatch) {
-    const db = getDatabase()
-    const now = new Date().toISOString()
-    db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('failed', now, ticketId)
-    db.prepare(
-      `INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      generateUserId(),
-      ticketId,
-      'flow_failed',
-      context.effectiveAgentId,
-      'agent',
-      null,
-      JSON.stringify({ reason: `Agent ${context.effectiveAgentId} is not reachable (tried 5 times)` }),
-      now
+    // No agent connected - don't mark as failed, just log and return
+    // The ticket is already at the next status from /next or transitionFlowState
+    // If no agent is available, the flow can continue when one connects
+    logger.info(
+      `[triggerAgentForFlowStart] No agent client found for ${context.effectiveAgentId} - leaving ticket in current status`
     )
     return
   }
