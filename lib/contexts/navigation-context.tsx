@@ -61,6 +61,7 @@ function getPathnameRoute(pathname: string): AppRoute {
   if (pathname.startsWith('/chat')) return 'chat'
   if (pathname.startsWith('/statuses')) return 'statuses'
   if (pathname.startsWith('/skills')) return 'skills'
+  if (pathname.startsWith('/projects')) return 'projects'
   if (pathname.startsWith('/profile')) return 'profile'
   if (pathname.startsWith('/settings')) return 'settings'
   if (pathname.startsWith('/gateways')) return 'settings'
@@ -77,6 +78,8 @@ function getRouteUrl(route: AppRoute): string {
       return '/statuses'
     case 'skills':
       return '/skills'
+    case 'projects':
+      return '/projects'
     case 'profile':
       return '/profile'
     case 'settings':

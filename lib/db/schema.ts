@@ -490,3 +490,31 @@ export interface AgentInfo {
     imageRecognition?: boolean
   }
 }
+
+// Project types
+export interface Project {
+  id: string
+  workspace_id: string
+  name: string
+  description: string | null
+  value: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectInsert {
+  workspace_id: string
+  name: string
+  description?: string | null
+  value?: string | null
+}
+
+export interface ProjectUpdate {
+  name?: string
+  description?: string | null
+  value?: string | null
+}
+
+export interface ProjectWithTicketCount extends Project {
+  ticket_count?: number
+}

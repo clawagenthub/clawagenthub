@@ -11,6 +11,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'statuses', label: 'Statuses', icon: '🏷️' },
   { id: 'skills', label: 'Skills', icon: '🎯' },
+  { id: 'projects', label: 'Projects', icon: '📁' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 

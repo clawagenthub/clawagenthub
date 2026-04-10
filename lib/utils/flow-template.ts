@@ -23,7 +23,11 @@ export const DEFAULT_FLOW_TEMPLATE = `
     <rule order="3">If your work is not required, add a concrete comment explaining why no action is needed.</rule>
     <rule order="4">Before any terminal flow action, post a progress comment with Changed, Validated, and Remaining sections.</rule>
     <rule order="5">Do not invent endpoints, payload fields, or status keys. Use only the defined API contract.</rule>
-  </mandatory_rules>
+    <rule order="6">If you are not useable on this part of task, add comment then send to next agent.</rule>
+    <rule order="7">Use subagents when tasks can run in parallel, require isolated context, or involve independent workstreams that don't need to share state. For simple tasks, sequential operations, single-file edits, or tasks where you need to maintain context across steps, work directly rather than delegating.</rule>
+    <rule order="8">Focus</rule>
+    </mandatory_rules>
+
 
   <flow_context>
     <ticket_id>{$ticketId}</ticket_id>
@@ -45,9 +49,16 @@ export const DEFAULT_FLOW_TEMPLATE = `
   </workspace_statuses>
 
   <api_contract mode="canonical">
+    <session_scoped>true</session_scoped>
+    <session_path_pattern>/api/{$sessionId}/tickets/{$ticketId}</session_path_pattern>
+
     <flow_read>
       <endpoint method="GET">/api/tickets/{$ticketId}/flow/view</endpoint>
       <purpose>Get latest ticket, flow configuration, comments, and flow history.</purpose>
+      <verification>
+        <requires_session_id>true</requires_session_id>
+        <session_id_location>path</session_id_location>
+      </verification>
     </flow_read>
 
     <comments>
@@ -61,17 +72,56 @@ export const DEFAULT_FLOW_TEMPLATE = `
       ]]></body_example>
     </comments>
 
-    <flow_callbacks primary="true" session_token_in_path="true">
-      <callback name="next" method="POST" endpoint="/api/tickets/{$ticketId}_{$sessionToken}/next">
+    <flow_callbacks primary="true" session_scoped_api="true">
+      <callback name="next" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/next">
+        <verification>
+          <requires_session_id>true</requires_session_id>
+          <session_id_location>path</session_id_location>
+          <ticket_id_verification>true</ticket_id_verification>
+          <action_specific_checks>
+            <check name="flow_status_valid">Verify current status allows transition to next</check>
+            <check name="no_blocking_tickets">Verify no blocking tickets waiting for completion</check>
+          </action_specific_checks>
+        </verification>
         <body_example><![CDATA[{ "notes": "Advanced to next stage. Summary: ..." }]]></body_example>
       </callback>
-      <callback name="finished" method="POST" endpoint="/api/tickets/{$ticketId}_{$sessionToken}/finished">
+      <callback name="finished" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/finished">
+        <verification>
+          <requires_session_id>true</requires_session_id>
+          <session_id_location>path</session_id_location>
+          <ticket_id_verification>true</ticket_id_verification>
+          <action_specific_checks>
+            <check name="status_objective_met">Verify status objective is complete with evidence</check>
+            <check name="required_outputs_present">Verify all required outputs delivered</check>
+            <check name="no_handoff_blockers">Verify no pending handoff dependencies</check>
+          </action_specific_checks>
+        </verification>
         <body_example><![CDATA[{ "notes": "Completed status {$currentStatusName}. Summary: ... | Evidence: ... | Handoff: ..." }]]></body_example>
       </callback>
-      <callback name="failed" method="POST" endpoint="/api/tickets/{$ticketId}_{$sessionToken}/failed">
+      <callback name="failed" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/failed">
+        <verification>
+          <requires_session_id>true</requires_session_id>
+          <session_id_location>path</session_id_location>
+          <ticket_id_verification>true</ticket_id_verification>
+          <action_specific_checks>
+            <check name="root_cause_documented">Verify root cause is documented in notes</check>
+            <check name="attempted_actions_logged">Verify attempted solutions are logged</check>
+            <check name="required_input_specified">Verify required input or fix is specified</check>
+          </action_specific_checks>
+        </verification>
         <body_example><![CDATA[{ "notes": "Failed in status {$currentStatusName}. Root cause: ... | Attempted: ... | Needs: ..." }]]></body_example>
       </callback>
-      <callback name="pause" method="POST" endpoint="/api/tickets/{$ticketId}_{$sessionToken}/pause">
+      <callback name="pause" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/pause">
+        <verification>
+          <requires_session_id>true</requires_session_id>
+          <session_id_location>path</session_id_location>
+          <ticket_id_verification>true</ticket_id_verification>
+          <action_specific_checks>
+            <check name="required_input_identified">Verify explicit external/user input is required</check>
+            <check name="resume_conditions_specified">Verify resume conditions are documented</check>
+            <check name="current_state_captured">Verify current progress state is captured</check>
+          </action_specific_checks>
+        </verification>
         <body_example><![CDATA[{ "notes": "Paused in status {$currentStatusName}. Required input: ... | Reason: ... | Resume when: ..." }]]></body_example>
       </callback>
     </flow_callbacks>

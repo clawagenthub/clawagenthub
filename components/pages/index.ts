@@ -9,6 +9,7 @@ import { DashboardPageContent } from './dashboard-content'
 import { ChatPageContent } from './chat-content'
 import { StatusesPageContent } from './statuses-content'
 import { SkillsPageContent } from './skills-content'
+import { ProjectsPageContent } from './projects-content'
 import { ProfilePageContent } from './profile-content'
 import { SettingsPageContent } from './settings-content'
 import type { AppRoute } from '@/lib/contexts/navigation-context'
@@ -22,6 +23,7 @@ export { DashboardPageContent } from './dashboard-content'
 export { ChatPageContent } from './chat-content'
 export { StatusesPageContent } from './statuses-content'
 export { SkillsPageContent } from './skills-content'
+export { ProjectsPageContent } from './projects-content'
 export { ProfilePageContent } from './profile-content'
 export { SettingsPageContent } from './settings-content'
 
@@ -35,6 +37,8 @@ export function getPageContentComponent(route: AppRoute) {
       return StatusesPageContent
     case 'skills':
       return SkillsPageContent
+    case 'projects':
+      return ProjectsPageContent
     case 'profile':
       return ProfilePageContent
     case 'settings':

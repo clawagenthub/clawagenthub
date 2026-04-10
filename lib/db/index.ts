@@ -3,6 +3,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger, { logCategories } from '@/lib/logger/index.js'
+import type { Project, ProjectInsert, ProjectUpdate } from './schema'
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -74,6 +75,7 @@ export function runMigrations(): void {
     '030_add_skills_path_columns.sql',
     '031_update_flowing_status_check.sql',
     '033_add_sub_ticket_columns.sql',
+    '034_add_workspace_projects.sql',
   ]
 
   for (const file of migrationFiles) {
@@ -131,4 +133,63 @@ export function closeDatabase(): void {
     db.close()
     db = null
   }
+}
+
+// Project query functions
+export function getProjects(db: Database.Database, workspaceId: string): Project[] {
+  return db
+    .prepare('SELECT * FROM workspace_projects WHERE workspace_id = ? ORDER BY name ASC')
+    .all(workspaceId) as Project[]
+}
+
+export function getProjectById(db: Database.Database, id: string): Project | undefined {
+  return db.prepare('SELECT * FROM workspace_projects WHERE id = ?').get(id) as Project | undefined
+}
+
+export function createProject(db: Database.Database, project: ProjectInsert & { id: string }): Project {
+  const now = new Date().toISOString()
+  db.prepare(
+    `INSERT INTO workspace_projects (id, workspace_id, name, description, value, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    project.id,
+    project.workspace_id,
+    project.name,
+    project.description || null,
+    project.value || null,
+    now,
+    now
+  )
+  return getProjectById(db, project.id)!
+}
+
+export function updateProject(db: Database.Database, id: string, update: ProjectUpdate): Project | undefined {
+  const existing = getProjectById(db, id)
+  if (!existing) return undefined
+
+  const now = new Date().toISOString()
+  const fields: string[] = ['updated_at = ?']
+  const values: (string | null)[] = [now]
+
+  if (update.name !== undefined) {
+    fields.push('name = ?')
+    values.push(update.name)
+  }
+  if (update.description !== undefined) {
+    fields.push('description = ?')
+    values.push(update.description)
+  }
+  if (update.value !== undefined) {
+    fields.push('value = ?')
+    values.push(update.value)
+  }
+
+  values.push(id)
+  db.prepare(`UPDATE workspace_projects SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+  return getProjectById(db, id)
+}
+
+export function deleteProject(db: Database.Database, id: string): boolean {
+  const result = db.prepare('DELETE FROM workspace_projects WHERE id = ?').run(id)
+  return result.changes > 0
 }

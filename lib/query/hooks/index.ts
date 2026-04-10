@@ -55,3 +55,10 @@ export {
   type TicketFlowConfigWithStatus,
   type TicketFlowRuntimeStatus,
 } from './useTickets'
+export {
+  useProjects,
+  useProject,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+} from './useProjects'
