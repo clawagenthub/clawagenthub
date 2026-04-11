@@ -13,6 +13,11 @@ export interface AutoTicketConverterPromptParams {
     description: string
     value: string
   }>
+  selectedProject?: {
+    name: string
+    description: string | null
+    value: string | null
+  } | null
 }
 
 /**
@@ -28,6 +33,7 @@ export const DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE = `
   <task_input>
     <target_text><![CDATA[{$targetText}]]></target_text>
     <available_formats><![CDATA[{$promptFormats}]]></available_formats>
+    <selected_project><![CDATA[{$selectedProject}]]></selected_project>
   </task_input>
 
   <mandatory_rules priority="highest">
@@ -56,7 +62,7 @@ export function buildAutoTicketConverterPrompt(
   params: AutoTicketConverterPromptParams,
   template: string = DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE
 ): string {
-  const { targetText, promptFormats } = params
+  const { targetText, promptFormats, selectedProject } = params
 
   // Serialize as JSON array with renamed keys (description -> desc)
   const formatsJson = JSON.stringify(
@@ -67,9 +73,20 @@ export function buildAutoTicketConverterPrompt(
     }))
   )
 
+  // Format selectedProject for display
+  let selectedProjectJson = 'null'
+  if (selectedProject) {
+    selectedProjectJson = JSON.stringify({
+      name: selectedProject.name,
+      desc: selectedProject.description,
+      value: selectedProject.value,
+    })
+  }
+
   return template
     .replace('{$targetText}', targetText)
     .replace('{$promptFormats}', formatsJson)
+    .replace('{$selectedProject}', selectedProjectJson)
 }
 
 /**

@@ -71,11 +71,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not a member of this workspace' }, { status: 403 })
     }
 
+    let ticketProjectId: string | null = null
     if (ticketId) {
-      const ticket = db.prepare('SELECT id FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as { id: string } | undefined
+      const ticket = db.prepare('SELECT id, project_id FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as { id: string; project_id: string | null } | undefined
       if (!ticket) {
         return NextResponse.json({ message: 'Ticket not found' }, { status: 404 })
       }
+      ticketProjectId = ticket.project_id
     }
 
     const settingsRows = db.prepare('SELECT setting_key, setting_value FROM workspace_settings WHERE workspace_id = ?').all(workspaceId) as Array<{ setting_key: string; setting_value: string | null }>
@@ -149,10 +151,24 @@ export async function POST(request: NextRequest) {
         promptFormats = DEFAULT_PROMPTS.map((p) => ({ name: p.name, description: p.description, value: p.value }))
       }
 
+      // Fetch selected project if ticket has project_id
+      let selectedProject: { name: string; description: string | null; value: string | null } | null = null
+      if (ticketProjectId) {
+        const project = db.prepare('SELECT name, description, value FROM projects WHERE id = ?').get(ticketProjectId) as { name: string; description: string | null; value: string | null } | undefined
+        if (project) {
+          selectedProject = {
+            name: project.name,
+            description: project.description,
+            value: project.value,
+          }
+        }
+      }
+
       prompt = buildAutoTicketConverterPrompt(
         {
           targetText: targetText.trim(),
           promptFormats,
+          selectedProject,
         },
         autoPromptTemplate
       )
