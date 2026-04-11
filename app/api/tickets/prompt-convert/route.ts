@@ -121,6 +121,18 @@ export async function POST(request: NextRequest) {
       if (!selectedFormat?.name?.trim()) {
         return NextResponse.json({ message: 'selectedFormat is required for selected mode' }, { status: 400 })
       }
+      let selectedProject: { name: string; description: string | null; value: string | null } | null = null
+      if (ticketProjectId) {
+        const project = db.prepare('SELECT name, description, value FROM projects WHERE id = ?').get(ticketProjectId) as { name: string; description: string | null; value: string | null } | undefined
+        if (project) {
+          selectedProject = {
+            name: project.name,
+            description: project.description,
+            value: project.value,
+          }
+        }
+      }
+
       prompt = buildSelectedTicketConverterPrompt(
         {
           targetText: targetText.trim(),
@@ -128,6 +140,7 @@ export async function POST(request: NextRequest) {
             name: selectedFormat.name,
             description: selectedFormat.description || '',
           },
+          selectedProject,
         },
         selectedPromptTemplate
       )

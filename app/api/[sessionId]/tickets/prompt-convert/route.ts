@@ -78,6 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ message: 'Not a member of this workspace' }, { status: 403 })
     }
 
+    let ticketProjectId: string | null = null
     if (ticketId) {
       const ticket = db.prepare('SELECT id, project_id FROM tickets WHERE id = ? AND workspace_id = ?').get(ticketId, workspaceId) as { id: string; project_id: string | null } | undefined
       if (!ticket) {
@@ -86,7 +87,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ticketProjectId = ticket.project_id
     }
 
-    let ticketProjectId: string | null = null
     const settingsRows = db.prepare('SELECT setting_key, setting_value FROM workspace_settings WHERE workspace_id = ?').all(workspaceId) as Array<{ setting_key: string; setting_value: string | null }>
     const settings = Object.fromEntries(settingsRows.map((row) => [row.setting_key, row.setting_value])) as Record<string, string | null>
 
@@ -128,6 +128,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!selectedFormat?.name?.trim()) {
         return NextResponse.json({ message: 'selectedFormat is required for selected mode' }, { status: 400 })
       }
+      let selectedProject: { name: string; description: string | null; value: string | null } | null = null
+      if (ticketProjectId) {
+        const project = db.prepare('SELECT name, description, value FROM projects WHERE id = ?').get(ticketProjectId) as { name: string; description: string | null; value: string | null } | undefined
+        if (project) {
+          selectedProject = {
+            name: project.name,
+            description: project.description,
+            value: project.value,
+          }
+        }
+      }
+
       prompt = buildSelectedTicketConverterPrompt(
         {
           targetText: targetText.trim(),
@@ -135,6 +147,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             name: selectedFormat.name,
             description: selectedFormat.description || '',
           },
+          selectedProject,
         },
         selectedPromptTemplate
       )

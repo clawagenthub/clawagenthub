@@ -11,6 +11,11 @@ export interface SelectedTicketConverterPromptParams {
     name: string
     description: string
   }
+  selectedProject?: {
+    name: string
+    description: string | null
+    value: string | null
+  } | null
 }
 
 /**
@@ -24,6 +29,7 @@ export const DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE = `
   </system_role>
 
   <task_input>
+    <selected_project><![CDATA[{$selectedProject}]]></selected_project>
     <selected_format><![CDATA[{$selectedFormat}]]></selected_format>
     <target_text><![CDATA[{$targetText}]]></target_text>
   </task_input>
@@ -54,14 +60,25 @@ export function buildSelectedTicketConverterPrompt(
   params: SelectedTicketConverterPromptParams,
   template: string = DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE
 ): string {
-  const { targetText, selectedFormat } = params
+  const { targetText, selectedFormat, selectedProject } = params
 
   const formatText = `**${selectedFormat.name}**
 ${selectedFormat.description}`
 
+  // Format selectedProject for display
+  let selectedProjectJson = 'null'
+  if (selectedProject) {
+    selectedProjectJson = JSON.stringify({
+      name: selectedProject.name,
+      desc: selectedProject.description,
+      value: selectedProject.value,
+    })
+  }
+
   return template
     .replace('{$targetText}', targetText)
     .replace('{$selectedFormat}', formatText)
+    .replace('{$selectedProject}', selectedProjectJson)
 }
 
 /**
