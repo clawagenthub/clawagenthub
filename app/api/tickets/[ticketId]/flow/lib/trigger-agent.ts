@@ -4,6 +4,7 @@ import { generateUserId } from '@/lib/auth/token.js'
 import { modelHasVisionCapability, buildFlowPrompt } from './flow-helpers.js'
 import { findClientForAgent } from './find-client.js'
 import { parseAgentFlowResult, extractText } from './parse-result.js'
+import { createSession } from '@/lib/auth/session.js'
 import type { Ticket, Status } from './flow-types.js'
 import logger from '@/lib/logger/index.js'
 
@@ -46,6 +47,26 @@ export async function triggerWaitingTickets(
     workspace_id: string
     waiting_finished_ticket_id: string | null
   }>
+
+  // Get a valid system user ID for flow triggers
+  const systemUserId = (() => {
+    const workspace = db
+      .prepare('SELECT owner_id FROM workspaces LIMIT 1')
+      .get() as { owner_id: string } | undefined
+    if (workspace?.owner_id) return workspace.owner_id
+    const superuser = db
+      .prepare('SELECT id FROM users WHERE is_superuser = 1 LIMIT 1')
+      .get() as { id: string } | undefined
+    if (superuser?.id) return superuser.id
+    const firstUser = db.prepare('SELECT id FROM users LIMIT 1').get() as
+      | { id: string }
+      | undefined
+    if (firstUser?.id) return firstUser.id
+    return 'system'
+  })()
+
+  // Create a session for system user to use for API auth in flow prompts
+  const systemSession = createSession(systemUserId, 'system-flow-trigger')
 
   for (const ticket of waitingTickets) {
     // Check if this ticket is waiting for another ticket to finish
@@ -93,7 +114,7 @@ export async function triggerWaitingTickets(
       generateUserId(),
       ticket.id,
       'flow_started',
-      'system',
+      systemUserId,
       'system',
       JSON.stringify({ flowing_status: 'waiting_to_flow' }),
       JSON.stringify({ flowing_status: 'flowing', reason: 'Flow slot became available' }),
@@ -103,8 +124,8 @@ export async function triggerWaitingTickets(
     await triggerAgentForFlowStart({
       ticketId: ticket.id,
       workspaceId: ticket.workspace_id,
-      userId: 'system',
-      sessionToken: '',
+      userId: systemUserId,
+      sessionToken: systemSession.token,
     })
   }
 }
@@ -293,7 +314,8 @@ async function transitionFlowState(
   userId: string,
   effectiveAgentId: string,
   parsed: { result: 'finished' | 'failed' | 'pause'; notes: string; progressComment: string },
-  _sessionKey: string
+  _sessionKey: string,
+  sessionToken: string
 ): Promise<void> {
   const db = getDatabase()
   const now = new Date().toISOString()
@@ -382,7 +404,7 @@ async function transitionFlowState(
   )
 
   if (shouldAutoTriggerNext) {
-    await triggerAgentForFlowStart({ ticketId, workspaceId, userId, sessionToken: '' })
+    await triggerAgentForFlowStart({ ticketId, workspaceId, userId, sessionToken })
   }
 }
 
@@ -456,7 +478,7 @@ export async function triggerAgentForFlowStart(args: {
       prompt,
       timeoutMs
     )
-    await transitionFlowState(ticketId, workspaceId, userId, context.effectiveAgentId, parsed, sessionKey)
+    await transitionFlowState(ticketId, workspaceId, userId, context.effectiveAgentId, parsed, sessionKey, sessionToken)
   } catch (error) {
     const now = new Date().toISOString()
     db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('failed', now, ticketId)

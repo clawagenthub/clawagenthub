@@ -1,6 +1,7 @@
 import { getDatabase } from '@/lib/db'
 import { generateUserId } from '@/lib/auth/token.js'
 import { triggerAgentForFlowStart } from '../../app/api/tickets/[ticketId]/flow/lib/trigger-agent'
+import { createSession } from '@/lib/auth/session.js'
 import logger, { logCategories } from '@/lib/logger/index.js'
 
 function getSystemUserId(db: ReturnType<typeof getDatabase>): string {
@@ -122,11 +123,14 @@ logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE },
       now
     )
 
+    // Create a session for system user to use for API auth in flow prompts
+    const systemSession = createSession(systemUserId, 'system-flow-trigger')
+    
     await triggerAgentForFlowStart({
       ticketId: ticket.id,
       workspaceId: ticket.workspace_id,
       userId: systemUserId,
-      sessionToken: '',
+      sessionToken: systemSession.token,
     })
   }
 }
