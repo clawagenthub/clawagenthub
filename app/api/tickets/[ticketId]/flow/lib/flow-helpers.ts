@@ -1,5 +1,5 @@
 import type { BuildFlowPromptParams } from './flow-types.js'
-import { getDatabase } from '@/lib/db/index.js'
+import { getDatabase, getProjectById } from '@/lib/db/index.js'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template.js'
 
 /**
@@ -162,11 +162,26 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     }
   })
   const commentsJson = JSON.stringify(commentsWithRole, null, 2)
+
+  // Fetch selected project if ticket has project_id
+  let selectedProject: { name: string; description: string | null; value: string | null } | null = null
+  if (ticket.project_id) {
+    const project = getProjectById(db, ticket.project_id)
+    if (project) {
+      selectedProject = {
+        name: project.name,
+        description: project.description,
+        value: project.value,
+      }
+    }
+  }
+
   const ticketJson = JSON.stringify(
     {
       ...ticket,
       description: null,
       task_todo: ticket.description,
+      selectedProject,
     },
     null,
     2
