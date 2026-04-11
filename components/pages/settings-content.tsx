@@ -69,7 +69,8 @@ function SettingsContent({ user }: PageContentProps) {
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState('')
   const [autoPromptTemplateLoadMessage, setAutoPromptTemplateLoadMessage] = useState('')
   const [selectedPromptTemplateLoadMessage, setSelectedPromptTemplateLoadMessage] = useState('')
-  const [defaultPromptsTimeaout, setDefaultPromptsTimeaout] = useState(120)
+  const [autoPromptTimeoutSeconds, setAutoPromptTimeoutSeconds] = useState(120)
+  const [selectedPromptTimeoutSeconds, setSelectedPromptTimeoutSeconds] = useState(120)
 
   // Sync activeTab from URL on mount and when searchParams change
   useEffect(() => {
@@ -126,7 +127,8 @@ function SettingsContent({ user }: PageContentProps) {
           setSelectedPromptTemplate(data.selected_prompt_template || '')
           setMaxImagesPerPost(data.max_images_per_post ? parseInt(data.max_images_per_post) : DEFAULT_MAX_IMAGES_PER_POST)
           setAllowPdfAttachments(data.allow_pdf_attachments ? data.allow_pdf_attachments === 'true' : true)
-          setDefaultPromptsTimeaout(data.defaultPromptsTimeaout ? parseInt(data.defaultPromptsTimeaout) : 120)
+          setAutoPromptTimeoutSeconds(data.auto_prompt_timeout_seconds ? parseInt(data.auto_prompt_timeout_seconds) : 120)
+          setSelectedPromptTimeoutSeconds(data.selected_prompt_timeout_seconds ? parseInt(data.selected_prompt_timeout_seconds) : 120)
         }
       } catch (error) {
         logger.error('Error fetching workspace settings:', error)
@@ -703,7 +705,8 @@ function SettingsContent({ user }: PageContentProps) {
                       prompt_converter_agent_id: promptConverterAgentId || null,
                       auto_prompt_template: autoPromptTemplate || null,
                       selected_prompt_template: selectedPromptTemplate || null,
-                      defaultPromptsTimeaout: defaultPromptsTimeaout.toString()
+                      auto_prompt_timeout_seconds: autoPromptTimeoutSeconds.toString(),
+                      selected_prompt_timeout_seconds: selectedPromptTimeoutSeconds.toString()
                     }
                     if (promptConverterAgentId && selectedAgent) {
                       body.prompt_converter_gateway_id = selectedAgent.gatewayId
@@ -749,8 +752,8 @@ function SettingsContent({ user }: PageContentProps) {
 
             <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
               <div>
-                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Chat Timeout</p>
-                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Maximum time to wait for AI chat response during prompt conversion (10-600 seconds)</p>
+                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Auto Prompt Timeout</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Maximum time to wait for AI chat response during auto prompt conversion (10-600 seconds)</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -759,11 +762,34 @@ function SettingsContent({ user }: PageContentProps) {
                   max="600"
                   className="w-20 px-2 py-1 rounded border text-center"
                   style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  value={defaultPromptsTimeaout}
+                  value={autoPromptTimeoutSeconds}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 120
                     // Clamp between 10 and 600
-                    setDefaultPromptsTimeaout(Math.min(600, Math.max(10, val)))
+                    setAutoPromptTimeoutSeconds(Math.min(600, Math.max(10, val)))
+                  }}
+                />
+                <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>seconds</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'rgb(var(--border-color))' }}>
+              <div>
+                <p className="font-medium" style={{ color: 'rgb(var(--text-primary))' }}>Selected Prompt Timeout</p>
+                <p className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>Maximum time to wait for AI chat response during selected prompt conversion (10-600 seconds)</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="10"
+                  max="600"
+                  className="w-20 px-2 py-1 rounded border text-center"
+                  style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                  value={selectedPromptTimeoutSeconds}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 120
+                    // Clamp between 10 and 600
+                    setSelectedPromptTimeoutSeconds(Math.min(600, Math.max(10, val)))
                   }}
                 />
                 <span className="text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>seconds</span>
