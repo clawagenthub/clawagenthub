@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { ensureDatabase } from '@/lib/db/middleware'
 import { getUserFromSession } from '@/lib/auth/session'
 import { getDatabase } from '@/lib/db/index'
-import { triggerAgentForFlowStart } from './lib/trigger-agent'
 import { processFlowPost } from './lib/process-post'
 import type { Ticket } from '@/lib/db/schema'
 import logger from "@/lib/logger/index.js"
@@ -259,8 +258,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.action === 'start') {
-      // Guard: Prevent starting if already flowing or waiting_to_flow
-      if (ticket.flowing_status === 'flowing' || ticket.flowing_status === 'waiting_to_flow') {
+      // Guard: Prevent starting if already flowing, waiting_to_flow, or completed
+      if (ticket.flowing_status === 'flowing' || ticket.flowing_status === 'waiting_to_flow' || ticket.flowing_status === 'completed') {
         return NextResponse.json({
           success: false,
           action: 'start',
@@ -269,62 +268,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         })
       }
 
-      const currentFlowingCount = db
-        .prepare(
-          `
-        SELECT COUNT(*) as count FROM tickets WHERE workspace_id = ? AND flowing_status = 'flowing'
-      `
-        )
-        .get(workspaceId) as { count: number }
-
-      const onflowlimitSetting = db
-        .prepare(
-          `
-        SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = 'onflowlimit'
-      `
-        )
-        .get(workspaceId) as { setting_value: string } | undefined
-
-      const onflowlimit = onflowlimitSetting?.setting_value
-        ? parseInt(onflowlimitSetting.setting_value)
-        : 5
-
-      if (onflowlimit > 0 && currentFlowingCount.count >= onflowlimit) {
-        const now = new Date().toISOString()
-        db.prepare(
-          `UPDATE tickets
-           SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
-           WHERE id = ?`
-        ).run('waiting_to_flow', now, now, ticketId)
-
-        return NextResponse.json({
-          success: true,
-          action: 'start',
-          flowing_status: 'waiting_to_flow',
-          message: `Ticket queued - max concurrent flowing tickets (${onflowlimit}) reached`,
-        })
-      }
-
+      // Directly set to waiting_to_flow - the waiting_to_flow_trigger service will
+      // pick up queued tickets and trigger agents when slots become available.
+      // This prevents bottleneck on button click and centralizes agent triggering.
       const now = new Date().toISOString()
       db.prepare(
         `UPDATE tickets
          SET flowing_status = ?, last_flow_check_at = ?, updated_at = ?
          WHERE id = ?`
-      ).run('flowing', now, now, ticketId)
-
-      // Use void to explicitly indicate we're not awaiting - agent triggering runs async
-      // The ticket status is already set to 'flowing' above, so no need to wait
-      void triggerAgentForFlowStart({
-        ticketId,
-        workspaceId,
-        userId: user.id,
-        sessionToken,
-      })
+      ).run('waiting_to_flow', now, now, ticketId)
 
       return NextResponse.json({
         success: true,
         action: 'start',
-        flowing_status: 'flowing',
+        flowing_status: 'waiting_to_flow',
+        message: 'Ticket queued for flow - will start when a slot is available',
       })
     }
 
