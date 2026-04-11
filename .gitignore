@@ -47,3 +47,4 @@ downloaded_skills/
 temp/
 tsconfig.tsbuildinfo
 .next
+.cab-dev.log
