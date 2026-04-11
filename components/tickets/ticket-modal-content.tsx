@@ -1,120 +1,23 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React from 'react'
 import { Modal } from '@/components/ui/modal'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { AutocompleteInput } from '@/components/ui/autocomplete-input'
-import { MarkdownEditor } from './markdown-editor'
-import {
-  TextAreaWithImage,
-  type ComposerAttachment,
-} from '@/components/ui/text-area-with-image'
-import { StatusFlowBuilder } from './status-flow-builder'
 import { SelectPromptModal } from '@/components/ui/select-prompt-modal'
-import {
-  useStatuses,
-  useWorkspaceMembers,
-  useGatewayAgents,
-  useCreateTicket,
-  useUpdateTicket,
-  useTicketFlowConfig,
-  useTicketFlowStatus,
-  useStartTicketFlow,
-  useStopTicketFlow,
-  useWorkspacePrompts,
-  useProjects,
-} from '@/lib/query/hooks'
-import type { TicketCreationStatus, TicketFlowMode } from '@/lib/db/schema'
-import {
-  loadDraftFromStorage,
-  saveDraftToStorage,
-  clearDraftFromStorage,
-} from './ticket-modal-draft-storage'
-import type { FlowConfig } from './ticket-modal-flow-utils'
-import {
-  buildDefaultFlowConfigs,
-  mapExternalFlowConfig,
-  isGatewayAuthError,
-  getGatewayAuthErrorMessage,
-} from './ticket-modal-flow-utils'
-import {
-  useStatusOptions,
-  useAssigneeOptions,
-  getInitialFormState,
-  FLOW_MODE_OPTIONS,
-} from './ticket-modal-form-utils'
-import logger, { logCategories } from '@/lib/logger/index.js'
+import { FLOW_MODE_OPTIONS } from './ticket-modal-form-utils'
+import { useTicketModalCoreState } from './hooks/use-ticket-modal-core-state'
+import { useTicketModalQueries } from './hooks/use-ticket-modal-queries'
+import { useTicketModalEffects } from './hooks/use-ticket-modal-effects'
+import { useTicketModalActions } from './hooks/use-ticket-modal-actions'
+import { TicketBasicFieldsSection } from './sections/ticket-basic-fields-section'
+import { TicketPromptSection } from './sections/ticket-prompt-section'
+import { TicketDescriptionSection } from './sections/ticket-description-section'
+import { TicketFlowConfigSection } from './sections/ticket-flow-config-section'
+import { TicketActionButtonsSection } from './sections/ticket-action-buttons-section'
+import type { TicketModalProps } from './ticket-modal.types'
 
-// ============================================================================
-// Types
-// ============================================================================
+export type { TicketModalProps } from './ticket-modal.types'
 
-interface TicketModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (
-    data: {
-      id?: string
-      title: string
-      description?: string
-      status_id: string
-      assigned_to?: string
-      flow_enabled?: boolean
-      flow_mode?: TicketFlowMode
-      creation_status?: TicketCreationStatus
-      isSubTicket?: boolean
-      parentTicketId?: string
-      waitingFinishedTicketId?: string
-      project_id?: string
-      flow_configs?: Array<{
-        status_id: string
-        flow_order: number
-        agent_id?: string | null
-        on_failed_goto?: string | null
-        ask_approve_to_continue?: boolean
-        instructions_override?: string
-        is_included?: boolean
-      }>
-    },
-    switchToView?: boolean
-  ) => void
-  initialData?: {
-    id?: string
-    title?: string
-    description?: string
-    status_id?: string
-    assigned_to?: string
-    flow_enabled?: boolean
-    flow_mode?: TicketFlowMode
-    creation_status?: TicketCreationStatus
-    isSubTicket?: boolean
-    parentTicketId?: string
-    project_id?: string
-  }
-  isSubmitting?: boolean
-  onSwitchToView?: () => void
-  onSaveAndView?: () => void
-  onDelete?: () => void
-  availableUsers?: Array<{ id: string; email: string }>
-  availableAgents?: Array<{ id: string; name: string }>
-}
-
-type DraftFormState = Pick<
-  TicketModalProps['initialData'],
-  | 'title'
-  | 'description'
-  | 'status_id'
-  | 'assigned_to'
-  | 'flow_enabled'
-  | 'flow_mode'
->
-
-// ============================================================================
-// TicketModal Component
-// ============================================================================
-
-export function TicketModal({
+export function TicketModalContent({
   isOpen,
   onClose,
   onSubmit,
@@ -124,1249 +27,139 @@ export function TicketModal({
   onSaveAndView,
   onDelete,
 }: TicketModalProps) {
-  // -------------------------------------------------------------------------
-  // Form State
-  // -------------------------------------------------------------------------
-  const [title, setTitle] = useState(initialData?.title || '')
-  const [description, setDescription] = useState(initialData?.description || '')
-  const [descriptionAttachments, setDescriptionAttachments] = useState<
-    ComposerAttachment[]
-  >([])
-  const [statusId, setStatusId] = useState(initialData?.status_id || '')
-  const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to || '')
-  const [flowEnabled, setFlowEnabled] = useState(
-    initialData?.flow_enabled ?? false
-  )
-  const [flowMode, setFlowMode] = useState<TicketFlowMode>(
-    initialData?.flow_mode ?? 'manual'
-  )
-  const [flowConfigs, setFlowConfigs] = useState<FlowConfig[]>([])
-  const [isSubTicket, setIsSubTicket] = useState(
-    initialData?.isSubTicket ?? false
-  )
-  const [parentTicketId, setParentTicketId] = useState(
-    initialData?.parentTicketId || ''
-  )
-  const [waitingFinishedTicketId, setWaitingFinishedTicketId] = useState('')
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
-  const [hasLoadedDraft, setHasLoadedDraft] = useState(false)
-  const [draftTicketId, setDraftTicketId] = useState<string | null>(null)
-  const [hasCreatedDraft, setHasCreatedDraft] = useState(false)
-  const [isLoadDefaultsConfirmOpen, setIsLoadDefaultsConfirmOpen] =
-    useState(false)
-  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
-  const [isAutoPromptLoading, setIsAutoPromptLoading] = useState(false)
-  const [isDraftSubmitting, setIsDraftSubmitting] = useState(false)
-  const [isPublishSubmitting, setIsPublishSubmitting] = useState(false)
-  const [maxImagesPerPost, setMaxImagesPerPost] = useState(5)
-  const [allowPdfAttachments, setAllowPdfAttachments] = useState(true)
-  const [projectId, setProjectId] = useState<string>(
-    initialData?.project_id || ''
-  )
-  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false)
+  const state = useTicketModalCoreState(initialData)
+  const queries = useTicketModalQueries(initialData)
 
-  // Debounced save timeout ref
-  const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  useTicketModalEffects({ isOpen, initialData, state, queries })
 
-  // -------------------------------------------------------------------------
-  // Queries
-  // -------------------------------------------------------------------------
-  const { data: statuses } = useStatuses()
-  const { data: workspaceMembers } = useWorkspaceMembers()
-  const { data: gatewayAgents } = useGatewayAgents()
-  const editingTicketId =
-    initialData?.id && initialData?.title ? initialData.id : null
-  const { data: existingFlowConfigs } = useTicketFlowConfig(editingTicketId)
-  const { data: flowRuntimeStatus } = useTicketFlowStatus(editingTicketId)
-  const { mutateAsync: startFlow, isPending: isStartingFlow } =
-    useStartTicketFlow()
-  const { mutateAsync: stopFlow, isPending: isStoppingFlow } =
-    useStopTicketFlow()
-  const { data: workspacePrompts } = useWorkspacePrompts()
-  const { data: projects } = useProjects()
-
-  // -------------------------------------------------------------------------
-  // Derived Options
-  // -------------------------------------------------------------------------
-  const statusOptions = useStatusOptions(statuses)
-  const assigneeOptions = useAssigneeOptions(workspaceMembers)
-  const projectOptions = projects
-    ? [
-        { value: '', label: 'No Project' },
-        ...projects.map((p) => ({ value: p.id, label: p.name })),
-      ]
-    : []
-
-  // -------------------------------------------------------------------------
-  // Derived Flags
-  // -------------------------------------------------------------------------
-  const isEditing = !!initialData?.title
-  const isDraft = initialData?.creation_status === 'draft'
-  const canLoadDefaultConfig = flowEnabled && !!statuses?.length
-  const canControlFlowRuntime = !!editingTicketId && !isDraft && flowEnabled
-  const isFlowingNow = flowRuntimeStatus?.flowing_status === 'flowing'
-  const isFlowActionPending = isStartingFlow || isStoppingFlow
-
-  // Temporary debug logs for button-branch diagnosis
-  useEffect(() => {
-    if (!isOpen) return
-    console.debug('[TicketModal][debug] action-buttons state', {
-      isEditing,
-      isDraft,
-      editingTicketId,
-      creationStatus: initialData?.creation_status,
-      createActionsPlacement: 'bottom-of-form',
-    })
-  }, [
-    isOpen,
-    isEditing,
-    isDraft,
-    editingTicketId,
-    initialData?.creation_status,
-  ])
-
-  // -------------------------------------------------------------------------
-  // Workspace ID (from session)
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const sessionData = localStorage.getItem('session_data')
-      if (sessionData) {
-        try {
-          const parsed = JSON.parse(sessionData)
-          setWorkspaceId(parsed.currentWorkspaceId || null)
-        } catch {
-          setWorkspaceId(null)
-        }
-      }
-    }
-  }, [])
-
-  // -------------------------------------------------------------------------
-  // Load workspace attachment settings
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (!isOpen) return
-
-    let cancelled = false
-
-    const loadWorkspaceAttachmentSettings = async () => {
-      try {
-        const response = await fetch('/api/workspaces/settings')
-        if (!response.ok) return
-        const data = await response.json()
-        if (cancelled) return
-
-        const parsedMaxImages = Number.parseInt(
-          data.max_images_per_post || '',
-          10
-        )
-        setMaxImagesPerPost(
-          Number.isFinite(parsedMaxImages) && parsedMaxImages > 0
-            ? parsedMaxImages
-            : 5
-        )
-        setAllowPdfAttachments(
-          data.allow_pdf_attachments
-            ? data.allow_pdf_attachments === 'true'
-            : true
-        )
-      } catch (error) {
-        logger.error(
-          '[TicketModal] Failed to load workspace attachment settings:',
-          error
-        )
-      }
-    }
-
-    void loadWorkspaceAttachmentSettings()
-
-    return () => {
-      cancelled = true
-    }
-  }, [isOpen])
-
-  // -------------------------------------------------------------------------
-  // Load draft from localStorage on modal open (new ticket mode)
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (isOpen && !initialData?.title && !hasLoadedDraft && workspaceId) {
-      const draft = loadDraftFromStorage(workspaceId)
-      if (draft) {
-        setTitle(draft.title || '')
-        setDescription(draft.description || '')
-        setStatusId(draft.statusId || '')
-        setAssignedTo(draft.assignedTo || '')
-        setFlowEnabled(draft.flowEnabled ?? false)
-        setFlowMode((draft.flowMode as TicketFlowMode) ?? 'manual')
-        setFlowConfigs(draft.flowConfigs || [])
-        setHasLoadedDraft(true)
-        if (draft.ticketId) {
-          setDraftTicketId(draft.ticketId)
-          setHasCreatedDraft(true)
-        }
-      }
-    }
-  }, [isOpen, initialData, workspaceId, hasLoadedDraft])
-
-  // -------------------------------------------------------------------------
-  // Hydrate flow configs from ticket API (edit mode)
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (!isOpen || !editingTicketId) return
-    if (existingFlowConfigs === undefined) return
-
-    const statusIdByName = new Map((statuses || []).map((s) => [s.name, s.id]))
-    const mappedConfigs = existingFlowConfigs
-      .map((config) => mapExternalFlowConfig(config, statusIdByName))
-      .filter((config): config is FlowConfig => config !== null)
-
-    logger.debug(
-      { category: logCategories.CHAT },
-      '[[TicketModal] Hydrating flow configs for edit mode]: ticketId=%s count=%s',
-      editingTicketId,
-      mappedConfigs.length
-    )
-
-    setFlowConfigs(mappedConfigs)
-  }, [isOpen, editingTicketId, existingFlowConfigs, flowEnabled, statuses])
-
-  // -------------------------------------------------------------------------
-  // Reset form state when modal opens for new ticket
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (isOpen && !initialData?.title && !hasLoadedDraft) {
-      // Modal opened for new ticket - ensure clean state
-      setTitle('')
-      setDescription('')
-      setDescriptionAttachments([])
-      setStatusId('')
-      setAssignedTo('')
-      setProjectId('')
-      setFlowEnabled(false)
-      setFlowMode('manual')
-      setFlowConfigs([])
-      setIsSubTicket(false)
-      setParentTicketId('')
-      setWaitingFinishedTicketId('')
-      setDraftTicketId(null)
-      setHasCreatedDraft(false)
-      setIsLoadDefaultsConfirmOpen(false)
-      setIsPromptModalOpen(false)
-      setIsAutoPromptLoading(false)
-    }
-  }, [isOpen, initialData, hasLoadedDraft])
-
-  // -------------------------------------------------------------------------
-  // Auto-save draft to database on input changes
-  // -------------------------------------------------------------------------
-  const { mutateAsync: createTicket } = useCreateTicket()
-  const { mutateAsync: updateTicket } = useUpdateTicket()
-
-  const persistDescriptionAttachments = useCallback(
-    async (ticketId: string, attachments: ComposerAttachment[]) => {
-      if (!attachments.length) return
-
-      const response = await fetch(`/api/tickets/${ticketId}/attachments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          attachments: attachments.map((attachment) => ({
-            name: attachment.name,
-            mimeType: attachment.mimeType,
-            size: attachment.size,
-            kind: attachment.kind,
-            dataBase64: attachment.dataBase64,
-          })),
-        }),
-      })
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null)
-        throw new Error(errorBody?.error || 'Failed to save attachments')
-      }
-
-      const data = await response.json()
-      if (typeof data?.description === 'string') {
-        setDescription(data.description)
-      }
-      setDescriptionAttachments([])
-    },
-    []
-  )
-
-  useEffect(() => {
-    if (!isOpen) return
-    const isEditing = !!initialData?.title
-    if (isEditing) return
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      const hasContent = title.trim() || description.trim()
-      if (!hasContent) return
-
-      try {
-        if (draftTicketId) {
-          await updateTicket({
-            id: draftTicketId,
-            title: title.trim() || 'Draft',
-            description: description.trim() || undefined,
-            status_id: statusId || undefined,
-            assigned_to: assignedTo || undefined,
-            flow_enabled: flowEnabled,
-            flow_mode: flowMode,
-          })
-        } else {
-          const newTicket = await createTicket({
-            title: title.trim() || 'Draft',
-            description: description.trim() || undefined,
-            status_id: statusId || (statuses?.[0]?.id ?? ''),
-            assigned_to: assignedTo || undefined,
-            flow_enabled: flowEnabled,
-            flow_mode: flowMode,
-            creation_status: 'draft',
-          })
-          setDraftTicketId(newTicket.id)
-          setHasCreatedDraft(true)
-          saveDraftToStorage(workspaceId, {
-            title,
-            description,
-            statusId,
-            assignedTo,
-            flowEnabled,
-            flowMode,
-            flowConfigs,
-            ticketId: newTicket.id,
-          })
-        }
-      } catch (error) {
-        logger.error('Failed to auto-save draft:', error)
-      }
-    }, 500)
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-    }
-  }, [
-    title,
-    description,
-    statusId,
-    assignedTo,
-    flowEnabled,
-    flowMode,
-    flowConfigs,
-    draftTicketId,
-    isOpen,
-    workspaceId,
+  const actions = useTicketModalActions({
+    state,
+    queries,
+    onSubmit,
+    onClose,
     initialData,
-    createTicket,
-    updateTicket,
-    statuses,
-  ])
-
-  // -------------------------------------------------------------------------
-  // Clear draft when form is empty on modal close
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (!isOpen) {
-      if (!title && !description && !statusId) {
-        clearDraftFromStorage(workspaceId)
-      }
-    }
-  }, [isOpen, title, description, statusId, workspaceId])
-
-  // -------------------------------------------------------------------------
-  // Flow config change handler
-  // -------------------------------------------------------------------------
-  const handleFlowConfigsChange = useCallback((configs: FlowConfig[]) => {
-    logger.debug(
-      { category: logCategories.CHAT },
-      '[[TicketModal] onChange from StatusFlowBuilder]: nextCount=%s statusIds=%s',
-      configs.length,
-      configs.map((config) => config.status_id)
-    )
-    setFlowConfigs(configs)
-  }, [])
-
-  // -------------------------------------------------------------------------
-  // Load default flow config
-  // -------------------------------------------------------------------------
-  const handleLoadDefaultConfig = useCallback(() => {
-    const initialConfigs = buildDefaultFlowConfigs(statuses)
-    logger.debug(
-      { category: logCategories.CHAT },
-      '[[TicketModal] Loading flow configs from status defaults by user action]: includedCount=%s totalStatuses=%s',
-      initialConfigs.length,
-      statuses?.length ?? 0
-    )
-    setFlowConfigs(initialConfigs)
-    if (!statusId && statuses && statuses.length > 0) {
-      setStatusId(statuses[0].id)
-    }
-    setIsLoadDefaultsConfirmOpen(false)
-  }, [statuses, statusId])
-
-  // -------------------------------------------------------------------------
-  // Flow runtime controls
-  // -------------------------------------------------------------------------
-  const handleStartFlow = useCallback(async () => {
-    if (!editingTicketId || isFlowActionPending) return
-    try {
-      await startFlow({ ticketId: editingTicketId })
-    } catch (error) {
-      logger.error('Failed to start flow runtime:', error)
-      if (isGatewayAuthError(error)) {
-        alert(getGatewayAuthErrorMessage(error))
-      } else {
-        alert(error instanceof Error ? error.message : 'Failed to start flow')
-      }
-    }
-  }, [editingTicketId, isFlowActionPending, startFlow])
-
-  const handleStopFlow = useCallback(async () => {
-    if (!editingTicketId || isFlowActionPending) return
-    try {
-      await stopFlow({ ticketId: editingTicketId })
-    } catch (error) {
-      logger.error('Failed to stop flow runtime:', error)
-      if (isGatewayAuthError(error)) {
-        alert(getGatewayAuthErrorMessage(error))
-      } else {
-        alert(error instanceof Error ? error.message : 'Failed to stop flow')
-      }
-    }
-  }, [editingTicketId, isFlowActionPending, stopFlow])
-
-  // -------------------------------------------------------------------------
-  // Submit handler
-  // -------------------------------------------------------------------------
-  const handleSubmit = useCallback(
-    async (creationStatus: TicketCreationStatus, switchToView?: boolean) => {
-      if (!title.trim()) return
-      if (!statusId) return
-
-      const isDraftOp = creationStatus === 'draft'
-      if (isDraftOp) {
-        setIsDraftSubmitting(true)
-      } else {
-        setIsPublishSubmitting(true)
-      }
-
-      const isEditingExistingTicket = !!initialData?.title
-      const submitTicketId = isEditingExistingTicket
-        ? initialData?.id
-        : draftTicketId
-
-      try {
-        const payload = {
-          id: submitTicketId || undefined,
-          title: title.trim(),
-          description: description.trim() || undefined,
-          status_id: statusId,
-          assigned_to: assignedTo || undefined,
-          flow_enabled: flowEnabled,
-          flow_mode: flowMode,
-          creation_status: creationStatus,
-          isSubTicket,
-          parentTicketId: isSubTicket ? parentTicketId : undefined,
-          waitingFinishedTicketId: waitingFinishedTicketId || undefined,
-          project_id: projectId || undefined,
-          flow_configs:
-            flowEnabled && flowConfigs.length > 0 ? flowConfigs : undefined,
-        }
-
-        const result = onSubmit(payload, switchToView)
-        const submitPromise =
-          result instanceof Promise ? result : Promise.resolve(result)
-        const maybeTicket = await Promise.all([
-          submitPromise,
-          new Promise((resolve) => setTimeout(resolve, 150)),
-        ]).then(([ticket]) => ticket)
-
-        const resolvedTicketId = maybeTicket?.id || submitTicketId
-        if (resolvedTicketId && descriptionAttachments.length > 0) {
-          await persistDescriptionAttachments(
-            resolvedTicketId,
-            descriptionAttachments
-          )
-        }
-
-        logger.debug(
-          { category: logCategories.CHAT },
-          '[[TicketModal] Submitting ticket with flow config payload]: submitTicketId=%s flowConfigCount=%s attachmentCount=%s',
-          resolvedTicketId || submitTicketId || null,
-          flowEnabled ? flowConfigs.length : 0,
-          descriptionAttachments.length
-        )
-
-        clearDraftFromStorage(workspaceId)
-        setHasLoadedDraft(false)
-        setDraftTicketId(null)
-        setHasCreatedDraft(false)
-      } finally {
-        if (isDraftOp) {
-          setIsDraftSubmitting(false)
-        } else {
-          setIsPublishSubmitting(false)
-        }
-      }
-    },
-    [
-      title,
-      description,
-      statusId,
-      assignedTo,
-      flowEnabled,
-      flowMode,
-      flowConfigs,
-      onSubmit,
-      workspaceId,
-      initialData,
-      draftTicketId,
-      isSubTicket,
-      parentTicketId,
-      waitingFinishedTicketId,
-      descriptionAttachments,
-      persistDescriptionAttachments,
-    ]
-  )
-
-  // -------------------------------------------------------------------------
-  // Reset handler
-  // -------------------------------------------------------------------------
-  const handleReset = () => {
-    const initial = getInitialFormState(initialData)
-    setTitle(initial.title || '')
-    setDescription(initial.description || '')
-    setStatusId(initial.status_id || '')
-    setAssignedTo(initial.assigned_to || '')
-    setProjectId('')
-    setFlowEnabled(initial.flow_enabled ?? false)
-    setFlowMode(initial.flow_mode ?? 'manual')
-
-    const statusIdByName = new Map((statuses || []).map((s) => [s.name, s.id]))
-    setFlowConfigs(
-      (existingFlowConfigs || [])
-        .map((config) => mapExternalFlowConfig(config, statusIdByName))
-        .filter((config): config is FlowConfig => config !== null)
-    )
-    setHasLoadedDraft(false)
-    setDraftTicketId(null)
-    setHasCreatedDraft(false)
-  }
-
-  // -------------------------------------------------------------------------
-  // Cancel handler
-  // -------------------------------------------------------------------------
-  const handleCancel = () => {
-    // Reset all form state to prevent stale state on reopen
-    setTitle('')
-    setDescription('')
-    setDescriptionAttachments([])
-    setStatusId('')
-    setAssignedTo('')
-    setProjectId('')
-    setFlowEnabled(false)
-    setFlowMode('manual')
-    setFlowConfigs([])
-    setIsSubTicket(false)
-    setParentTicketId('')
-    setWaitingFinishedTicketId('')
-    setDraftTicketId(null)
-    setHasCreatedDraft(false)
-    setHasLoadedDraft(false)
-    setIsLoadDefaultsConfirmOpen(false)
-    setIsPromptModalOpen(false)
-    setIsAutoPromptLoading(false)
-    setIsDraftSubmitting(false)
-    setIsPublishSubmitting(false)
-    clearDraftFromStorage(workspaceId)
-    onClose()
-  }
-
-  // -------------------------------------------------------------------------
-  // Prompt modal handler
-  // -------------------------------------------------------------------------
-  const handlePromptSelect = useCallback(
-    (promptContent: string) => {
-      const currentDescription = description.trim()
-      const promptSection = `\n\n---\n${promptContent}\n`
-      setDescription(
-        currentDescription
-          ? `${currentDescription}${promptSection}`
-          : promptContent
-      )
-    },
-    [description]
-  )
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-  const modalTitle = isDraft
-    ? '📝 Edit Draft Ticket'
-    : isEditing
-      ? 'Edit Ticket'
-      : 'Create New Ticket'
+  })
 
   return (
     <>
       <Modal
         isOpen={isOpen}
-        onClose={handleCancel}
-        title={modalTitle}
+        onClose={actions.handleCancel}
+        title={actions.modalTitle}
         dismissible={!isSubmitting}
         size="xl"
       >
         <form
           className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void handleSubmit('active')
+          onSubmit={(event) => {
+            event.preventDefault()
+            void actions.handleSubmit('active')
           }}
         >
-          {/* Project */}
-          <Select
-            label="Project"
-            options={projectOptions}
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            placeholder="Select project..."
+          <TicketBasicFieldsSection
+            projectOptions={queries.projectOptions}
+            projectId={state.projectId}
+            onProjectChange={state.setProjectId}
+            assigneeOptions={queries.assigneeOptions}
+            assignedTo={state.assignedTo}
+            onAssignedToChange={state.setAssignedTo}
+            title={state.title}
+            onTitleChange={state.setTitle}
+            statusOptions={queries.statusOptions}
+            statusId={state.statusId}
+            onStatusChange={state.setStatusId}
+            flowEnabled={state.flowEnabled}
+            onFlowEnabledChange={state.setFlowEnabled}
+            isDraft={actions.isDraft}
+            isEditing={actions.isEditing}
+            isSubTicket={state.isSubTicket}
+            onSubTicketChange={state.setIsSubTicket}
+            parentTicketId={state.parentTicketId}
+            onParentTicketIdChange={state.setParentTicketId}
+            waitingFinishedTicketId={state.waitingFinishedTicketId}
+            onWaitingFinishedTicketIdChange={state.setWaitingFinishedTicketId}
+            editingTicketId={queries.editingTicketId}
             disabled={isSubmitting}
           />
 
-          {/* Assignee */}
-          <Select
-            label="Assignee"
-            options={assigneeOptions}
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
-            disabled={isSubmitting}
-          />
-
-          {/* Title */}
-          <div>
-            <Input
-              label="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter ticket title..."
-              maxLength={200}
-              disabled={isSubmitting}
-              required
-            />
-            <p
-              className="mt-1 text-xs"
-              style={{ color: `rgb(var(--text-tertiary))` }}
-            >
-              {title.length}/200 characters
-            </p>
-          </div>
-
-          {/* Quick Add Prompt */}
-          <div>
-            <label
-              className="mb-1 block text-sm font-medium"
-              style={{ color: `rgb(var(--text-secondary))` }}
-            >
-              Quick Add Prompt
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setIsPromptModalOpen(true)}
-                disabled={isSubmitting || !workspacePrompts?.length}
-                className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-                style={{
-                  backgroundColor: 'rgb(var(--bg-secondary))',
-                  color: 'rgb(var(--text-primary))',
-                  border: '1px solid rgb(var(--border-color))',
-                }}
-              >
-                Load Prompt
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!description.trim()) {
-                    alert('Please enter some text in the description first.')
-                    return
-                  }
-                  if (!workspacePrompts?.length) {
-                    alert(
-                      'No prompts available. Add prompts in Settings → Default Prompts.'
-                    )
-                    return
-                  }
-                  setIsAutoPromptLoading(true)
-                  try {
-                    const response = await fetch(
-                      '/api/tickets/prompt-convert',
-                      {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          ticketId: draftTicketId || initialData?.id,
-                          mode: 'auto',
-                          targetText: description,
-                        }),
-                      }
-                    )
-
-                    const data = await response.json().catch(() => null)
-                    if (!response.ok) {
-                      throw new Error(
-                        data?.message || 'Failed to generate auto prompt'
-                      )
-                    }
-
-                    const convertedText = data?.convertedText
-                    if (!convertedText || typeof convertedText !== 'string') {
-                      throw new Error('Prompt converter returned empty text')
-                    }
-
-                    setDescription(convertedText)
-
-                    const activeTicketId = draftTicketId || initialData?.id
-                    if (activeTicketId) {
-                      await updateTicket({
-                        id: activeTicketId,
-                        description: convertedText,
-                      })
-                    }
-                  } catch (error) {
-                    logger.error('Auto prompt error:', error)
-                    alert(
-                      error instanceof Error
-                        ? error.message
-                        : 'Failed to generate auto prompt'
-                    )
-                  } finally {
-                    setIsAutoPromptLoading(false)
-                  }
-                }}
-                disabled={
-                  isSubmitting ||
-                  !workspacePrompts?.length ||
-                  isAutoPromptLoading
-                }
-                className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-                style={{
-                  backgroundColor: 'rgb(var(--primary-color))',
-                  color: 'white',
-                }}
-              >
-                {isAutoPromptLoading ? 'Auto Prompt...' : 'Auto Prompt'}
-              </button>
-            </div>
-            {workspacePrompts && workspacePrompts.length > 0 && (
-              <p
-                className="mt-1 text-xs"
-                style={{ color: 'rgb(var(--text-tertiary))' }}
-              >
-                {workspacePrompts.length} prompt
-                {workspacePrompts.length !== 1 ? 's' : ''} available
-              </p>
-            )}
-            {!workspacePrompts?.length && (
-              <p
-                className="mt-1 text-xs"
-                style={{ color: 'rgb(var(--text-tertiary))' }}
-              >
-                No prompts available. Add prompts in Settings → Default Prompts.
-              </p>
-            )}
-          </div>
-
-          {/* Description with preview toggle */}
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label
-                className="block text-sm font-medium"
-                style={{ color: `rgb(var(--text-secondary))` }}
-              >
-                Description
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setShowDescriptionPreview(!showDescriptionPreview)
-                }
-                className="rounded px-2 py-1 text-xs transition-colors"
-                style={{
-                  backgroundColor: `rgb(var(--bg-secondary))`,
-                  color: `rgb(var(--text-secondary))`,
-                  border: '1px solid rgb(var(--border-color))',
-                }}
-              >
-                {showDescriptionPreview ? 'Edit Raw' : 'Preview'}
-              </button>
-            </div>
-            <div className="space-y-3">
-              {showDescriptionPreview ? (
-                <div
-                  className="min-h-[120px] whitespace-pre-wrap rounded-md border px-3 py-2 text-sm"
-                  style={{
-                    borderColor: `rgb(var(--border-color))`,
-                    backgroundColor: `rgb(var(--bg-secondary))`,
-                    color: `rgb(var(--text-primary))`,
-                  }}
-                >
-                  {description || (
-                    <span style={{ color: `rgb(var(--text-tertiary))` }}>
-                      No description
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <TextAreaWithImage
-                    value={description}
-                    onChange={setDescription}
-                    attachments={descriptionAttachments}
-                    onAttachmentsChange={setDescriptionAttachments}
-                    placeholder="Describe the ticket in Markdown..."
-                    disabled={isSubmitting}
-                    minHeight={120}
-                    maxHeight={260}
-                    maxImages={maxImagesPerPost}
-                    maxFiles={maxImagesPerPost}
-                    allowPdf={allowPdfAttachments}
-                  />
-                  <MarkdownEditor
-                    value={description}
-                    onChange={setDescription}
-                    placeholder="Describe the ticket in Markdown..."
-                    height={200}
-                    readOnly={isSubmitting}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Status Selection */}
-          <Select
-            label="Status"
-            options={statusOptions}
-            value={statusId}
-            onChange={(e) => setStatusId(e.target.value)}
-            placeholder="Select status..."
-            disabled={isSubmitting}
-            required
-          />
-
-          {/* Enable Flow */}
-          <div
-            className="flex items-center justify-between rounded-lg border p-3"
-            style={{
-              backgroundColor: `rgb(var(--bg-secondary))`,
-              borderColor: `rgb(var(--border-color))`,
+          <TicketPromptSection
+            description={state.description}
+            draftTicketId={state.draftTicketId}
+            initialTicketId={initialData?.id}
+            isSubmitting={isSubmitting}
+            isAutoPromptLoading={state.isAutoPromptLoading}
+            promptCount={queries.workspacePrompts?.length ?? 0}
+            onOpenPromptModal={() => state.setIsPromptModalOpen(true)}
+            onAutoPromptLoadingChange={state.setIsAutoPromptLoading}
+            onDescriptionChange={state.setDescription}
+            onUpdateDescription={async (ticketId, nextDescription) => {
+              await queries.updateTicket({
+                id: ticketId,
+                description: nextDescription,
+              })
             }}
-          >
-            <div>
-              <span
-                className="text-sm font-medium"
-                style={{ color: `rgb(var(--text-primary))` }}
-              >
-                Enable Flow
-              </span>
-              <p
-                className="text-xs"
-                style={{ color: `rgb(var(--text-secondary))` }}
-              >
-                Enable automatic flow progression
-              </p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input
-                type="checkbox"
-                checked={flowEnabled}
-                onChange={(e) => {
-                  logger.debug(
-                    { category: logCategories.CHAT },
-                    '[[TicketModal] Flow toggle changed]: checked=%s mode=%s ticketType=%s',
-                    e.target.checked,
-                    isDraft ? 'draft' : 'active',
-                    isEditing ? 'edit' : 'create'
-                  )
-                  setFlowEnabled(e.target.checked)
-                }}
-                className="peer sr-only"
-                disabled={isSubmitting}
-              />
-              <div
-                className="h-6 w-11 rounded-full transition-colors"
-                style={{
-                  backgroundColor: flowEnabled
-                    ? `rgb(var(--accent-primary, 59 130 246))`
-                    : `rgb(var(--border-color))`,
-                }}
-              >
-                <div
-                  className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform"
-                  style={{
-                    transform: flowEnabled
-                      ? 'translateX(20px)'
-                      : 'translateX(0)',
-                  }}
-                />
-              </div>
-            </label>
-          </div>
-
-          {/* Sub-Ticket Toggle */}
-          <div
-            className="flex items-center justify-between rounded-lg border p-3"
-            style={{
-              backgroundColor: `rgb(var(--bg-secondary))`,
-              borderColor: `rgb(var(--border-color))`,
-            }}
-          >
-            <div>
-              <span
-                className="text-sm font-medium"
-                style={{ color: `rgb(var(--text-primary))` }}
-              >
-                Sub-Ticket
-              </span>
-              <p
-                className="text-xs"
-                style={{ color: `rgb(var(--text-secondary))` }}
-              >
-                Mark as a sub-ticket of another ticket
-              </p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input
-                type="checkbox"
-                checked={isSubTicket}
-                onChange={(e) => setIsSubTicket(e.target.checked)}
-                className="peer sr-only"
-                disabled={isSubmitting}
-              />
-              <div
-                className="h-6 w-11 rounded-full transition-colors"
-                style={{
-                  backgroundColor: isSubTicket
-                    ? `rgb(var(--accent-primary, 59 130 246))`
-                    : `rgb(var(--border-color))`,
-                }}
-              >
-                <div
-                  className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform"
-                  style={{
-                    transform: isSubTicket
-                      ? 'translateX(20px)'
-                      : 'translateX(0)',
-                  }}
-                />
-              </div>
-            </label>
-          </div>
-
-          {/* Parent Ticket ID */}
-          {isSubTicket && (
-            <div>
-              <AutocompleteInput
-                label="Parent Ticket ID"
-                value={parentTicketId}
-                onChange={(id) => setParentTicketId(id)}
-                placeholder="Search for parent ticket..."
-                disabled={isSubmitting}
-                excludeTicketId={editingTicketId || undefined}
-              />
-              <p
-                className="mt-1 text-xs"
-                style={{ color: `rgb(var(--text-tertiary))` }}
-              >
-                Select the parent ticket this is a sub-ticket of
-              </p>
-            </div>
-          )}
-
-          {/* Wait for Ticket */}
-          <AutocompleteInput
-            label="Wait for Ticket (Optional)"
-            value={waitingFinishedTicketId}
-            onChange={(id) => setWaitingFinishedTicketId(id)}
-            placeholder="Search for a ticket to wait for..."
-            disabled={isSubmitting}
-            excludeTicketId={editingTicketId || undefined}
           />
-          <p
-            className="mt-1 text-xs"
-            style={{ color: `rgb(var(--text-tertiary))` }}
-          >
-            This ticket will not start flowing until the selected ticket is
-            finished
-          </p>
 
-          {/* Flow Configuration Panel */}
-          {flowEnabled && statuses && (
-            <div
-              className="border-t pt-4"
-              style={{ borderColor: `rgb(var(--border-color))` }}
-            >
-              <Select
-                label="Flow Mode"
-                options={FLOW_MODE_OPTIONS}
-                value={flowMode}
-                onChange={(e) => setFlowMode(e.target.value as TicketFlowMode)}
-                disabled={isSubmitting}
-              />
-              <p
-                className="mb-3 mt-1 text-xs"
-                style={{ color: `rgb(var(--text-secondary))` }}
-              >
-                Manual mode is recommended by default. Automatic mode advances
-                to next status without waiting.
-              </p>
+          <TicketDescriptionSection
+            description={state.description}
+            onDescriptionChange={state.setDescription}
+            attachments={state.descriptionAttachments}
+            onAttachmentsChange={state.setDescriptionAttachments}
+            showPreview={state.showDescriptionPreview}
+            onShowPreviewChange={state.setShowDescriptionPreview}
+            maxImagesPerPost={state.maxImagesPerPost}
+            allowPdfAttachments={state.allowPdfAttachments}
+            disabled={isSubmitting}
+          />
 
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3
-                  className="text-sm font-medium"
-                  style={{ color: `rgb(var(--text-primary))` }}
-                >
-                  Flow Configuration
-                </h3>
-                {canLoadDefaultConfig && (
-                  <button
-                    type="button"
-                    onClick={() => setIsLoadDefaultsConfirmOpen(true)}
-                    className="rounded-md px-3 py-1.5 text-xs font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{
-                      backgroundColor: `rgb(var(--bg-secondary))`,
-                      color: `rgb(var(--text-primary))`,
-                      border: '1px solid rgb(var(--border-color))',
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Load Default Config
-                  </button>
-                )}
-              </div>
-              <p
-                className="mb-3 text-xs"
-                style={{ color: `rgb(var(--text-secondary))` }}
-              >
-                Drag and drop to reorder. Click to expand options. Customize
-                agent, failure handling, and approval requirements per status.
-              </p>
-              <StatusFlowBuilder
-                statuses={statuses}
-                initialConfigs={flowConfigs}
-                availableAgents={gatewayAgents?.map((agent) => ({
-                  id: agent.agentId,
-                  name: `${agent.agentName} (${agent.gatewayName})`,
-                }))}
-                onChange={handleFlowConfigsChange}
-                disabled={isSubmitting}
-              />
-            </div>
-          )}
+          <TicketFlowConfigSection
+            flowEnabled={state.flowEnabled}
+            flowMode={state.flowMode}
+            onFlowModeChange={state.setFlowMode}
+            statuses={queries.statuses}
+            flowConfigs={state.flowConfigs}
+            availableAgents={queries.gatewayAgents?.map((agent) => ({
+              id: agent.agentId,
+              name: `${agent.agentName} (${agent.gatewayName})`,
+            }))}
+            canLoadDefaultConfig={actions.canLoadDefaultConfig}
+            onLoadDefaultClick={() => state.setIsLoadDefaultsConfirmOpen(true)}
+            onFlowConfigsChange={actions.handleFlowConfigsChange}
+            disabled={isSubmitting}
+            flowModeOptions={FLOW_MODE_OPTIONS}
+          />
 
-          {/* Bottom Action Buttons */}
-          <div
-            className="flex items-center justify-end gap-3 border-t pt-4"
-            style={{ borderColor: `rgb(var(--border-color))` }}
-          >
-            {/* Create/Draft mode actions */}
-            {(!isEditing || isDraft) && (
-              <>
-                {isDraft && onDelete && (
-                  <button
-                    type="button"
-                    onClick={onDelete}
-                    className="disabled:curor-not-allowed rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
-                    style={{
-                      backgroundColor: 'rgb(239, 68, 68)',
-                      color: 'white',
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Delete Draft
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ color: `rgb(var(--text-secondary))` }}
-                  disabled={isSubmitting}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = `rgb(var(--text-primary))`
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = `rgb(var(--text-secondary))`
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSubmit('draft')
-                  }}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    backgroundColor: `rgb(var(--border-color))`,
-                    color: `rgb(var(--text-primary))`,
-                  }}
-                  disabled={
-                    isDraftSubmitting ||
-                    isPublishSubmitting ||
-                    !title.trim() ||
-                    !statusId
-                  }
-                >
-                  {isDraftSubmitting
-                    ? 'Saving...'
-                    : isDraft
-                      ? 'Save Draft'
-                      : 'Save as Draft'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSubmit('active')
-                  }}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
-                    color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
-                  }}
-                  disabled={
-                    isDraftSubmitting ||
-                    isPublishSubmitting ||
-                    !title.trim() ||
-                    !statusId
-                  }
-                >
-                  {isPublishSubmitting ? 'Publishing...' : 'Publish'}
-                </button>
-              </>
-            )}
-
-            {/* Edit mode save/cancel actions */}
-            {isEditing && !isDraft && (
-              <>
-                {canControlFlowRuntime && (
-                  <button
-                    type="button"
-                    onClick={isFlowingNow ? handleStopFlow : handleStartFlow}
-                    className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{
-                      backgroundColor: isFlowingNow
-                        ? 'rgb(239, 68, 68)'
-                        : 'rgb(16, 185, 129)',
-                      color: 'white',
-                    }}
-                    disabled={isSubmitting || isFlowActionPending}
-                  >
-                    {isFlowActionPending
-                      ? isFlowingNow
-                        ? 'Stopping...'
-                        : 'Starting...'
-                      : isFlowingNow
-                        ? 'Stop Flow'
-                        : 'Start Flow'}
-                  </button>
-                )}
-                {onSwitchToView && (
-                  <button
-                    type="button"
-                    onClick={onSwitchToView}
-                    className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                    style={{
-                      backgroundColor: `rgb(var(--bg-secondary))`,
-                      color: `rgb(var(--text-primary))`,
-                      border: '1px solid rgb(var(--border-color))',
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Switch to View
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    type="button"
-                    onClick={onDelete}
-                    className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
-                    style={{
-                      backgroundColor: 'rgb(239, 68, 68)',
-                      color: 'white',
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    Delete
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ color: `rgb(var(--text-secondary))` }}
-                  disabled={isSubmitting}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = `rgb(var(--text-primary))`
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = `rgb(var(--text-secondary))`
-                  }}
-                >
-                  Cancel
-                </button>
-                {onSaveAndView && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleSubmit('active', true)
-                    }}
-                    className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{
-                      backgroundColor: `rgb(var(--bg-secondary))`,
-                      color: `rgb(var(--text-primary))`,
-                      border: '1px solid rgb(var(--border-color))',
-                    }}
-                    disabled={isSubmitting || !title.trim() || !statusId}
-                  >
-                    {isSubmitting ? 'Saving...' : 'Save & View'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSubmit('active')
-                  }}
-                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
-                    color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
-                  }}
-                  disabled={isSubmitting || !title.trim() || !statusId}
-                >
-                  {isSubmitting
-                    ? 'Saving...'
-                    : onSaveAndView
-                      ? 'Save & Close'
-                      : 'Save Changes'}
-                </button>
-              </>
-            )}
-          </div>
+          <TicketActionButtonsSection
+            isEditing={actions.isEditing}
+            isDraft={actions.isDraft}
+            isSubmitting={isSubmitting}
+            isDraftSubmitting={actions.isDraftSubmitting}
+            isPublishSubmitting={actions.isPublishSubmitting}
+            title={state.title}
+            statusId={state.statusId}
+            canControlFlowRuntime={actions.canControlFlowRuntime}
+            isFlowingNow={actions.isFlowingNow}
+            isFlowActionPending={actions.isFlowActionPending}
+            onDelete={onDelete}
+            onSwitchToView={onSwitchToView}
+            onSaveAndView={onSaveAndView}
+            onCancel={actions.handleCancel}
+            onSubmit={(creationStatus, switchToView) => {
+              void actions.handleSubmit(creationStatus, switchToView)
+            }}
+            onStartFlow={() => {
+              void actions.handleStartFlow()
+            }}
+            onStopFlow={() => {
+              void actions.handleStopFlow()
+            }}
+          />
         </form>
       </Modal>
 
-      {/* Load Default Config Confirmation Modal */}
       <Modal
-        isOpen={isLoadDefaultsConfirmOpen}
-        onClose={() => setIsLoadDefaultsConfirmOpen(false)}
+        isOpen={state.isLoadDefaultsConfirmOpen}
+        onClose={() => state.setIsLoadDefaultsConfirmOpen(false)}
         title="Load Default Flow Config"
         dismissible={!isSubmitting}
       >
@@ -1378,25 +171,17 @@ export function TicketModal({
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setIsLoadDefaultsConfirmOpen(false)}
+              onClick={() => state.setIsLoadDefaultsConfirmOpen(false)}
               disabled={isSubmitting}
-              className="rounded-md px-4 py-2 font-medium transition-colors"
-              style={{
-                backgroundColor: `rgb(var(--bg-secondary))`,
-                color: `rgb(var(--text-primary))`,
-              }}
+              className="rounded-md px-4 py-2 font-medium"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={handleLoadDefaultConfig}
+              onClick={actions.handleLoadDefaultConfig}
               disabled={isSubmitting}
-              className="rounded-md px-4 py-2 font-medium transition-opacity disabled:opacity-50"
-              style={{
-                backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
-                color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
-              }}
+              className="rounded-md px-4 py-2 font-medium"
             >
               Yes, Load Defaults
             </button>
@@ -1404,13 +189,20 @@ export function TicketModal({
         </div>
       </Modal>
 
-      {/* Prompt Selection Modal */}
       <SelectPromptModal
-        isOpen={isPromptModalOpen}
-        onClose={() => setIsPromptModalOpen(false)}
-        prompts={workspacePrompts || []}
-        onSelect={handlePromptSelect}
+        isOpen={state.isPromptModalOpen}
+        onClose={() => state.setIsPromptModalOpen(false)}
+        prompts={queries.workspacePrompts || []}
+        onSelect={(promptContent) => {
+          const current = state.description.trim()
+          const promptSection = `\n\n---\n${promptContent}\n`
+          state.setDescription(
+            current ? `${current}${promptSection}` : promptContent
+          )
+        }}
       />
     </>
   )
 }
+
+export const TicketModal = TicketModalContent

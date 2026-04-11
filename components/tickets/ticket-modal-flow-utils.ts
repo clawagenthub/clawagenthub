@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react'
 import logger, { logCategories as _logCategories } from '@/lib/logger/index.js'
 
-
 export interface FlowConfig {
   status_id: string
   flow_order: number
@@ -23,7 +22,7 @@ export interface StatusInfo {
   agent_id?: string | null
   on_failed_goto?: string | null
   ask_approve_to_continue?: boolean
-  instructions_override?: string
+  instructions_override?: string | null
 }
 
 // Builds default flow configs from status definitions
@@ -34,7 +33,7 @@ export function buildDefaultFlowConfigs(
     return []
   }
 
-  const includedStatuses = statuses.filter(s => s.is_flow_included)
+  const includedStatuses = statuses.filter((s) => s.is_flow_included)
 
   return includedStatuses.map((status, index) => ({
     status_id: status.id,
@@ -56,14 +55,15 @@ export function mapExternalFlowConfig(
     agent_id?: string | null
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
-    instructions_override?: string
+    instructions_override?: string | null
     is_included?: boolean
   },
   statusIdByName: Map<string, string>
 ): FlowConfig | null {
   const fromId = config.status?.id ?? config.status_id
   const fromName = config.status?.name
-  const resolvedStatusId = fromId || (fromName ? statusIdByName.get(fromName) : undefined)
+  const resolvedStatusId =
+    fromId || (fromName ? statusIdByName.get(fromName) : undefined)
 
   if (!resolvedStatusId) {
     return null
@@ -118,37 +118,46 @@ export function useFlowConfigUtils() {
   const handleFlowConfigsChange = useCallback((configs: FlowConfig[]) => {
     logger.debug('[TicketModal] onChange from StatusFlowBuilder', {
       nextCount: configs.length,
-      statusIds: configs.map(config => config.status_id),
+      statusIds: configs.map((config) => config.status_id),
     })
     // Flow configs state is managed in parent component
     // This function is provided for logging/instrumentation if needed
   }, [])
 
-  const handleLoadDefaultConfig = useCallback((
-    buildDefaultFlowConfigs: () => FlowConfig[],
-    statuses: StatusInfo[] | undefined,
-    currentStatusId: string,
-    onSetStatusId: (id: string) => void
-  ) => {
-    const initialConfigs = buildDefaultFlowConfigs()
+  const handleLoadDefaultConfig = useCallback(
+    (
+      buildDefaultFlowConfigs: () => FlowConfig[],
+      statuses: StatusInfo[] | undefined,
+      currentStatusId: string,
+      onSetStatusId: (id: string) => void
+    ) => {
+      const initialConfigs = buildDefaultFlowConfigs()
 
-    logger.debug('[TicketModal] Loading flow configs from status defaults by user action', {
-      includedCount: initialConfigs.length,
-      totalStatuses: statuses?.length ?? 0,
-      source: 'manual-load-default-config',
-    })
+      logger.debug(
+        '[TicketModal] Loading flow configs from status defaults by user action',
+        {
+          includedCount: initialConfigs.length,
+          totalStatuses: statuses?.length ?? 0,
+          source: 'manual-load-default-config',
+        }
+      )
 
-    logger.debug('[TicketModal] Applied default flow configs to modal state', {
-      appliedCount: initialConfigs.length,
-      statusIds: initialConfigs.map(config => config.status_id),
-    })
+      logger.debug(
+        '[TicketModal] Applied default flow configs to modal state',
+        {
+          appliedCount: initialConfigs.length,
+          statusIds: initialConfigs.map((config) => config.status_id),
+        }
+      )
 
-    if (!currentStatusId && statuses && statuses.length > 0) {
-      onSetStatusId(statuses[0].id)
-    }
+      if (!currentStatusId && statuses && statuses.length > 0) {
+        onSetStatusId(statuses[0].id)
+      }
 
-    return initialConfigs
-  }, [])
+      return initialConfigs
+    },
+    []
+  )
 
   return {
     handleFlowConfigsChange,
@@ -170,8 +179,8 @@ export function getFlowConfigSummary(configs: FlowConfig[]): {
 } {
   return {
     count: configs.length,
-    statusIds: configs.map(config => config.status_id),
-    hasAgents: configs.some(config => !!config.agent_id),
-    hasFailureHandlers: configs.some(config => !!config.on_failed_goto),
+    statusIds: configs.map((config) => config.status_id),
+    hasAgents: configs.some((config) => !!config.agent_id),
+    hasFailureHandlers: configs.some((config) => !!config.on_failed_goto),
   }
 }
