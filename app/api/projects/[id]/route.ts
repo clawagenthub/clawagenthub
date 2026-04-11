@@ -10,7 +10,7 @@ import logger from "@/lib/logger/index.js"
 const projectUpdateSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().max(5000).optional().nullable(),
-  value: z.string().max(255).optional().nullable(),
+  value: z.string().max(5000).optional().nullable(),
 })
 
 interface Params {

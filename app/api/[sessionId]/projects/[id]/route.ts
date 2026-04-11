@@ -3,6 +3,14 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifySession } from '@/lib/session/verify'
 import { getDatabase } from '@/lib/db/index.js'
 import logger from "@/lib/logger/index.js"
+import { z } from 'zod'
+
+
+const projectUpdateSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  value: z.string().max(5000).optional().nullable(),
+})
 
 interface RouteParams {
   params: Promise<{ sessionId: string; id: string }>
@@ -72,6 +80,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
+    const parseResult = projectUpdateSchema.safeParse(body)
+
+    if (!parseResult.success) {
+      return NextResponse.json({ message: 'Invalid input', errors: parseResult.error.errors }, { status: 400 })
+    }
+
     const { name, description, value } = body
 
     // Verify project exists
