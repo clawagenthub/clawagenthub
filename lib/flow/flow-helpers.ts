@@ -75,6 +75,17 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
 
   const template = customTemplateSetting?.setting_value || DEFAULT_FLOW_TEMPLATE
 
+  // Get temp_path from workspace_settings, fallback to '/tmp'
+  const tempPathSetting = db
+    .prepare(
+      'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
+    )
+    .get(workspaceId, 'temp_path') as
+    | { setting_value: string | null }
+    | undefined
+
+  const tempPath = tempPathSetting?.setting_value || '/tmp'
+
   const skills = db
     .prepare(
       `
@@ -172,6 +183,43 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     2
   )
 
+  // Get blocking ticket info if waiting_finished_ticket_id is set
+  let blockingTicketInfo = 'None'
+  if (ticket.waiting_finished_ticket_id) {
+    const blockingTicket = db
+      .prepare(
+        `SELECT t.id, t.ticket_number, t.title, t.flowing_status, s.name as status_name
+         FROM tickets t
+         LEFT JOIN statuses s ON t.status_id = s.id
+         WHERE t.id = ?`
+      )
+      .get(ticket.waiting_finished_ticket_id) as {
+        id: string
+        ticket_number: number
+        title: string
+        flowing_status: string
+        status_name: string | null
+      } | undefined
+
+    if (blockingTicket) {
+      const isCompleted =
+        blockingTicket.flowing_status === 'completed' ||
+        blockingTicket.status_name?.toLowerCase() === 'completed'
+      blockingTicketInfo = JSON.stringify(
+        {
+          id: blockingTicket.id,
+          ticketNumber: blockingTicket.ticket_number,
+          title: blockingTicket.title,
+          status: blockingTicket.status_name,
+          flowingStatus: blockingTicket.flowing_status,
+          isCompleted: isCompleted,
+        },
+        null,
+        2
+      )
+    }
+  }
+
   const variables = {
     ticketId: ticket.id,
     ticketNumber: String(ticket.ticket_number),
@@ -188,9 +236,10 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     workspaceId: workspaceId,
     skills: skillsSection,
     statuses: statusesSection,
-    tempPath: '/tmp',
+    tempPath: tempPath,
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
+    blockingTicketInfo: blockingTicketInfo,
   }
 
   const prompt = replaceTemplateVariables(template, variables)

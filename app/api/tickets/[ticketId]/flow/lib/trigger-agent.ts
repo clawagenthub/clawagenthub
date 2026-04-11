@@ -36,16 +36,52 @@ export async function triggerWaitingTickets(
   const availableSlots = onflowlimit - currentFlowingCount.count
   if (availableSlots <= 0) return
 
+  // Get tickets waiting for flow, including those with waiting_finished_ticket_id
   const waitingTickets = db
     .prepare(
-      `SELECT id, workspace_id FROM tickets WHERE workspace_id = ? AND flowing_status = 'waiting_to_flow' ORDER BY updated_at ASC LIMIT ?`
+      `SELECT id, workspace_id, waiting_finished_ticket_id FROM tickets WHERE workspace_id = ? AND flowing_status = 'waiting_to_flow' ORDER BY updated_at ASC LIMIT ?`
     )
     .all(workspaceId, availableSlots) as Array<{
     id: string
     workspace_id: string
+    waiting_finished_ticket_id: string | null
   }>
 
   for (const ticket of waitingTickets) {
+    // Check if this ticket is waiting for another ticket to finish
+    if (ticket.waiting_finished_ticket_id) {
+      // Check if the blocking ticket is completed
+      const blockingTicket = db
+        .prepare(
+          `SELECT t.id, t.flowing_status, s.name as status_name 
+           FROM tickets t 
+           LEFT JOIN statuses s ON t.status_id = s.id 
+           WHERE t.id = ?`
+        )
+        .get(ticket.waiting_finished_ticket_id) as {
+          id: string
+          flowing_status: string
+          status_name: string | null
+        } | undefined
+
+      const isBlockingTicketCompleted =
+        blockingTicket &&
+        (blockingTicket.flowing_status === 'completed' ||
+         blockingTicket.status_name?.toLowerCase() === 'completed')
+
+      if (!isBlockingTicketCompleted) {
+        // Blocking ticket is not yet completed, skip this ticket
+        logger.debug(
+          `[triggerWaitingTickets] Skipping ticket ${ticket.id} - waiting for blocking ticket ${ticket.waiting_finished_ticket_id} to complete`
+        )
+        continue
+      }
+
+      logger.debug(
+        `[triggerWaitingTickets] Blocking ticket ${ticket.waiting_finished_ticket_id} is completed, proceeding with ticket ${ticket.id}`
+      )
+    }
+
     const now = new Date().toISOString()
     db.prepare(
       `UPDATE tickets SET flowing_status = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?`
@@ -96,6 +132,49 @@ async function resolveAgentContext(
     .prepare('SELECT * FROM tickets WHERE id = ? AND workspace_id = ?')
     .get(ticketId, workspaceId) as Ticket | undefined
   if (!ticket) return null
+
+  // Check if this ticket is blocked by a waiting_finished_ticket_id
+  if (ticket.waiting_finished_ticket_id) {
+    const blockingTicket = db
+      .prepare(
+        `SELECT t.id, t.flowing_status, s.name as status_name 
+         FROM tickets t 
+         LEFT JOIN statuses s ON t.status_id = s.id 
+         WHERE t.id = ?`
+      )
+      .get(ticket.waiting_finished_ticket_id) as {
+        id: string
+        flowing_status: string
+        status_name: string | null
+      } | undefined
+
+    const isBlockingTicketCompleted =
+      blockingTicket &&
+      (blockingTicket.flowing_status === 'completed' ||
+       blockingTicket.status_name?.toLowerCase() === 'completed')
+
+    if (!isBlockingTicketCompleted) {
+      // Blocking ticket is not yet completed, put this ticket back to waiting
+      const now = new Date().toISOString()
+      db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('waiting_to_flow', now, ticketId)
+      db.prepare(
+        `INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        generateUserId(),
+        ticketId,
+        'flow_stopped',
+        'system',
+        'system',
+        JSON.stringify({ flowing_status: ticket.flowing_status }),
+        JSON.stringify({ flowing_status: 'waiting_to_flow', reason: `Blocking ticket ${ticket.waiting_finished_ticket_id} not yet completed` }),
+        now
+      )
+      logger.info(
+        `[resolveAgentContext] Ticket ${ticketId} is blocked by unfinished ticket ${ticket.waiting_finished_ticket_id}`
+      )
+      return null
+    }
+  }
 
   const status = db
     .prepare('SELECT * FROM statuses WHERE id = ?')
