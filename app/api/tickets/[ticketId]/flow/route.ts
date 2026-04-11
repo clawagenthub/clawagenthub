@@ -259,6 +259,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.action === 'start') {
+      // Guard: Prevent starting if already flowing or waiting_to_flow
+      if (ticket.flowing_status === 'flowing' || ticket.flowing_status === 'waiting_to_flow') {
+        return NextResponse.json({
+          success: false,
+          action: 'start',
+          flowing_status: ticket.flowing_status,
+          message: `Ticket is already ${ticket.flowing_status}`,
+        })
+      }
+
       const currentFlowingCount = db
         .prepare(
           `
@@ -302,7 +312,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
          WHERE id = ?`
       ).run('flowing', now, now, ticketId)
 
-      triggerAgentForFlowStart({
+      // Use void to explicitly indicate we're not awaiting - agent triggering runs async
+      // The ticket status is already set to 'flowing' above, so no need to wait
+      void triggerAgentForFlowStart({
         ticketId,
         workspaceId,
         userId: user.id,
@@ -317,6 +329,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.action === 'stop') {
+      // Guard: Prevent stopping if already stopped or not flowing
+      if (ticket.flowing_status === 'stopped' || ticket.flowing_status === 'waiting') {
+        return NextResponse.json({
+          success: false,
+          action: 'stop',
+          flowing_status: ticket.flowing_status,
+          message: `Ticket is already ${ticket.flowing_status}`,
+        })
+      }
+
       const now = new Date().toISOString()
       db.prepare(
         `UPDATE tickets
