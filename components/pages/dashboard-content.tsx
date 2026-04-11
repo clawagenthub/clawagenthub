@@ -284,8 +284,8 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
           })
         }
 
-        if (switchToView && editingTicket) {
-          setViewingTicket(editingTicket)
+        if (switchToView && _updatedTicket) {
+          setViewingTicket(_updatedTicket)
           setIsTicketModalOpen(false)
           setEditingTicket(null)
           setIsTicketViewModalOpen(true)
