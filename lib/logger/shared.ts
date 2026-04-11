@@ -55,6 +55,12 @@ export enum logCategories {
 export interface LogOptions {
   category: logCategories
   retention?: RetentionClass
+  /** When false: terminal output is human-readable (formatted/pretty). When true: terminal output is JSON format. Default: false */
+  isJsonFormatForTerminal?: boolean
+  /** Controls whether this log entry is sent to Grafana. Default: true */
+  isSendedToGrafa?: boolean
+  /** Controls whether this log entry is displayed in the terminal. Default: true */
+  isSendedToTerminal?: boolean
 }
 
 export interface LoggerApi {

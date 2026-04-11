@@ -88,3 +88,30 @@ export function captureCallerLocation(): CallerMetadata {
   const stack = new Error().stack
   return extractCallerLocation(stack)
 }
+
+/**
+ * Captures full stack trace with 20-frame depth limit
+ * Skips internal logger frames (lib/logger/, pino, node:internal)
+ * Used for debugging - includes sourceFile in log metadata
+ */
+export function captureStackTrace(): string | null {
+  const stack = new Error().stack
+  if (!stack) return null
+
+  const lines = stack.split('\n')
+  // Skip first line (the "Error" line itself)
+  // Filter: skip lib/logger/, pino, node:internal frames
+  const relevantLines = lines
+    .slice(1) // skip "Error" line
+    .filter((line) => {
+      const lower = line.toLowerCase()
+      return (
+        !lower.includes('lib/logger/') &&
+        !lower.includes('pino') &&
+        !lower.includes('node:internal')
+      )
+    })
+    .slice(0, 20) // limit to 20 frames
+
+  return relevantLines.length > 0 ? relevantLines.join('\n') : null
+}

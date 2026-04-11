@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
       isSubTicket,
       parentTicketId,
       waitingFinishedTicketId,
+      project_id,
     } = body
 
     const normalizedStatusId = status_id ?? statusId
@@ -280,8 +281,8 @@ export async function POST(request: NextRequest) {
       `INSERT INTO tickets (
         id, workspace_id, ticket_number, title, description, status_id,
         created_by, assigned_to, flow_enabled, flow_mode, creation_status, created_at, updated_at,
-        is_sub_ticket, parent_ticket_id, waiting_finished_ticket_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        is_sub_ticket, parent_ticket_id, waiting_finished_ticket_id, project_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       ticketId,
       session.current_workspace_id,
@@ -298,7 +299,8 @@ export async function POST(request: NextRequest) {
       now,
       isSubTicket ? 1 : 0,
       parentTicketId || null,
-      waitingFinishedTicketId || null
+      waitingFinishedTicketId || null,
+      project_id || null
     )
 
     // Update ticket sequence

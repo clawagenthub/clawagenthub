@@ -75,6 +75,17 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
 
   const template = customTemplateSetting?.setting_value || DEFAULT_FLOW_TEMPLATE
 
+  // Get temp_path from workspace_settings, fallback to '/tmp'
+  const tempPathSetting = db
+    .prepare(
+      'SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?'
+    )
+    .get(workspaceId, 'temp_path') as
+    | { setting_value: string | null }
+    | undefined
+
+  const tempPath = tempPathSetting?.setting_value || '/tmp'
+
   const skills = db
     .prepare(
       `
@@ -188,7 +199,7 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     workspaceId: workspaceId,
     skills: skillsSection,
     statuses: statusesSection,
-    tempPath: '/tmp',
+    tempPath: tempPath,
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
   }

@@ -166,6 +166,7 @@ export interface Ticket {
   is_sub_ticket: boolean
   parent_ticket_id: string | null
   waiting_finished_ticket_id: string | null
+  project_id: string | null
   created_at: string
   updated_at: string
 }
@@ -185,6 +186,7 @@ export interface TicketInsert {
   is_sub_ticket?: boolean
   parent_ticket_id?: string | null
   waiting_finished_ticket_id?: string | null
+  project_id?: string | null
 }
 
 export interface TicketUpdate {
@@ -202,6 +204,7 @@ export interface TicketUpdate {
   is_sub_ticket?: boolean
   parent_ticket_id?: string | null
   waiting_finished_ticket_id?: string | null
+  project_id?: string | null
 }
 
 // Ticket flow configuration (ticket-specific overrides)

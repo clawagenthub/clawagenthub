@@ -1345,6 +1345,182 @@ export function TicketModal({
               />
             </div>
           )}
+
+          {/* Action Buttons - Bottom of form */}
+          <div
+            className="flex items-center justify-end gap-3 border-t pt-4"
+            style={{ borderColor: `rgb(var(--border-color))` }}
+          >
+            {canControlFlowRuntime && (
+              <button
+                type="button"
+                onClick={isFlowingNow ? handleStopFlow : handleStartFlow}
+                className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  backgroundColor: isFlowingNow
+                    ? 'rgb(239, 68, 68)'
+                    : 'rgb(16, 185, 129)',
+                  color: 'white',
+                }}
+                disabled={isSubmitting || isFlowActionPending}
+              >
+                {isFlowActionPending
+                  ? isFlowingNow
+                    ? 'Stopping...'
+                    : 'Starting...'
+                  : isFlowingNow
+                    ? 'Stop Flow'
+                    : 'Start Flow'}
+              </button>
+            )}
+
+            {isEditing && !isDraft && onSwitchToView && (
+              <button
+                type="button"
+                onClick={onSwitchToView}
+                className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: `rgb(var(--bg-secondary))`,
+                  color: `rgb(var(--text-primary))`,
+                  border: '1px solid rgb(var(--border-color))',
+                }}
+                disabled={isSubmitting}
+              >
+                Switch to View
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              style={{ color: `rgb(var(--text-secondary))` }}
+              disabled={isSubmitting}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = `rgb(var(--text-primary))`
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = `rgb(var(--text-secondary))`
+              }}
+            >
+              Cancel
+            </button>
+
+            {/* New ticket / draft buttons */}
+            {!isEditing || isDraft ? (
+              <>
+                {isDraft && onDelete && (
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="disabled:curor-not-allowed rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+                    style={{
+                      backgroundColor: 'rgb(239, 68, 68)',
+                      color: 'white',
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Delete Draft
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSubmit('draft')
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    backgroundColor: `rgb(var(--border-color))`,
+                    color: `rgb(var(--text-primary))`,
+                  }}
+                  disabled={
+                    isDraftSubmitting ||
+                    isPublishSubmitting ||
+                    !title.trim() ||
+                    !statusId
+                  }
+                >
+                  {isDraftSubmitting
+                    ? 'Saving...'
+                    : isDraft
+                      ? 'Save Draft'
+                      : 'Save as Draft'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSubmit('active')
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
+                    color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
+                  }}
+                  disabled={
+                    isDraftSubmitting ||
+                    isPublishSubmitting ||
+                    !title.trim() ||
+                    !statusId
+                  }
+                >
+                  {isPublishSubmitting ? 'Publishing...' : 'Publish'}
+                </button>
+              </>
+            ) : (
+              /* Edit mode buttons */
+              <>
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+                    style={{
+                      backgroundColor: 'rgb(239, 68, 68)',
+                      color: 'white',
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Delete
+                  </button>
+                )}
+                {onSaveAndView && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleSubmit('active', true)
+                    }}
+                    className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{
+                      backgroundColor: `rgb(var(--bg-secondary))`,
+                      color: `rgb(var(--text-primary))`,
+                      border: '1px solid rgb(var(--border-color))',
+                    }}
+                    disabled={isSubmitting || !title.trim() || !statusId}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save & View'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSubmit('active')
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    backgroundColor: `rgb(var(--accent-primary, 59 130 246))`,
+                    color: `rgb(var(--accent-primary-foreground, 255 255 255))`,
+                  }}
+                  disabled={isSubmitting || !title.trim() || !statusId}
+                >
+                  {isSubmitting
+                    ? 'Saving...'
+                    : onSaveAndView
+                      ? 'Save & Close'
+                      : 'Save Changes'}
+                </button>
+              </>
+            )}
+          </div>
         </form>
       </Modal>
 

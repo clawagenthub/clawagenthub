@@ -189,7 +189,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
-    const { title, description, status_id, assigned_to, flow_enabled, creation_status, flow_mode, isSubTicket, parentTicketId, waitingFinishedTicketId } = body
+    const { title, description, status_id, assigned_to, flow_enabled, creation_status, flow_mode, isSubTicket, parentTicketId, waitingFinishedTicketId, project_id } = body
 
     const db = getDatabase()
 
@@ -321,6 +321,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       values.push(waitingFinishedTicketId || null)
       oldValues.waiting_finished_ticket_id = existingTicket.waiting_finished_ticket_id
       newValues.waiting_finished_ticket_id = waitingFinishedTicketId
+    }
+
+    if (project_id !== undefined) {
+      updates.push('project_id = ?')
+      values.push(project_id || null)
+      oldValues.project_id = existingTicket.project_id
+      newValues.project_id = project_id
     }
 
     if (updates.length === 0) {

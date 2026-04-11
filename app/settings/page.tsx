@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button'
 import { Sidebar } from '@/components/layout/sidebar'
 import { NavigationProvider } from '@/lib/contexts/navigation-context'
 import { DEFAULT_FLOW_TEMPLATE } from '@/lib/utils/flow-template'
+import { DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE } from '@/lib/utils/prompts/autoTicketConverterPrompt'
+import { DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE } from '@/lib/utils/prompts/selectedTicketConverterPrompt'
 import { PromptDetailModal } from '@/components/ui/prompt-detail-modal'
 import { LoadDefaultPromptsModal } from '@/components/ui/load-default-prompts-modal'
 import { AddCustomPromptModal } from '@/components/ui/add-custom-prompt-modal'
@@ -96,6 +98,8 @@ export default function SettingsPage() {
   const [promptTemplatesMessage, setPromptTemplatesMessage] = useState('')
   const [autoPromptTemplate, setAutoPromptTemplate] = useState('')
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState('')
+  const [autoPromptTimeoutSeconds, setAutoPromptTimeoutSeconds] = useState(120)
+  const [selectedPromptTimeoutSeconds, setSelectedPromptTimeoutSeconds] = useState(120)
 
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -181,6 +185,8 @@ export default function SettingsPage() {
           setPromptConverterAgentId(data.prompt_converter_agent_id || '')
           setAutoPromptTemplate(data.auto_prompt_template || '')
           setSelectedPromptTemplate(data.selected_prompt_template || '')
+          setAutoPromptTimeoutSeconds(data.auto_prompt_timeout_seconds ? parseInt(data.auto_prompt_timeout_seconds) : 120)
+          setSelectedPromptTimeoutSeconds(data.selected_prompt_timeout_seconds ? parseInt(data.selected_prompt_timeout_seconds) : 120)
           setMaxImagesPerPost(
             data.max_images_per_post
               ? parseInt(data.max_images_per_post)
@@ -1569,6 +1575,8 @@ export default function SettingsPage() {
                               selectedPromptTemplate || null,
                             prompt_converter_gateway_id:
                               selectedAgent?.gatewayId || null,
+                            auto_prompt_timeout_seconds: autoPromptTimeoutSeconds.toString(),
+                            selected_prompt_timeout_seconds: selectedPromptTimeoutSeconds.toString(),
                           }
 
                           const res = await fetch('/api/workspaces/settings', {
@@ -1647,13 +1655,120 @@ export default function SettingsPage() {
                     </select>
                   </div>
 
+                  <div
+                    className="flex flex-col gap-2 border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p
+                          className="font-medium"
+                          style={{ color: 'rgb(var(--text-primary))' }}
+                        >
+                          Auto Prompt Timeout
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          Maximum time to wait for AI chat response during auto prompt conversion (10-600 seconds)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="10"
+                          max="600"
+                          className="w-20 rounded-lg border px-2 py-1 text-center"
+                          style={{
+                            backgroundColor: 'rgb(var(--bg-secondary))',
+                            borderColor: 'rgb(var(--border-color))',
+                            color: 'rgb(var(--text-primary))',
+                          }}
+                          value={autoPromptTimeoutSeconds}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 120
+                            setAutoPromptTimeoutSeconds(Math.min(600, Math.max(10, val)))
+                          }}
+                        />
+                        <span
+                          className="text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          seconds
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex flex-col gap-2 border-b py-3"
+                    style={{ borderColor: 'rgb(var(--border-color))' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p
+                          className="font-medium"
+                          style={{ color: 'rgb(var(--text-primary))' }}
+                        >
+                          Selected Prompt Timeout
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          Maximum time to wait for AI chat response during selected prompt conversion (10-600 seconds)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="10"
+                          max="600"
+                          className="w-20 rounded-lg border px-2 py-1 text-center"
+                          style={{
+                            backgroundColor: 'rgb(var(--bg-secondary))',
+                            borderColor: 'rgb(var(--border-color))',
+                            color: 'rgb(var(--text-primary))',
+                          }}
+                          value={selectedPromptTimeoutSeconds}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 120
+                            setSelectedPromptTimeoutSeconds(Math.min(600, Math.max(10, val)))
+                          }}
+                        />
+                        <span
+                          className="text-sm"
+                          style={{ color: 'rgb(var(--text-secondary))' }}
+                        >
+                          seconds
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-4 space-y-2">
-                    <label
-                      className="font-medium"
-                      style={{ color: 'rgb(var(--text-primary))' }}
-                    >
-                      Auto Prompt Template (Optional)
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Auto Prompt Template (Optional)
+                      </label>
+                      <button
+                        className="rounded-lg border px-3 py-1.5 text-sm transition-colors"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                        onClick={() => {
+                          setAutoPromptTemplate(DEFAULT_AUTO_TICKET_CONVERTER_TEMPLATE)
+                        }}
+                      >
+                        Load Default Template
+                      </button>
+                    </div>
                     <p
                       className="text-sm"
                       style={{ color: 'rgb(var(--text-secondary))' }}

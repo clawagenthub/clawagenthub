@@ -9,6 +9,7 @@ export interface LokiLogEntry {
   retentionClass?: RetentionClass
   errorMetadata?: ErrorMetadata
   callerMetadata?: CallerMetadata
+  stackTrace?: string | null
 }
 
 export interface LokiClientOptions {
@@ -132,6 +133,11 @@ export class LokiClient {
           ...(cm.column && { source_column: cm.column }),
         }
         message = `${message} | metadata=${JSON.stringify(metaObj)}`
+      }
+
+      // Append stackTrace if available (always included for Grafana)
+      if (log.stackTrace) {
+        message = `${message} | stack_trace=${log.stackTrace}`
       }
       streams[labelKey].values.push([String(log.timestamp), message])
     }

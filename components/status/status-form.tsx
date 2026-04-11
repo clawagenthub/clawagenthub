@@ -553,7 +553,7 @@ export function StatusForm({
                         borderColor: `rgb(var(--border-color))`,
                       }}
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2">
                           <span
                             className="text-xs font-medium px-1.5 py-0.5 rounded"
@@ -580,7 +580,7 @@ export function StatusForm({
                           )}
                         </div>
                         {skill.skill_description && (
-                          <p className="mt-1 text-xs line-clamp-2" style={{ color: `rgb(var(--text-secondary))` }}>
+                          <p className="mt-1 text-xs line-clamp-2" style={{ color: `rgb(var(--text-secondary))`, overflowWrap: 'break-word' }}>
                             {skill.skill_description}
                           </p>
                         )}
@@ -701,7 +701,7 @@ export function StatusForm({
                         }}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm truncate" style={{ color: `rgb(var(--text-primary))` }}>
                                 {skill.skill_name}
@@ -719,7 +719,7 @@ export function StatusForm({
                               )}
                             </div>
                             {skill.skill_description && (
-                              <p className="text-xs truncate mt-0.5" style={{ color: `rgb(var(--text-secondary))` }}>
+                              <p className="text-xs truncate mt-0.5" style={{ color: `rgb(var(--text-secondary))`, overflowWrap: 'break-word' }}>
                                 {skill.skill_description}
                               </p>
                             )}

@@ -1,5 +1,6 @@
 import WebSocket from 'ws'
 import { randomUUID } from 'crypto'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 // --- Types ---
 
@@ -95,10 +96,7 @@ export class GatewayClient {
       throw new Error('Auth token is required for gateway connection')
     }
 
-    console.warn('[GatewayClient] Initializing with token auth', {
-      url: this.url,
-      hasAuthToken: !!this.authToken,
-    })
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Initializing with token auth (url=%s, hasAuthToken=%s)', this.url, !!this.authToken)
   }
 
   // --- Connection with proper Gateway protocol ---
@@ -113,7 +111,7 @@ export class GatewayClient {
       try {
         // Determine origin to use for WebSocket connection
         const origin = this.origin || this.determineOrigin()
-        console.warn('[GatewayClient] Connecting with origin:', origin)
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Connecting with origin: %s', origin)
 
         this.ws = new WebSocket(this.url, {
           maxPayload: 25 * 1024 * 1024,
@@ -132,9 +130,7 @@ export class GatewayClient {
       }, 10000)
 
       this.ws.on('open', () => {
-        console.warn('[GatewayClient] WebSocket connection opened', {
-          url: this.url,
-        })
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'WebSocket connection opened (url=%s)', this.url)
         this.connected = true
         // Wait for connect.challenge event from server
       })
@@ -149,15 +145,12 @@ export class GatewayClient {
           // })
           this.handleMessage(parsed, connectTimeout)
         } catch (error) {
-          console.error('[GatewayClient] Failed to parse message:', error)
+          logger.error({ category: logCategories.GATEWAY_CLIENT }, 'Failed to parse message: %s', error)
         }
       })
 
       this.ws.on('close', () => {
-        console.warn('[GatewayClient] WebSocket connection closed', {
-          url: this.url,
-          wasAuthenticated: this.authenticated,
-        })
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'WebSocket connection closed (url=%s, wasAuthenticated=%s)', this.url, this.authenticated)
         this.connected = false
         this.authenticated = false
         clearTimeout(connectTimeout)
@@ -165,7 +158,7 @@ export class GatewayClient {
       })
 
       this.ws.on('error', (err) => {
-        console.error('[GatewayClient] WebSocket error:', err)
+        logger.error({ category: logCategories.GATEWAY_CLIENT }, 'WebSocket error: %s', err)
         clearTimeout(connectTimeout)
         if (!this.authenticated) {
           reject(err instanceof Error ? err : new Error(String(err)))
@@ -243,9 +236,7 @@ export class GatewayClient {
       if (evt.event === 'connect.challenge') {
         const payload = evt.payload as { nonce?: string } | undefined
         const nonce = payload?.nonce
-        console.warn('[GatewayClient] Received connect.challenge', {
-          nonce: nonce || 'none',
-        })
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Received connect.challenge (nonce=%s)', nonce || 'none')
         this.sendConnectRequest(nonce, connectTimeout)
         return
       }
@@ -253,11 +244,7 @@ export class GatewayClient {
       // Broadcast to event listeners
       const listeners = this.eventListeners.get(evt.event)
       if (listeners && listeners.size > 0) {
-        console.warn('[GatewayClient] Broadcasting event', {
-          event: evt.event,
-          hasPayload: !!evt.payload,
-          listenerCount: listeners.size,
-        })
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Broadcasting event (event=%s, hasPayload=%s, listenerCount=%s)', evt.event, !!evt.payload, listeners.size)
         for (const cb of listeners) {
           try {
             cb(evt.payload ?? evt)
@@ -291,10 +278,7 @@ export class GatewayClient {
       if (res.ok) {
         pending.resolve(res.payload)
       } else {
-        console.error('[GatewayClient] Response error:', {
-          id: res.id,
-          error: res.error,
-        })
+        logger.error({ category: logCategories.GATEWAY_CLIENT }, 'Response error (id=%s, error=%s)', res.id, res.error)
         pending.reject(new Error(res.error?.message ?? 'Unknown gateway error'))
       }
     }
@@ -306,7 +290,7 @@ export class GatewayClient {
   ): void {
     const id = randomUUID()
 
-    console.warn('[GatewayClient] Sending connect request with token auth')
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Sending connect request with token auth')
 
     const frame: RequestFrame = {
       type: 'req',
@@ -334,7 +318,7 @@ export class GatewayClient {
       resolve: () => {
         if (connectTimeout) clearTimeout(connectTimeout)
         this.authenticated = true
-        console.warn('[GatewayClient] Successfully authenticated')
+        logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Successfully authenticated')
         this.connectResolve?.()
       },
       reject: (err: unknown) => {
@@ -364,10 +348,7 @@ export class GatewayClient {
       await this.connect()
     }
 
-    console.warn('[GatewayClient] RPC call', {
-      method,
-      hasParams: !!params,
-    })
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'RPC call (method=%s, hasParams=%s)', method, !!params)
 
     const id = randomUUID()
     const frame: RequestFrame = {
@@ -380,10 +361,7 @@ export class GatewayClient {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id)
-        console.error('[GatewayClient] RPC timeout:', {
-          method,
-          timeoutMs,
-        })
+        logger.error({ category: logCategories.GATEWAY_CLIENT }, 'RPC timeout (method=%s, timeoutMs=%s)', method, timeoutMs)
         reject(new Error(`RPC timeout: ${method}`))
       }, timeoutMs)
 
@@ -411,40 +389,27 @@ export class GatewayClient {
   }
 
   async health(): Promise<HealthStatus> {
-    console.warn('[GatewayClient] Calling health() RPC method')
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Calling health() RPC method')
     try {
       const result = await this.call('health', {})
-      console.warn('[GatewayClient] health() response:', result)
+      logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'health() response: %s', result)
       return result as HealthStatus
     } catch (error) {
-      console.error('[GatewayClient] Error calling health():', {
-        error,
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      })
+      logger.error({ category: logCategories.GATEWAY_CLIENT }, 'Error calling health(): %s', error)
       throw error
     }
   }
 
   async listAgents(): Promise<GatewayAgent[]> {
-    console.warn('[GatewayClient] Calling agents.list RPC method')
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Calling agents.list RPC method')
     try {
       const result = (await this.call('agents.list', {})) as {
         agents?: GatewayAgent[]
       }
-      console.warn('[GatewayClient] agents.list response:', {
-        hasAgents: !!result?.agents,
-        agentCount: result?.agents?.length ?? 0,
-        agents: result?.agents,
-        rawResult: result,
-      })
+      logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'agents.list response (hasAgents=%s, agentCount=%s)', !!result?.agents, result?.agents?.length ?? 0)
       return result?.agents ?? []
     } catch (error) {
-      console.error('[GatewayClient] Error calling agents.list:', {
-        error,
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      })
+      logger.error({ category: logCategories.GATEWAY_CLIENT }, 'Error calling agents.list: %s', error)
       throw error
     }
   }
@@ -470,12 +435,7 @@ export class GatewayClient {
   ): Promise<{ runId: string; status: string }> {
     const idempotencyKey = options?.idempotencyKey || randomUUID()
 
-    console.warn('[GatewayClient] Sending chat message', {
-      sessionKey,
-      messageLength: message.length,
-      idempotencyKey,
-      hasOptions: !!options,
-    })
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Sending chat message (sessionKey=%s, messageLength=%s)', sessionKey, message.length)
 
     const result = await this.call('chat.send', {
       sessionKey,
@@ -554,9 +514,7 @@ export class GatewayClient {
       id?: string
     }
   ): Promise<unknown> {
-    console.warn(
-      '[GatewayClient] sendAgentMessage is deprecated, use sendChatMessage or sendChatMessageAndWait'
-    )
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'sendAgentMessage is deprecated, use sendChatMessage or sendChatMessageAndWait')
     const result = await this.sendChatMessageAndWait(sessionKey, message)
     if (result.error) {
       throw new Error(result.error)
@@ -571,17 +529,14 @@ export class GatewayClient {
    * @returns Promise with SessionGetResponse containing messages array
    */
   async getSessionHistory(sessionKey: string): Promise<SessionGetResponse> {
-    console.warn('[GatewayClient] Getting session history', { sessionKey })
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Getting session history (sessionKey=%s)', sessionKey)
 
     // OpenClaw v3.2 uses 'chat.history' method for session history
     const result = (await this.call('chat.history', {
       sessionKey: sessionKey,
     })) as SessionGetResponse | undefined
 
-    console.warn('[GatewayClient] Session history response', {
-      hasMessages: !!result?.messages,
-      messageCount: result?.messages?.length ?? 0,
-    })
+    logger.warn({ category: logCategories.GATEWAY_CLIENT }, 'Session history response (hasMessages=%s, messageCount=%s)', !!result?.messages, result?.messages?.length ?? 0)
 
     // Return empty messages array if result is undefined
     return result ?? { messages: [] }

@@ -5,7 +5,7 @@ import {
   getLokiClient,
 } from './loki-client.js'
 import { formatMessage, type LogOptions, type LoggerApi, type ErrorMetadata } from './shared.js'
-import { captureCallerLocation, type CallerMetadata } from './caller-metadata.js'
+import { captureCallerLocation, captureStackTrace, type CallerMetadata } from './caller-metadata.js'
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'debug'
 const NODE_ENV = process.env.NODE_ENV || 'development'
@@ -31,7 +31,8 @@ async function sendToLoki(
   message: string,
   retention: LogOptions['retention'],
   errorMetadata?: ErrorMetadata | null,
-  callerMetadata?: CallerMetadata | null
+  callerMetadata?: CallerMetadata | null,
+  stackTrace?: string | null
 ): Promise<void> {
   if (!LOKI_ENABLED || !loki) return
 
@@ -54,6 +55,7 @@ async function sendToLoki(
     retentionClass: retention ?? 'short',
     errorMetadata,
     callerMetadata,
+    stackTrace,
   }
 
   await loki.push([entry])
@@ -68,15 +70,49 @@ class ServerLogger implements LoggerApi {
     errorMetadata?: ErrorMetadata | null
   ): void {
     const formattedMessage = formatMessage(message, args)
-    // Capture caller location for ALL log levels to enable traceback in Grafana
+    // Capture caller location and stack trace for ALL log levels
     const callerMetadata = captureCallerLocation()
-    pinoLogger[level](
-      { category: opts.category },
-      `${opts.category} ${formattedMessage}`
-    )
-    sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata, callerMetadata).catch(
-      () => {}
-    )
+    const stackTrace = captureStackTrace()
+
+    // Terminal output (respects isSendedToTerminal + isJsonFormatForTerminal)
+    // Default isSendedToTerminal = true
+    if (opts.isSendedToTerminal !== false) {
+      if (opts.isJsonFormatForTerminal === true) {
+        // JSON format (original behavior)
+        pinoLogger[level](
+          { category: opts.category },
+          `${opts.category} ${formattedMessage}`
+        )
+      } else {
+        // Human-readable format (default)
+        const timestamp = new Date().toISOString()
+        const sourceInfo = callerMetadata.file
+          ? ` [${callerMetadata.file}:${callerMetadata.line}:${callerMetadata.column}]`
+          : ''
+        const stackInfo = stackTrace ? `\n${stackTrace}` : ''
+        const prettyLog = `${timestamp} ${level.toUpperCase().padEnd(5)} ${opts.category}${sourceInfo} ${formattedMessage}${stackInfo}`
+
+        if (level === 'error') {
+          console.error(prettyLog)
+        } else if (level === 'warn') {
+          console.warn(prettyLog)
+        } else if (level === 'info') {
+          console.info(prettyLog)
+        } else if (level === 'debug') {
+          console.debug(prettyLog)
+        } else {
+          console.log(prettyLog)
+        }
+      }
+    }
+
+    // Grafana output (respects isSendedToGrafa, default true)
+    // Default isSendedToGrafa = true
+    if (opts.isSendedToGrafa !== false) {
+      sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata, callerMetadata, stackTrace).catch(
+        () => {}
+      )
+    }
   }
 
   info(opts: LogOptions, message: string, ...args: unknown[]): void {

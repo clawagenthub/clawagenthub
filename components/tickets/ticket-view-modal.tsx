@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { useTicket, useTicketComments, useAddTicketComment, useTicketFlowStatus, useStartTicketFlow, useStopTicketFlow, useDeleteTicket } from '@/lib/query/hooks'
 import { AuditLogPanel } from './audit-log-panel'
+import { marked } from 'marked'
 import logger from '@/lib/logger/index.js'
 
 // ============================================================================
@@ -187,7 +188,18 @@ interface CommentItemProps {
 }
 
 function CommentItem({ comment }: CommentItemProps) {
+  const [showMarkdown, setShowMarkdown] = useState(false)
   const edited = comment.updated_at !== comment.created_at
+
+  const contentHtml = useMemo(() => {
+    if (!showMarkdown) return null
+    try {
+      return marked(comment.content)
+    } catch {
+      return '<p class="text-red-500">Invalid markdown</p>'
+    }
+  }, [comment.content, showMarkdown])
+
   return (
     <div
       className="rounded-lg border p-3"
@@ -204,13 +216,36 @@ function CommentItem({ comment }: CommentItemProps) {
             </span>
           )}
         </div>
-        <span className="text-[10px]" style={{ color: `rgb(var(--text-tertiary))` }}>
-          {new Date(comment.created_at).toLocaleString()}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowMarkdown(!showMarkdown)}
+            className="text-[10px] px-2 py-0.5 rounded transition-colors"
+            style={{
+              backgroundColor: showMarkdown ? 'rgb(var(--accent-primary, 59 130 246))' : 'rgb(var(--bg-primary))',
+              color: showMarkdown ? 'white' : 'rgb(var(--text-secondary))',
+              border: '1px solid rgb(var(--border-color))',
+            }}
+            title={showMarkdown ? 'Show raw' : 'Show markdown'}
+          >
+            {showMarkdown ? 'Raw' : 'MD'}
+          </button>
+          <span className="text-[10px]" style={{ color: `rgb(var(--text-tertiary))` }}>
+            {new Date(comment.created_at).toLocaleString()}
+          </span>
+        </div>
       </div>
-      <p className="text-sm whitespace-pre-wrap break-words" style={{ color: `rgb(var(--text-primary))` }}>
-        {comment.content}
-      </p>
+      {showMarkdown ? (
+        <div
+          className="text-sm whitespace-pre-wrap break-words prose prose-sm max-w-none"
+          style={{ color: `rgb(var(--text-primary))` }}
+          dangerouslySetInnerHTML={{ __html: contentHtml || '' }}
+        />
+      ) : (
+        <p className="text-sm whitespace-pre-wrap break-words" style={{ color: `rgb(var(--text-primary))` }}>
+          {comment.content}
+        </p>
+      )}
       {edited && (
         <p className="text-[10px] mt-1" style={{ color: `rgb(var(--text-tertiary))` }}>
           edited {new Date(comment.updated_at).toLocaleString()}
@@ -225,11 +260,29 @@ interface CommentInputProps {
   onChange: (value: string) => void
   onSubmit: () => void
   isSubmitting: boolean
+  showPreview?: boolean
+  onTogglePreview?: () => void
 }
 
-function CommentInput({ value, onChange, onSubmit, isSubmitting }: CommentInputProps) {
+function CommentInput({ value, onChange, onSubmit, isSubmitting, showPreview, onTogglePreview }: CommentInputProps) {
   return (
     <div className="space-y-2">
+      {onTogglePreview && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onTogglePreview}
+            className="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: showPreview ? 'rgb(var(--accent-primary, 59 130 246))' : 'rgb(var(--bg-secondary))',
+              color: showPreview ? 'white' : 'rgb(var(--text-primary))',
+              border: '1px solid rgb(var(--border-color))',
+            }}
+          >
+            {showPreview ? 'Edit' : 'Preview'}
+          </button>
+        </div>
+      )}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -309,6 +362,7 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
   const { mutateAsync: deleteTicket, isPending: isDeletingTicket } = useDeleteTicket()
   const [commentInput, setCommentInput] = useState('')
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+  const [showCommentPreview, setShowCommentPreview] = useState(false)
 
   const timeline = useMemo(() => {
     const commentEvents = comments.map((comment) => ({
@@ -449,11 +503,6 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
           <FlowFailureAlert reason={getFlowFailureReason()} />
         )}
 
-        {/* Sub-Ticket Parent Navigation */}
-        {ticket?.is_sub_ticket && ticket?.parent_ticket_id && (
-          <SubTicketParentNav parentTicketId={ticket.parent_ticket_id} onViewParent={handleViewParent} />
-        )}
-
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs" style={{ color: `rgb(var(--text-secondary))` }}>
@@ -508,7 +557,24 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
               onChange={setCommentInput}
               onSubmit={handleAddComment}
               isSubmitting={isAddingComment}
+              showPreview={showCommentPreview}
+              onTogglePreview={() => setShowCommentPreview(!showCommentPreview)}
             />
+            {showCommentPreview && commentInput && (
+              <div
+                className="rounded-lg border p-3"
+                style={{ borderColor: 'rgb(var(--border-color))', backgroundColor: 'rgb(var(--bg-secondary))' }}
+              >
+                <p className="text-xs font-medium mb-2" style={{ color: 'rgb(var(--text-secondary))' }}>
+                  Preview
+                </p>
+                <div
+                  className="text-sm whitespace-pre-wrap break-words"
+                  style={{ color: 'rgb(var(--text-primary))' }}
+                  dangerouslySetInnerHTML={{ __html: marked(commentInput) }}
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -527,6 +593,11 @@ export function TicketViewModal({ isOpen, ticketId, onClose, onSwitchToEdit, onV
             )}
           </div>
         </div>
+
+        {/* Sub-Ticket Parent Navigation - Last in main content */}
+        {ticket?.is_sub_ticket && ticket?.parent_ticket_id && (
+          <SubTicketParentNav onViewParent={handleViewParent} />
+        )}
       </div>
     </Modal>
   )

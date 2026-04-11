@@ -94,14 +94,28 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
           </p>
         </div>
 
-        <Input
-          label="Project Value"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="e.g., high, medium, low, or a specific value..."
-          maxLength={255}
-          disabled={isSubmitting}
-        />
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: 'rgb(var(--text-secondary))' }}>
+            Project Value
+          </label>
+          <textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="e.g., high, medium, low, or a specific value..."
+            maxLength={5000}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 rounded-lg border resize-none"
+            style={{
+              backgroundColor: 'rgb(var(--bg-secondary))',
+              borderColor: 'rgb(var(--border-color))',
+              color: 'rgb(var(--text-primary))',
+            }}
+            rows={3}
+          />
+          <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
+            {value.length}/5000 characters
+          </p>
+        </div>
 
         {error && (
           <p className="text-sm" style={{ color: 'rgb(239, 68, 68)' }}>

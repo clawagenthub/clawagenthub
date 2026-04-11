@@ -464,6 +464,7 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
                   flow_enabled: editingTicket.flow_enabled,
                   flow_mode: editingTicket.flow_mode,
                   creation_status: editingTicket.creation_status,
+                  project_id: editingTicket.project_id || '',
                 }
               : undefined
           }

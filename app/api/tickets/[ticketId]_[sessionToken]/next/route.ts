@@ -26,18 +26,18 @@ export async function POST(request: NextRequest, context: RouteParams) {
     // Parse request body for finished flag
     const body = await request.json().catch(() => ({}))
     const explicitFinished = body.finished === true
-    // Split only on first underscore to separate ticketId from sessionToken
-    // sessionToken may contain underscores, so we use split with limit 2
-    const parts = ticketId_sessionToken.split('_', 2)
-    const ticketId = parts[0]
-    const sessionToken = parts[1]
-
-    if (!ticketId || !sessionToken) {
+    // Ticket IDs start with OT- and contain no underscores after the prefix
+    // Session tokens may contain underscores, so we find the ticket ID boundary first
+    // then take everything after as the session token
+    const ticketIdMatch = ticketId_sessionToken.match(/^(OT-\w+)_(.+)$/)
+    if (!ticketIdMatch) {
       return NextResponse.json(
         { message: 'Invalid URL format - expected /api/tickets/{ticketId}_{sessionToken}/next' },
         { status: 400 }
       )
     }
+    const ticketId = ticketIdMatch[1]
+    const sessionToken = ticketIdMatch[2]
 
     // Validate session from URL
     const user = getUserFromSession(sessionToken)
@@ -165,6 +165,8 @@ export async function POST(request: NextRequest, context: RouteParams) {
       )
     }
 
+    const now = new Date().toISOString()
+
     // Find next flow config (next stage in flow)
     const nextFlowConfig = db
       .prepare(
@@ -190,7 +192,9 @@ export async function POST(request: NextRequest, context: RouteParams) {
         }
       | undefined
 
-
+    if (!nextFlowConfig) {
+      return NextResponse.json({ error: 'INVALID_TRANSITION', message: 'No next stage exists in the flow' }, { status: 400 })
+    }
 
     // Determine new flowing status
     // Auto-trigger if: automatic mode OR explicit finished=true signal
@@ -312,10 +316,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
     logger.error(
       { category: logCategories.API_TICKETS },
       'Error advancing ticket to next stage (compound URL)',
-      { error }
+      { error, ticketId, currentStatus: currentStatus?.name, nextStatus: nextFlowConfig?.status_name }
     )
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', debug: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
