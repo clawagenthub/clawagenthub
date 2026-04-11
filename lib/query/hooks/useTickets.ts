@@ -160,6 +160,7 @@ export function useCreateTicket() {
       description?: string
       status_id: string
       assigned_to?: string
+      project_id?: string
       flow_enabled?: boolean
       flow_mode?: TicketFlowMode
       creation_status?: TicketCreationStatus
@@ -207,6 +208,7 @@ export function useUpdateTicket() {
       description?: string
       status_id?: string
       assigned_to?: string | null
+      project_id?: string | null
       flow_enabled?: boolean
       flow_mode?: TicketFlowMode
       creation_status?: TicketCreationStatus
@@ -222,6 +224,7 @@ export function useUpdateTicket() {
           description: params.description,
           status_id: params.status_id,
           assigned_to: params.assigned_to,
+          project_id: params.project_id,
           flow_enabled: params.flow_enabled,
           flow_mode: params.flow_mode,
           creation_status: params.creation_status,

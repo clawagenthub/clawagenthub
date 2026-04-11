@@ -271,6 +271,7 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
           description: data.description,
           status_id: data.status_id,
           assigned_to: data.assigned_to ?? null,
+          project_id: data.project_id ?? null,
           flow_enabled: data.flow_enabled,
           flow_mode: data.flow_mode,
           creation_status: data.creation_status,
