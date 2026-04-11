@@ -8,11 +8,20 @@ import type { Project } from '@/lib/db/schema'
 interface ProjectModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; description?: string; value?: string }) => Promise<void>
+  onSubmit: (data: {
+    name: string
+    description?: string
+    value?: string
+  }) => Promise<void>
   project?: Project | null
 }
 
-export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModalProps) {
+export function ProjectModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  project,
+}: ProjectModalProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [value, setValue] = useState('')
@@ -72,7 +81,10 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
         />
 
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: 'rgb(var(--text-secondary))' }}>
+          <label
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'rgb(var(--text-secondary))' }}
+          >
             Description
           </label>
           <textarea
@@ -81,7 +93,7 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
             placeholder="Enter project description..."
             maxLength={5000}
             disabled={isSubmitting}
-            className="w-full px-3 py-2 rounded-lg border resize-none"
+            className="w-full resize-none rounded-lg border px-3 py-2"
             style={{
               backgroundColor: 'rgb(var(--bg-secondary))',
               borderColor: 'rgb(var(--border-color))',
@@ -89,22 +101,28 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
             }}
             rows={3}
           />
-          <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
+          <p
+            className="mt-1 text-xs"
+            style={{ color: 'rgb(var(--text-tertiary))' }}
+          >
             {description.length}/5000 characters
           </p>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium" style={{ color: 'rgb(var(--text-secondary))' }}>
+          <label
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'rgb(var(--text-secondary))' }}
+          >
             Project Value
           </label>
           <textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="e.g., high, medium, low, or a specific value..."
+            placeholder="e.g., project credentials...,project path..., project technology stack..."
             maxLength={5000}
             disabled={isSubmitting}
-            className="w-full px-3 py-2 rounded-lg border resize-none"
+            className="w-full resize-none rounded-lg border px-3 py-2"
             style={{
               backgroundColor: 'rgb(var(--bg-secondary))',
               borderColor: 'rgb(var(--border-color))',
@@ -112,7 +130,10 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
             }}
             rows={3}
           />
-          <p className="text-xs mt-1" style={{ color: 'rgb(var(--text-tertiary))' }}>
+          <p
+            className="mt-1 text-xs"
+            style={{ color: 'rgb(var(--text-tertiary))' }}
+          >
             {value.length}/5000 characters
           </p>
         </div>
@@ -123,12 +144,15 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
           </p>
         )}
 
-        <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: 'rgb(var(--border-color))' }}>
+        <div
+          className="flex justify-end gap-3 border-t pt-4"
+          style={{ borderColor: 'rgb(var(--border-color))' }}
+        >
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             style={{ color: 'rgb(var(--text-secondary))' }}
           >
             Cancel
@@ -136,10 +160,17 @@ export function ProjectModal({ isOpen, onClose, onSubmit, project }: ProjectModa
           <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: 'rgb(var(--accent-primary, 59 130 246))', color: 'white' }}
+            className="rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+            style={{
+              backgroundColor: 'rgb(var(--accent-primary, 59 130 246))',
+              color: 'white',
+            }}
           >
-            {isSubmitting ? 'Saving...' : project ? 'Save Changes' : 'Create Project'}
+            {isSubmitting
+              ? 'Saving...'
+              : project
+                ? 'Save Changes'
+                : 'Create Project'}
           </button>
         </div>
       </form>
