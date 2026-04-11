@@ -3,14 +3,19 @@ import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db'
 import { getUserWithWorkspace, unauthorizedResponse } from '@/lib/auth/api-auth'
 import type { ChatSession } from '@/lib/db/schema'
-import logger from "@/lib/logger/index.js"
+import logger from '@/lib/logger/index.js'
 
-
-export async function POST(_request: Request) {
+export async function POST(request: Request) {
   try {
     const db = getDatabase()
     const body = await request.json()
     const { gatewayId, agentId, agentName } = body
+
+    logger.debug('[Chat API] Create session request received', {
+      hasGatewayId: !!gatewayId,
+      hasAgentId: !!agentId,
+      hasAgentName: !!agentName,
+    })
 
     if (!gatewayId || !agentId || !agentName) {
       return NextResponse.json(
@@ -31,6 +36,10 @@ export async function POST(_request: Request) {
       .get(gatewayId, auth.workspaceId) as { id: string } | undefined
 
     if (!gateway) {
+      logger.warn('[Chat API] Create session gateway not found in workspace', {
+        gatewayId,
+        workspaceId: auth.workspaceId,
+      })
       return NextResponse.json({ error: 'Gateway not found' }, { status: 404 })
     }
 
@@ -43,12 +52,13 @@ export async function POST(_request: Request) {
     const sessionKey = `agent:${agentId}:${chatSessionId}`
     const now = new Date().toISOString()
 
- 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO chat_sessions (
         id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       chatSessionId,
       auth.workspaceId,
       auth.user.id,
@@ -61,6 +71,13 @@ export async function POST(_request: Request) {
       now,
       now
     )
+
+    logger.info('[Chat API] Session created successfully', {
+      sessionId: chatSessionId,
+      workspaceId: auth.workspaceId,
+      gatewayId,
+      agentId,
+    })
 
     const chatSession: ChatSession = {
       id: chatSessionId,
@@ -77,13 +94,16 @@ export async function POST(_request: Request) {
       title: null,
       description: null,
       created_at: now,
-      updated_at: now
+      updated_at: now,
     }
 
-   
     return NextResponse.json({ session: chatSession })
   } catch (error) {
-    logger.error('[Chat API] Error creating session:', error)
+    logger.error('[Chat API] Error creating session:', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json(
       { error: 'Failed to create chat session' },
       { status: 500 }
@@ -96,29 +116,44 @@ export async function GET(_request: Request) {
     const db = getDatabase()
 
     // Use global auth utility
-   
+
     const auth = await getUserWithWorkspace()
     if (!auth) {
-      logger.error('[Sessions API] Auth failed or no workspace selected')
+      logger.error('[Sessions API] Auth failed or no workspace selected', {
+        route: '/api/chat/sessions',
+      })
       return unauthorizedResponse('Unauthorized or no workspace selected')
     }
-   
 
     // Get all chat sessions for the current workspace
     const sessions = db
-      .prepare(`
+      .prepare(
+        `
         SELECT * FROM chat_sessions
         WHERE workspace_id = ?
         ORDER BY updated_at DESC
-      `)
+      `
+      )
       .all(auth.workspaceId) as ChatSession[]
 
     // Log session statuses for debugging
-    const activeCount = sessions.filter((s: ChatSession) => s.status === 'active').length
-    const idleCount = sessions.filter((s: ChatSession) => s.status === 'idle').length
-    const inactiveCount = sessions.filter((s: ChatSession) => s.status === 'inactive').length
-  
-    
+    const activeCount = sessions.filter(
+      (s: ChatSession) => s.status === 'active'
+    ).length
+    const idleCount = sessions.filter(
+      (s: ChatSession) => s.status === 'idle'
+    ).length
+    const inactiveCount = sessions.filter(
+      (s: ChatSession) => s.status === 'inactive'
+    ).length
+
+    logger.debug('[Sessions API] Session status counts', {
+      activeCount,
+      idleCount,
+      inactiveCount,
+      workspaceId: auth.workspaceId,
+    })
+
     return NextResponse.json({ sessions })
   } catch (error) {
     logger.error('[Chat API] Error fetching sessions:', error)
