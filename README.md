@@ -85,19 +85,119 @@ Security hardening is required before production:
 <details>
 <summary><strong>Quickstart</strong></summary>
 
-### Pull statuses from DB
+### Statuses used in this project (from current DB)
 
-Default seeded statuses are defined in [`lib/db/migrations/015_add_default_statuses.sql`](Desktop/projects/clawagenthub/lib/db/migrations/015_add_default_statuses.sql):
+Use this format as dashboard reference: **status name → dropdown → priority / on_failed_goto / default flow / description context**.
 
-- `To Do`
-- `In Progress`
-- `Done`
+<details>
+<summary><strong>To Do</strong></summary>
 
-Check live values:
+- priority: `1`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: `Items that need to be done`
 
-```bash
-sqlite3 data.db "SELECT id,name,color,priority FROM statuses ORDER BY priority ASC;"
-```
+</details>
+
+<details>
+<summary><strong>Resarch</strong></summary>
+
+- priority: `2`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: XML `research_agent_prompt` (deep research plan/retrieve/synthesize workflow)
+
+</details>
+
+<details>
+<summary><strong>Architect</strong></summary>
+
+- priority: `3`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: XML `system_designer_prompt` (architecture + file structure blueprint)
+
+</details>
+
+<details>
+<summary><strong>Marketing</strong></summary>
+
+- priority: `4`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `0`
+- ask_approve_to_continue: `0`
+- description context: XML `gtm_strategist_prompt` (GTM comparison + budget/performance strategy)
+
+</details>
+
+<details>
+<summary><strong>In Progress (Implementation)</strong></summary>
+
+- priority: `5`
+- on_failed_goto: `Failed`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: XML `implementation_agent_prompt` (direct implementation workflow)
+
+</details>
+
+<details>
+<summary><strong>Testing</strong></summary>
+
+- priority: `6`
+- on_failed_goto: `Failed`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: XML `qa_engineer_prompt` (QA framework + UAT + automation)
+
+</details>
+
+<details>
+<summary><strong>Failed</strong></summary>
+
+- priority: `7`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `0`
+- ask_approve_to_continue: `0`
+- description context: `Failed task should master look at it.`
+
+</details>
+
+<details>
+<summary><strong>Done</strong></summary>
+
+- priority: `8`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `1`
+- ask_approve_to_continue: `0`
+- description context: `Completed items`
+
+</details>
+
+<details>
+<summary><strong>Closed</strong></summary>
+
+- priority: `10`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `0`
+- ask_approve_to_continue: `0`
+- description context: `Finished closed old tickets.`
+
+</details>
+
+<details>
+<summary><strong>Test Status</strong></summary>
+
+- priority: `999`
+- on_failed_goto: `null`
+- is_flow_included (default flow): `0`
+- ask_approve_to_continue: `0`
+- description context: `null` (empty)
+
+</details>
 
 ### Pull statuses from API (session scoped)
 
