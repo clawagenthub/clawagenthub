@@ -1792,12 +1792,27 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="mt-4 space-y-2">
-                    <label
-                      className="font-medium"
-                      style={{ color: 'rgb(var(--text-primary))' }}
-                    >
-                      Selected Prompt Template (Optional)
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label
+                        className="font-medium"
+                        style={{ color: 'rgb(var(--text-primary))' }}
+                      >
+                        Selected Prompt Template (Optional)
+                      </label>
+                      <button
+                        className="rounded-lg border px-3 py-1.5 text-sm transition-colors"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-secondary))',
+                          borderColor: 'rgb(var(--border-color))',
+                          color: 'rgb(var(--text-primary))',
+                        }}
+                        onClick={() => {
+                          setSelectedPromptTemplate(DEFAULT_SELECTED_TICKET_CONVERTER_TEMPLATE)
+                        }}
+                      >
+                        Load Default Template
+                      </button>
+                    </div>
                     <p
                       className="text-sm"
                       style={{ color: 'rgb(var(--text-secondary))' }}
