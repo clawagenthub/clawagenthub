@@ -10974,3 +10974,169 @@ nohup: ignoring input
 2026-04-11T17:15:37.329Z DEBUG [MIDDLEWARE] Token preview: _sdx01T-Pu...
 2026-04-11T17:15:37.329Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
  POST /api/_sdx01T-PuMWphWd5v0Ag0beymvIo8ju/tickets/MG-71NSD6/comments 400 in 5ms
+2026-04-11T17:15:38.400Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:15:38.400Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:15:38.400Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 2 slots available
+2026-04-11T17:15:38.400Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:15:43.109Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:43.157Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:43.159Z DEBUG [System] [triggerAgentForFlowStart] Flow trigger: ticketId=IA-TM7I7X, agentId=architech, statusId=U45P51Y4Nf44WO0k
+2026-04-11T17:15:43.159Z DEBUG [System] [findClientForAgent] START: workspaceId=1u2i5e78qjU6GaFQ, agentId=architech
+2026-04-11T17:15:43.161Z DEBUG [System] [findClientForAgent] Looking for agent architech in 1 gateways
+2026-04-11T17:15:43.162Z DEBUG [System] [findClientForAgent] Gateway manager has 1 active connections
+2026-04-11T17:15:43.162Z DEBUG [System] [findClientForAgent] Gateway localgateway: client=true, connected=true
+2026-04-11T17:15:43.163Z WARN  [GatewayClient] Calling agents.list RPC method
+2026-04-11T17:15:43.164Z WARN  [GatewayClient] RPC call (method=agents.list, hasParams=true)
+2026-04-11T17:15:43.206Z WARN  [GatewayClient] agents.list response (hasAgents=true, agentCount=8)
+2026-04-11T17:15:43.206Z DEBUG [System] [findClientForAgent] Gateway localgateway returned 8 agents:
+2026-04-11T17:15:43.206Z DEBUG [System] [findClientForAgent] Found matching agent architech in gateway localgateway
+2026-04-11T17:15:43.206Z DEBUG [System] [triggerAgentForFlowStart] Attempt 1/5: found=true, duration=47ms
+2026-04-11T17:15:43.210Z WARN  [GatewayClient] Sending chat message (sessionKey=agent:architech:ef847240-87d2-4629-b72b-d0d916cd2f3f, messageLength=40375)
+2026-04-11T17:15:43.213Z WARN  [GatewayClient] RPC call (method=chat.send, hasParams=true)
+2026-04-11T17:15:43.841Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:44.875Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:45.633Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:45.936Z INFO  [MIDDLEWARE] Request: GET /api/projects
+2026-04-11T17:15:45.936Z INFO  [MIDDLEWARE] Session token present: false
+2026-04-11T17:15:45.936Z WARN  [MIDDLEWARE] No session token - redirecting to login
+2026-04-11T17:15:45.936Z WARN  [MIDDLEWARE] API route - returning 401
+ GET /api/projects 401 in 2ms
+2026-04-11T17:15:46.714Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:47.335Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:47.885Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:48.400Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:15:48.401Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:15:48.401Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 2 slots available
+2026-04-11T17:15:48.401Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:15:49.058Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:49.642Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:50.098Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:50.250Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=3)
+2026-04-11T17:15:50.252Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:15:58.401Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:15:58.401Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:15:58.401Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:15:58.402Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:03.731Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:04.548Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:04.708Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:05.165Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:05.468Z INFO  [MIDDLEWARE] Request: GET /api/projects
+2026-04-11T17:16:05.468Z INFO  [MIDDLEWARE] Session token present: false
+2026-04-11T17:16:05.468Z WARN  [MIDDLEWARE] No session token - redirecting to login
+2026-04-11T17:16:05.468Z WARN  [MIDDLEWARE] API route - returning 401
+ GET /api/projects 401 in 2ms
+2026-04-11T17:16:05.661Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:06.743Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:07.146Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:07.217Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:16:07.219Z DEBUG [System] [triggerAgentForFlowStart] Flow trigger: ticketId=IA-TM7I7X, agentId=coder, statusId=inprogress_0ef13a9d
+2026-04-11T17:16:07.219Z DEBUG [System] [findClientForAgent] START: workspaceId=1u2i5e78qjU6GaFQ, agentId=coder
+2026-04-11T17:16:07.219Z DEBUG [System] [findClientForAgent] Looking for agent coder in 1 gateways
+2026-04-11T17:16:07.219Z DEBUG [System] [findClientForAgent] Gateway manager has 1 active connections
+2026-04-11T17:16:07.220Z DEBUG [System] [findClientForAgent] Gateway localgateway: client=true, connected=true
+2026-04-11T17:16:07.220Z WARN  [GatewayClient] Calling agents.list RPC method
+2026-04-11T17:16:07.220Z WARN  [GatewayClient] RPC call (method=agents.list, hasParams=true)
+2026-04-11T17:16:07.262Z WARN  [GatewayClient] agents.list response (hasAgents=true, agentCount=8)
+2026-04-11T17:16:07.263Z DEBUG [System] [findClientForAgent] Gateway localgateway returned 8 agents:
+2026-04-11T17:16:07.263Z DEBUG [System] [findClientForAgent] Found matching agent coder in gateway localgateway
+2026-04-11T17:16:07.263Z DEBUG [System] [triggerAgentForFlowStart] Attempt 1/5: found=true, duration=44ms
+2026-04-11T17:16:07.266Z WARN  [GatewayClient] Sending chat message (sessionKey=agent:coder:7f0e0f28-75bc-4222-b214-c666a5d90576, messageLength=40484)
+2026-04-11T17:16:07.266Z WARN  [GatewayClient] RPC call (method=chat.send, hasParams=true)
+2026-04-11T17:16:08.401Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:08.402Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:08.402Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:08.402Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:10.854Z INFO  [MIDDLEWARE] Request: GET /api/projects
+2026-04-11T17:16:10.854Z INFO  [MIDDLEWARE] Session token present: false
+2026-04-11T17:16:10.854Z WARN  [MIDDLEWARE] No session token - redirecting to login
+2026-04-11T17:16:10.854Z WARN  [MIDDLEWARE] API route - returning 401
+ GET /api/projects 401 in 2ms
+2026-04-11T17:16:10.893Z INFO  [MIDDLEWARE] Request: GET /api/projects
+2026-04-11T17:16:10.894Z INFO  [MIDDLEWARE] Session token present: false
+2026-04-11T17:16:10.894Z WARN  [MIDDLEWARE] No session token - redirecting to login
+2026-04-11T17:16:10.894Z WARN  [MIDDLEWARE] API route - returning 401
+ GET /api/projects 401 in 2ms
+2026-04-11T17:16:18.402Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:18.402Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:18.402Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:18.403Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:28.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:28.403Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:28.403Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:28.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:38.404Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:38.404Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:38.404Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:38.406Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:48.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:48.403Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:48.403Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:48.403Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:16:58.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:16:58.404Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:16:58.404Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:16:58.405Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:08.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:08.403Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:08.403Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:08.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:18.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:18.403Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:18.403Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:18.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:28.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:28.403Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:28.404Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:28.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:38.403Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:38.404Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:38.404Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:38.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:48.404Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:48.404Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:48.404Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:48.404Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:17:58.404Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:17:58.405Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:17:58.405Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:17:58.405Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:18:08.406Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:08.406Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:08.406Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:08.406Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:18:11.028Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:18:18.406Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:18.406Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:18.406Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:18.406Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:18:28.406Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:28.406Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:28.406Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:28.406Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+5:18:36 PM [vite] (rsc) hmr update /@id/__x00__virtual:vinext-rsc-entry
+5:18:36 PM [vite] (ssr) page reload lib/utils/flow-template.ts
+5:18:36 PM [vite] (client) hmr update /components/pages/settings-content.tsx, /app/settings/page.tsx
+[vite] hot updated:  virtual:vinext-rsc-entry
+2026-04-11T17:18:38.408Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:38.408Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:38.408Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:38.408Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:18:42.266Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:18:48.409Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:48.409Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:48.409Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:48.409Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:18:58.409Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:18:58.409Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:18:58.409Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:18:58.409Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:19:05.956Z WARN  [GatewayClient] Broadcasting event (event=chat, hasPayload=true, listenerCount=2)
+2026-04-11T17:19:08.410Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:19:08.410Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:19:08.410Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:19:08.410Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:19:18.410Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:19:18.410Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:19:18.410Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
+2026-04-11T17:19:18.411Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available

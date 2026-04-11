@@ -255,6 +255,7 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
     blockingTicketInfo: blockingTicketInfo,
+    selectedProject: selectedProject ? JSON.stringify(selectedProject) : 'null',
   }
 
   const prompt = replaceTemplateVariables(template, variables)

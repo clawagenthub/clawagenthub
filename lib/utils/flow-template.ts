@@ -47,6 +47,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     <workspace_id>{$workspaceId}</workspace_id>
     <domain>{$domain}</domain>
     <session_token>{$sessionToken}</session_token>
+    <selected_project><![CDATA[{$selectedProject}]]></selected_project>
     <blocking_ticket>
       <description>If this ticket is waiting for another ticket to finish, the blocking ticket info is provided here. If isCompleted=false, do NOT attempt to do any real work - instead, pause immediately with RESULT: pause and explain you are waiting for the blocking ticket.</description>
       <blocking_ticket_info><![CDATA[{$blockingTicketInfo}]]></blocking_ticket_info>
