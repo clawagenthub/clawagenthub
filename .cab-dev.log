@@ -10132,3 +10132,192 @@ nohup: ignoring input
 2026-04-11T17:13:08.387Z DEBUG [WaitingToFlowService] Found 2 workspaces
 2026-04-11T17:13:08.388Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 3 slots available
 2026-04-11T17:13:08.388Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+2026-04-11T17:13:13.639Z INFO  [MIDDLEWARE] Request: GET /api/tickets
+2026-04-11T17:13:13.639Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.639Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:13.639Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets?include_drafts=true 200 in 14ms
+2026-04-11T17:13:13.693Z INFO  [MIDDLEWARE] Request: PATCH /api/tickets/MG-71NSD6
+2026-04-11T17:13:13.693Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.693Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:13.693Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ PATCH /api/tickets/MG-71NSD6 200 in 4ms
+2026-04-11T17:13:13.871Z INFO  [MIDDLEWARE] Request: GET /api/tickets
+2026-04-11T17:13:13.872Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.872Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:13.872Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets?include_drafts=true 200 in 14ms
+2026-04-11T17:13:13.885Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:13.886Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.886Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:13.886Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:13.887Z DEBUG [Chat] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [TicketModal][split-validation] wrapper rendered: isOpen=true isSubmitting=false hasInitialData=true
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 2ms
+2026-04-11T17:13:13.913Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:13.913Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.913Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:13.913Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:13.914Z DEBUG [Chat] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [TicketModal][split-validation] wrapper rendered: isOpen=true isSubmitting=false hasInitialData=true
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 4ms
+2026-04-11T17:13:13.994Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:13.994Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:13.994Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:13.994Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:13.995Z DEBUG [Chat] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [TicketModal][split-validation] wrapper rendered: isOpen=true isSubmitting=false hasInitialData=true
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 3ms
+2026-04-11T17:13:14.111Z INFO  [MIDDLEWARE] Request: PUT /api/tickets/MG-71NSD6/flow-config
+2026-04-11T17:13:14.111Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:14.111Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:14.111Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ PUT /api/tickets/MG-71NSD6/flow-config 200 in 21ms
+2026-04-11T17:13:14.237Z INFO  [MIDDLEWARE] Request: GET /api/tickets/MG-71NSD6
+2026-04-11T17:13:14.237Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:14.237Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:14.237Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets/MG-71NSD6 200 in 5ms
+2026-04-11T17:13:14.880Z INFO  [MIDDLEWARE] Request: POST /api/tickets/MG-71NSD6/flow
+2026-04-11T17:13:14.880Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:14.880Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:14.880Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ POST /api/tickets/MG-71NSD6/flow 200 in 3ms
+2026-04-11T17:13:15.071Z INFO  [MIDDLEWARE] Request: GET /api/tickets
+2026-04-11T17:13:15.071Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:15.071Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:15.071Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets?include_drafts=true 200 in 12ms
+2026-04-11T17:13:15.084Z INFO  [MIDDLEWARE] Request: GET /api/tickets/MG-71NSD6
+2026-04-11T17:13:15.084Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:15.084Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:15.084Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets/MG-71NSD6 200 in 5ms
+2026-04-11T17:13:15.089Z INFO  [MIDDLEWARE] Request: GET /api/tickets/MG-71NSD6/flow
+2026-04-11T17:13:15.089Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:15.089Z DEBUG [MIDDLEWARE] Token preview: tickets...
+2026-04-11T17:13:15.089Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets/MG-71NSD6/flow 200 in 5ms
+2026-04-11T17:13:18.389Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:13:18.389Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:13:18.389Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 1 waiting tickets, 3 slots available
+2026-04-11T17:13:18.389Z INFO  [WaitingToFlowService] Triggering flow for ticket MG-71NSD6
+2026-04-11T17:13:18.390Z DEBUG [System] [triggerAgentForFlowStart] Flow trigger: ticketId=MG-71NSD6, agentId=tester, statusId=lQlT20LLqmqZpG4f
+2026-04-11T17:13:18.390Z DEBUG [System] [findClientForAgent] START: workspaceId=1u2i5e78qjU6GaFQ, agentId=tester
+2026-04-11T17:13:18.390Z DEBUG [System] [findClientForAgent] Looking for agent tester in 1 gateways
+2026-04-11T17:13:18.390Z DEBUG [System] [findClientForAgent] Gateway manager has 1 active connections
+2026-04-11T17:13:18.390Z DEBUG [System] [findClientForAgent] Gateway localgateway: client=true, connected=true
+2026-04-11T17:13:18.390Z WARN  [GatewayClient] Calling agents.list RPC method
+2026-04-11T17:13:18.390Z WARN  [GatewayClient] RPC call (method=agents.list, hasParams=true)
+2026-04-11T17:13:19.183Z WARN  [GatewayClient] agents.list response (hasAgents=true, agentCount=8)
+2026-04-11T17:13:19.183Z DEBUG [System] [findClientForAgent] Gateway localgateway returned 8 agents:
+2026-04-11T17:13:19.183Z DEBUG [System] [findClientForAgent] Found matching agent tester in gateway localgateway
+2026-04-11T17:13:19.184Z DEBUG [System] [triggerAgentForFlowStart] Attempt 1/5: found=true, duration=794ms
+2026-04-11T17:13:19.188Z WARN  [GatewayClient] Sending chat message (sessionKey=agent:tester:2062d37f-c78f-4071-aa38-b3346ef69ff6, messageLength=36610)
+2026-04-11T17:13:19.188Z WARN  [GatewayClient] RPC call (method=chat.send, hasParams=true)
+2026-04-11T17:13:25.640Z INFO  [MIDDLEWARE] Request: GET /api/tickets
+2026-04-11T17:13:25.641Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:25.641Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:25.641Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets?include_drafts=true 200 in 16ms
+2026-04-11T17:13:28.389Z DEBUG [WaitingToFlowService] Running check for waiting tickets...
+2026-04-11T17:13:28.389Z DEBUG [WaitingToFlowService] Found 2 workspaces
+2026-04-11T17:13:28.389Z INFO  [WaitingToFlowService] Workspace 1u2i5e78qjU6GaFQ: Found 0 waiting tickets, 2 slots available
+2026-04-11T17:13:28.389Z INFO  [WaitingToFlowService] Workspace iKwvXwf7kQAfxkSe: Found 0 waiting tickets, 5 slots available
+5:13:30 PM [vite] (rsc) hmr update /@id/__x00__virtual:vinext-rsc-entry, /app/globals.css
+5:13:30 PM [vite] (client) hmr update /app/globals.css?direct
+[vite] hot updated:  virtual:vinext-rsc-entry
+2026-04-11T17:13:30.182Z INFO  [MIDDLEWARE] Request: GET /dashboard
+2026-04-11T17:13:30.182Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.183Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.183Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /dashboard 200 in 8ms (compile: 4ms, render: 4ms)
+2026-04-11T17:13:30.415Z INFO  [MIDDLEWARE] Request: GET /projects
+2026-04-11T17:13:30.415Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.415Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.415Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /projects 200 in 5ms (compile: 2ms, render: 3ms)
+2026-04-11T17:13:30.498Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.498Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.498Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.498Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.502Z INFO  [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [ProjectsPageContent] Rendering projects page
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 6ms
+2026-04-11T17:13:30.581Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.581Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.582Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.582Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.582Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] isInitialLoad changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 3ms
+2026-04-11T17:13:30.584Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.584Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.584Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.584Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.585Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] switchingWorkspace changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 2ms
+2026-04-11T17:13:30.587Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.587Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.587Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.587Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.587Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] isInitialLoad changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 2ms
+2026-04-11T17:13:30.607Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.608Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.608Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.608Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.608Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] currentWorkspace changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 3ms
+2026-04-11T17:13:30.628Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.628Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.628Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.628Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.629Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] switchingWorkspace changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 3ms
+2026-04-11T17:13:30.715Z INFO  [MIDDLEWARE] Request: POST /api/logs
+2026-04-11T17:13:30.715Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:30.715Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:30.715Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+2026-04-11T17:13:30.716Z DEBUG [System] [/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27] [frontend] [SidebarLoopDebug] currentWorkspace changed
+    at POST (/config/Desktop/projects/clawagenthub/app/api/logs/route.ts:80:27)
+    at async _handleRequest (virtual:vinext-rsc-entry:4526:26)
+    at async eval (virtual:vinext-rsc-entry:3999:30)
+    at async file:///config/Desktop/projects/clawagenthub/node_modules/@vitejs/plugin-rsc/dist/plugin.js:309:8
+ POST /api/logs 200 in 2ms
+2026-04-11T17:13:35.810Z INFO  [MIDDLEWARE] Request: GET /api/tickets
+2026-04-11T17:13:35.810Z INFO  [MIDDLEWARE] Session token present: true
+2026-04-11T17:13:35.810Z DEBUG [MIDDLEWARE] Token preview: roH2AljeBr...
+2026-04-11T17:13:35.810Z INFO  [MIDDLEWARE] Token gate passed (cookie/path token present), allowing request
+ GET /api/tickets?include_drafts=true 200 in 12ms
