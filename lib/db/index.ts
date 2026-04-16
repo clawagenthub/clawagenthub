@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url'
 import logger, { logCategories } from '@/lib/logger/index.js'
 import type { Project, ProjectInsert, ProjectUpdate } from './schema'
 
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
@@ -74,8 +73,12 @@ export function runMigrations(): void {
     '029_add_skills_tables.sql',
     '030_add_skills_path_columns.sql',
     '031_update_flowing_status_check.sql',
+    '032_fix_audit_logs_fk.sql',
     '033_add_sub_ticket_columns.sql',
     '034_add_workspace_projects.sql',
+    '035_add_project_id_to_tickets.sql',
+    '036_add_identities_posts_drafts_schedules_job_applications.sql',
+    '037_add_identity_api_keys_and_sessions.sql',
   ]
 
   for (const file of migrationFiles) {
@@ -87,7 +90,10 @@ export function runMigrations(): void {
       .get(migrationName)
 
     if (!existing) {
-      logger.info(`📦 Running migration: ${migrationName}`)
+      logger.info(
+        { category: logCategories.MIGRATION },
+        `📦 Running migration: ${migrationName}`
+      )
       const migrationPath = join(migrationsDir, file)
       const sql = readFileSync(migrationPath, 'utf-8')
 
@@ -96,7 +102,10 @@ export function runMigrations(): void {
         db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
           migrationName
         )
-        logger.info(`✓ Migration ${migrationName} applied`)
+        logger.info(
+          { category: logCategories.MIGRATION },
+          `✓ Migration ${migrationName} applied`
+        )
       } catch (error: any) {
         // Handle idempotent-safe errors (column/table already exists)
         const errorMessage = error?.message || String(error)
@@ -106,12 +115,16 @@ export function runMigrations(): void {
             errorMessage.includes('already exists'))
         ) {
           logger.info(
+            { category: logCategories.MIGRATION },
             `ℹ️  Migration ${migrationName}: Object already exists, marking as applied`
           )
           db.prepare('INSERT INTO migrations (name) VALUES (?)').run(
             migrationName
           )
-          logger.info(`✓ Migration ${migrationName} marked as applied`)
+          logger.info(
+            { category: logCategories.MIGRATION },
+            `✓ Migration ${migrationName} marked as applied`
+          )
         } else {
           // Re-throw unexpected errors
           throw error
@@ -122,7 +135,10 @@ export function runMigrations(): void {
 }
 
 export function initializeDatabase(): void {
-  logger.info({ category: logCategories.DATABASE }, '🚀 Initializing database...')
+  logger.info(
+    { category: logCategories.DATABASE },
+    '🚀 Initializing database...'
+  )
   getDatabase()
   runMigrations()
   logger.info({ category: logCategories.DATABASE }, '✓ Database initialized')
@@ -136,17 +152,30 @@ export function closeDatabase(): void {
 }
 
 // Project query functions
-export function getProjects(db: Database.Database, workspaceId: string): Project[] {
+export function getProjects(
+  db: Database.Database,
+  workspaceId: string
+): Project[] {
   return db
-    .prepare('SELECT * FROM workspace_projects WHERE workspace_id = ? ORDER BY name ASC')
+    .prepare(
+      'SELECT * FROM workspace_projects WHERE workspace_id = ? ORDER BY name ASC'
+    )
     .all(workspaceId) as Project[]
 }
 
-export function getProjectById(db: Database.Database, id: string): Project | undefined {
-  return db.prepare('SELECT * FROM workspace_projects WHERE id = ?').get(id) as Project | undefined
+export function getProjectById(
+  db: Database.Database,
+  id: string
+): Project | undefined {
+  return db.prepare('SELECT * FROM workspace_projects WHERE id = ?').get(id) as
+    | Project
+    | undefined
 }
 
-export function createProject(db: Database.Database, project: ProjectInsert & { id: string }): Project {
+export function createProject(
+  db: Database.Database,
+  project: ProjectInsert & { id: string }
+): Project {
   const now = new Date().toISOString()
   db.prepare(
     `INSERT INTO workspace_projects (id, workspace_id, name, description, value, created_at, updated_at)
@@ -163,7 +192,11 @@ export function createProject(db: Database.Database, project: ProjectInsert & { 
   return getProjectById(db, project.id)!
 }
 
-export function updateProject(db: Database.Database, id: string, update: ProjectUpdate): Project | undefined {
+export function updateProject(
+  db: Database.Database,
+  id: string,
+  update: ProjectUpdate
+): Project | undefined {
   const existing = getProjectById(db, id)
   if (!existing) return undefined
 
@@ -185,11 +218,15 @@ export function updateProject(db: Database.Database, id: string, update: Project
   }
 
   values.push(id)
-  db.prepare(`UPDATE workspace_projects SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+  db.prepare(
+    `UPDATE workspace_projects SET ${fields.join(', ')} WHERE id = ?`
+  ).run(...values)
   return getProjectById(db, id)
 }
 
 export function deleteProject(db: Database.Database, id: string): boolean {
-  const result = db.prepare('DELETE FROM workspace_projects WHERE id = ?').run(id)
+  const result = db
+    .prepare('DELETE FROM workspace_projects WHERE id = ?')
+    .run(id)
   return result.changes > 0
 }

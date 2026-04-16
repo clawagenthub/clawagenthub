@@ -24,6 +24,7 @@ export interface Session {
   user_id: string
   token: string
   current_workspace_id: string | null
+  current_identity_id: string | null
   expires_at: string
   created_at: string
 }
@@ -143,7 +144,13 @@ export interface StatusUpdate {
 
 // Ticket creation status type
 export type TicketCreationStatus = 'draft' | 'active'
-export type TicketFlowingStatus = 'stopped' | 'flowing' | 'waiting' | 'waiting_to_flow' | 'failed' | 'completed'
+export type TicketFlowingStatus =
+  | 'stopped'
+  | 'flowing'
+  | 'waiting'
+  | 'waiting_to_flow'
+  | 'failed'
+  | 'completed'
 export type TicketFlowMode = 'manual' | 'automatic'
 
 // Ticket types
@@ -353,10 +360,11 @@ export const SYSTEM_STATUSES = {
   IDLE: 'idle',
   ONLINE: 'online',
   FINISHED: 'finished',
-  NOT_IN_FLOW: 'notinflow'
+  NOT_IN_FLOW: 'notinflow',
 } as const
 
-export type SystemStatus = typeof SYSTEM_STATUSES[keyof typeof SYSTEM_STATUSES]
+export type SystemStatus =
+  (typeof SYSTEM_STATUSES)[keyof typeof SYSTEM_STATUSES]
 
 // Chat types
 export type SessionStatus = 'active' | 'idle' | 'inactive'
@@ -520,4 +528,346 @@ export interface ProjectUpdate {
 
 export interface ProjectWithTicketCount extends Project {
   ticket_count?: number
+}
+
+// Identity types (workspace accounts/profiles)
+export type IdentityType = 'user' | 'social' | 'system' | 'bot'
+
+export interface Identity {
+  id: string
+  workspace_id: string
+  identity_type: IdentityType
+  name: string
+  email: string | null
+  username: string | null
+  avatar_url: string | null
+  profile_data: string | null // JSON string
+  credentials: string | null // JSON string (encrypted)
+  metadata: string | null // JSON string
+  linkedin_session_token: string | null
+  browser_profile_id: string | null
+  settings_json: string | null // JSON string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface IdentityInsert {
+  workspace_id: string
+  identity_type?: IdentityType
+  name: string
+  email?: string | null
+  username?: string | null
+  avatar_url?: string | null
+  profile_data?: string | null
+  credentials?: string | null
+  metadata?: string | null
+  linkedin_session_token?: string | null
+  browser_profile_id?: string | null
+  settings_json?: string | null
+  is_active?: boolean
+}
+
+export interface IdentityUpdate {
+  identity_type?: IdentityType
+  name?: string
+  email?: string | null
+  username?: string | null
+  avatar_url?: string | null
+  profile_data?: string | null
+  credentials?: string | null
+  metadata?: string | null
+  is_active?: boolean
+  linkedin_session_token?: string | null
+  browser_profile_id?: string | null
+  settings_json?: string | null
+}
+
+// Identity API Keys - stored API credentials for different AI providers
+export type ApiKeyProvider = 'gemini' | 'minimax' | 'claude' | 'openai'
+
+export interface IdentityApiKey {
+  id: string
+  identity_id: string
+  provider: ApiKeyProvider
+  encrypted_key: string
+  key_prefix: string | null
+  label: string | null
+  is_active: boolean
+  last_used_at: string | null
+  expires_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IdentityApiKeyInsert {
+  identity_id: string
+  provider: ApiKeyProvider
+  encrypted_key: string
+  key_prefix?: string | null
+  label?: string | null
+  is_active?: boolean
+  last_used_at?: string | null
+  expires_at?: string | null
+}
+
+export interface IdentityApiKeyUpdate {
+  provider?: ApiKeyProvider
+  encrypted_key?: string
+  key_prefix?: string | null
+  label?: string | null
+  is_active?: boolean
+  last_used_at?: string | null
+  expires_at?: string | null
+}
+
+// Identity Sessions - session tokens for identity authentication
+export interface IdentitySession {
+  id: string
+  identity_id: string
+  session_token: string
+  ip_address: string | null
+  user_agent: string | null
+  expires_at: string
+  last_active_at: string
+  settings: string | null // JSON string
+  metadata: string | null // JSON string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface IdentitySessionInsert {
+  identity_id: string
+  session_token: string
+  ip_address?: string | null
+  user_agent?: string | null
+  expires_at: string
+  last_active_at?: string
+  settings?: string | null
+  metadata?: string | null
+  is_active?: boolean
+}
+
+export interface IdentitySessionUpdate {
+  session_token?: string
+  ip_address?: string | null
+  user_agent?: string | null
+  expires_at?: string
+  last_active_at?: string
+  settings?: string | null
+  metadata?: string | null
+  is_active?: boolean
+}
+
+// Post types (published content)
+export type PostStatus = 'published' | 'draft' | 'archived' | 'deleted'
+export type PostVisibility = 'public' | 'private' | 'unlisted'
+
+export interface Post {
+  id: string
+  workspace_id: string
+  identity_id: string
+  title: string
+  content: string | null
+  excerpt: string | null
+  status: PostStatus
+  visibility: PostVisibility
+  published_at: string | null
+  source_platform: string | null
+  source_url: string | null
+  source_id: string | null
+  engagement_data: string | null // JSON string
+  metadata: string | null // JSON string
+  created_at: string
+  updated_at: string
+}
+
+export interface PostInsert {
+  workspace_id: string
+  identity_id: string
+  title: string
+  content?: string | null
+  excerpt?: string | null
+  status?: PostStatus
+  visibility?: PostVisibility
+  published_at?: string | null
+  source_platform?: string | null
+  source_url?: string | null
+  source_id?: string | null
+  engagement_data?: string | null
+  metadata?: string | null
+}
+
+export interface PostUpdate {
+  title?: string
+  content?: string | null
+  excerpt?: string | null
+  status?: PostStatus
+  visibility?: PostVisibility
+  published_at?: string | null
+  source_platform?: string | null
+  source_url?: string | null
+  source_id?: string | null
+  engagement_data?: string | null
+  metadata?: string | null
+}
+
+// Draft types (post drafts)
+export interface Draft {
+  id: string
+  workspace_id: string
+  identity_id: string
+  title: string | null
+  content: string | null
+  excerpt: string | null
+  scheduled_at: string | null
+  visibility: PostVisibility
+  source_platform: string | null
+  metadata: string | null // JSON string
+  created_at: string
+  updated_at: string
+}
+
+export interface DraftInsert {
+  workspace_id: string
+  identity_id: string
+  title?: string | null
+  content?: string | null
+  excerpt?: string | null
+  scheduled_at?: string | null
+  visibility?: PostVisibility
+  source_platform?: string | null
+  metadata?: string | null
+}
+
+export interface DraftUpdate {
+  title?: string | null
+  content?: string | null
+  excerpt?: string | null
+  scheduled_at?: string | null
+  visibility?: PostVisibility
+  source_platform?: string | null
+  metadata?: string | null
+}
+
+// Schedule types (posting calendar)
+export type ScheduleStatus = 'pending' | 'posted' | 'failed' | 'cancelled'
+
+export interface Schedule {
+  id: string
+  workspace_id: string
+  draft_id: string | null
+  identity_id: string | null
+  title: string
+  description: string | null
+  scheduled_at: string
+  timezone: string
+  status: ScheduleStatus
+  posted_at: string | null
+  post_id: string | null
+  recurrence_rule: string | null
+  metadata: string | null // JSON string
+  error_message: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ScheduleInsert {
+  workspace_id: string
+  draft_id?: string | null
+  identity_id?: string | null
+  title: string
+  description?: string | null
+  scheduled_at: string
+  timezone?: string
+  status?: ScheduleStatus
+  posted_at?: string | null
+  post_id?: string | null
+  recurrence_rule?: string | null
+  metadata?: string | null
+  error_message?: string | null
+}
+
+export interface ScheduleUpdate {
+  draft_id?: string | null
+  identity_id?: string | null
+  title?: string
+  description?: string | null
+  scheduled_at?: string
+  timezone?: string
+  status?: ScheduleStatus
+  posted_at?: string | null
+  post_id?: string | null
+  recurrence_rule?: string | null
+  metadata?: string | null
+  error_message?: string | null
+}
+
+// Job Application types
+export type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'accepted' | 'withdrawn'
+export type ApplicationPriority = 'low' | 'medium' | 'high'
+
+export interface JobApplication {
+  id: string
+  workspace_id: string
+  identity_id: string
+  company_name: string
+  company_url: string | null
+  position_title: string
+  job_url: string | null
+  location: string | null
+  salary_range: string | null
+  application_status: ApplicationStatus
+  priority: ApplicationPriority
+  cover_letter: string | null
+  notes: string | null
+  source: string | null
+  source_url: string | null
+  applied_at: string | null
+  follow_up_at: string | null
+  rejection_reason: string | null
+  metadata: string | null // JSON string
+  created_at: string
+  updated_at: string
+}
+
+export interface JobApplicationInsert {
+  workspace_id: string
+  identity_id: string
+  company_name: string
+  company_url?: string | null
+  position_title: string
+  job_url?: string | null
+  location?: string | null
+  salary_range?: string | null
+  application_status?: ApplicationStatus
+  priority?: ApplicationPriority
+  cover_letter?: string | null
+  notes?: string | null
+  source?: string | null
+  source_url?: string | null
+  applied_at?: string | null
+  follow_up_at?: string | null
+  rejection_reason?: string | null
+  metadata?: string | null
+}
+
+export interface JobApplicationUpdate {
+  company_name?: string
+  company_url?: string | null
+  position_title?: string
+  job_url?: string | null
+  location?: string | null
+  salary_range?: string | null
+  application_status?: ApplicationStatus
+  priority?: ApplicationPriority
+  cover_letter?: string | null
+  notes?: string | null
+  source?: string | null
+  source_url?: string | null
+  applied_at?: string | null
+  follow_up_at?: string | null
+  rejection_reason?: string | null
+  metadata?: string | null
 }
