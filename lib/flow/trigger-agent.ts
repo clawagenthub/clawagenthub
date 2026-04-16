@@ -83,7 +83,9 @@ export async function triggerWaitingTickets(
     })()
 
     // Create a session for system user to use for API auth in flow prompts
-    const systemSession = createSession(systemUserId, 'system-flow-trigger')
+    const systemSession = createSession(systemUserId, 'system-flow-trigger', {
+    workspaceId,
+  })
 
     await triggerAgentForFlowStart({
       ticketId: ticket.id,

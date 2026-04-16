@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { randomUUID } from 'crypto'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
@@ -5,8 +6,8 @@ import { modelHasVisionCapability, buildFlowPrompt } from './flow-helpers.js'
 import { findClientForAgent } from './find-client.js'
 import { parseAgentFlowResult, extractText } from './parse-result.js'
 import { createSession } from '@/lib/auth/session.js'
-import type { Ticket, Status } from './flow-types.js'
-import logger from '@/lib/logger/index.js'
+import type { Ticket, Status } from '@/lib/db/schema.js'
+import logger, { logCategories } from '@/lib/logger/index.js'
 
 /**
  * Trigger waiting tickets when a flow slot becomes available
@@ -48,6 +49,11 @@ export async function triggerWaitingTickets(
     waiting_finished_ticket_id: string | null
   }>
 
+  logger.info(
+    { category: logCategories.WAITING_TO_FLOW_SERVICE },
+    `[triggerWaitingTickets] Workspace ${workspaceId}: flowing=${currentFlowingCount.count}, limit=${onflowlimit}, availableSlots=${availableSlots}, selectedWaiting=${waitingTickets.length}`
+  )
+
   // Get a valid system user ID for flow triggers
   const systemUserId = (() => {
     const workspace = db
@@ -66,9 +72,34 @@ export async function triggerWaitingTickets(
   })()
 
   // Create a session for system user to use for API auth in flow prompts
-  const systemSession = createSession(systemUserId, 'system-flow-trigger')
+  const systemSession = createSession(systemUserId, 'system-flow-trigger', {
+    workspaceId,
+  })
+
+  const systemSessionRow = db
+    .prepare('SELECT current_workspace_id FROM sessions WHERE token = ?')
+    .get(systemSession.token) as
+    | { current_workspace_id: string | null }
+    | undefined
+
+  logger.info(
+    { category: logCategories.WAITING_TO_FLOW_SERVICE },
+    `[triggerWaitingTickets] System session created for flow trigger: userId=${systemUserId}, workspaceFromSession=${systemSessionRow?.current_workspace_id ?? 'null'}, targetWorkspace=${workspaceId}`
+  )
+
+  if (!systemSessionRow?.current_workspace_id) {
+    logger.warn(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      `[triggerWaitingTickets] System session has no current_workspace_id; session-scoped API calls from agent may fail with "No workspace selected" (targetWorkspace=${workspaceId})`
+    )
+  }
 
   for (const ticket of waitingTickets) {
+    logger.debug(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      `[triggerWaitingTickets] Evaluating ticket ${ticket.id}: waiting_finished_ticket_id=${ticket.waiting_finished_ticket_id ?? 'none'}`
+    )
+
     // Check if this ticket is waiting for another ticket to finish
     if (ticket.waiting_finished_ticket_id) {
       // Check if the blocking ticket is completed
@@ -79,27 +110,36 @@ export async function triggerWaitingTickets(
            LEFT JOIN statuses s ON t.status_id = s.id 
            WHERE t.id = ?`
         )
-        .get(ticket.waiting_finished_ticket_id) as {
-          id: string
-          flowing_status: string
-          status_name: string | null
-        } | undefined
+        .get(ticket.waiting_finished_ticket_id) as
+        | {
+            id: string
+            flowing_status: string
+            status_name: string | null
+          }
+        | undefined
 
       const isBlockingTicketCompleted =
         blockingTicket &&
         (blockingTicket.flowing_status === 'completed' ||
-         blockingTicket.status_name?.toLowerCase() === 'completed')
+          blockingTicket.status_name?.toLowerCase() === 'completed')
+
+      logger.info(
+        { category: logCategories.WAITING_TO_FLOW_SERVICE },
+        `[triggerWaitingTickets] Blocker check for ticket ${ticket.id}: blockerId=${ticket.waiting_finished_ticket_id}, blockerFound=${!!blockingTicket}, blockerFlowingStatus=${blockingTicket?.flowing_status ?? 'missing'}, blockerStatusName=${blockingTicket?.status_name ?? 'missing'}, blockerCompleted=${!!isBlockingTicketCompleted}`
+      )
 
       if (!isBlockingTicketCompleted) {
         // Blocking ticket is not yet completed, skip this ticket
-        logger.debug(
-          `[triggerWaitingTickets] Skipping ticket ${ticket.id} - waiting for blocking ticket ${ticket.waiting_finished_ticket_id} to complete`
+        logger.info(
+          { category: logCategories.WAITING_TO_FLOW_SERVICE },
+          `[triggerWaitingTickets] Decision=SKIP for ticket ${ticket.id}: blocker ${ticket.waiting_finished_ticket_id} is not completed (flowing_status=${blockingTicket?.flowing_status ?? 'missing'}, status_name=${blockingTicket?.status_name ?? 'missing'})`
         )
         continue
       }
 
-      logger.debug(
-        `[triggerWaitingTickets] Blocking ticket ${ticket.waiting_finished_ticket_id} is completed, proceeding with ticket ${ticket.id}`
+      logger.info(
+        { category: logCategories.WAITING_TO_FLOW_SERVICE },
+        `[triggerWaitingTickets] Decision=PROCEED for ticket ${ticket.id}: blocker ${ticket.waiting_finished_ticket_id} is completed`
       )
     }
 
@@ -117,7 +157,10 @@ export async function triggerWaitingTickets(
       systemUserId,
       'system',
       JSON.stringify({ flowing_status: 'waiting_to_flow' }),
-      JSON.stringify({ flowing_status: 'flowing', reason: 'Flow slot became available' }),
+      JSON.stringify({
+        flowing_status: 'flowing',
+        reason: 'Flow slot became available',
+      }),
       now
     )
 
@@ -156,6 +199,11 @@ async function resolveAgentContext(
 
   // Check if this ticket is blocked by a waiting_finished_ticket_id
   if (ticket.waiting_finished_ticket_id) {
+    logger.debug(
+      { category: logCategories.SYSTEM },
+      `[resolveAgentContext] Evaluating ticket ${ticketId} with blocker ${ticket.waiting_finished_ticket_id}`
+    )
+
     const blockingTicket = db
       .prepare(
         `SELECT t.id, t.flowing_status, s.name as status_name 
@@ -163,21 +211,30 @@ async function resolveAgentContext(
          LEFT JOIN statuses s ON t.status_id = s.id 
          WHERE t.id = ?`
       )
-      .get(ticket.waiting_finished_ticket_id) as {
-        id: string
-        flowing_status: string
-        status_name: string | null
-      } | undefined
+      .get(ticket.waiting_finished_ticket_id) as
+      | {
+          id: string
+          flowing_status: string
+          status_name: string | null
+        }
+      | undefined
 
     const isBlockingTicketCompleted =
       blockingTicket &&
       (blockingTicket.flowing_status === 'completed' ||
-       blockingTicket.status_name?.toLowerCase() === 'completed')
+        blockingTicket.status_name?.toLowerCase() === 'completed')
+
+    logger.info(
+      { category: logCategories.SYSTEM },
+      `[resolveAgentContext] Blocker check for ticket ${ticketId}: blockerId=${ticket.waiting_finished_ticket_id}, blockerFound=${!!blockingTicket}, blockerFlowingStatus=${blockingTicket?.flowing_status ?? 'missing'}, blockerStatusName=${blockingTicket?.status_name ?? 'missing'}, blockerCompleted=${!!isBlockingTicketCompleted}`
+    )
 
     if (!isBlockingTicketCompleted) {
       // Blocking ticket is not yet completed, put this ticket back to waiting
       const now = new Date().toISOString()
-      db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('waiting_to_flow', now, ticketId)
+      db.prepare(
+        `UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`
+      ).run('waiting_to_flow', now, ticketId)
       db.prepare(
         `INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
@@ -187,14 +244,23 @@ async function resolveAgentContext(
         'system',
         'system',
         JSON.stringify({ flowing_status: ticket.flowing_status }),
-        JSON.stringify({ flowing_status: 'waiting_to_flow', reason: `Blocking ticket ${ticket.waiting_finished_ticket_id} not yet completed` }),
+        JSON.stringify({
+          flowing_status: 'waiting_to_flow',
+          reason: `Blocking ticket ${ticket.waiting_finished_ticket_id} not yet completed`,
+        }),
         now
       )
       logger.info(
-        `[resolveAgentContext] Ticket ${ticketId} is blocked by unfinished ticket ${ticket.waiting_finished_ticket_id}`
+        { category: logCategories.SYSTEM },
+        `[resolveAgentContext] Decision=BLOCK ticket ${ticketId}: blocker ${ticket.waiting_finished_ticket_id} is unfinished (flowing_status=${blockingTicket?.flowing_status ?? 'missing'}, status_name=${blockingTicket?.status_name ?? 'missing'})`
       )
       return null
     }
+
+    logger.info(
+      { category: logCategories.SYSTEM },
+      `[resolveAgentContext] Decision=UNBLOCK ticket ${ticketId}: blocker ${ticket.waiting_finished_ticket_id} is completed`
+    )
   }
 
   const status = db
@@ -213,7 +279,9 @@ async function resolveAgentContext(
   const effectiveAgentId = flowConfig?.agent_id || status.agent_id
   if (!effectiveAgentId) {
     const now = new Date().toISOString()
-    db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('waiting', now, ticketId)
+    db.prepare(
+      `UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`
+    ).run('waiting', now, ticketId)
     db.prepare(
       `INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
@@ -238,7 +306,12 @@ async function resolveAgentContext(
 async function findAgentClient(
   workspaceId: string,
   effectiveAgentId: string
-): Promise<{ gatewayId: string; agentName: string; agentModel: string; client: unknown } | null> {
+): Promise<{
+  gatewayId: string
+  agentName?: string
+  agentModel?: unknown
+  client: unknown
+} | null> {
   const MAX_RETRIES = 5
   const INITIAL_DELAY_MS = 1000
 
@@ -246,11 +319,21 @@ async function findAgentClient(
     const startTime = Date.now()
     const clientMatch = await findClientForAgent(workspaceId, effectiveAgentId)
     logger.debug(
+      { category: logCategories.SYSTEM },
       `[triggerAgentForFlowStart] Attempt ${attempt}/${MAX_RETRIES}: found=${!!clientMatch}, duration=${Date.now() - startTime}ms`
     )
-    if (clientMatch) return clientMatch as typeof clientMatch
+    if (clientMatch) {
+      return {
+        gatewayId: clientMatch.gatewayId,
+        agentName: clientMatch.agentName,
+        agentModel: clientMatch.agentModel,
+        client: clientMatch.client,
+      }
+    }
     if (attempt < MAX_RETRIES) {
-      await new Promise((resolve) => setTimeout(resolve, INITIAL_DELAY_MS * Math.pow(2, attempt - 1)))
+      await new Promise((resolve) =>
+        setTimeout(resolve, INITIAL_DELAY_MS * Math.pow(2, attempt - 1))
+      )
     }
   }
   return null
@@ -262,7 +345,7 @@ async function findAgentClient(
 async function manageSession(
   ticket: Ticket,
   effectiveAgentId: string,
-  clientMatch: { gatewayId: string; agentName: string },
+  clientMatch: { gatewayId: string; agentName?: string },
   userId: string,
   workspaceId: string
 ): Promise<string> {
@@ -272,7 +355,9 @@ async function manageSession(
   if (ticket.current_agent_session_id) {
     const existing = db
       .prepare('SELECT * FROM chat_sessions WHERE id = ?')
-      .get(ticket.current_agent_session_id) as { session_key: string } | undefined
+      .get(ticket.current_agent_session_id) as
+      | { session_key: string }
+      | undefined
     if (existing) return existing.session_key
   }
 
@@ -282,9 +367,23 @@ async function manageSession(
 
   db.prepare(
     `INSERT INTO chat_sessions (id, workspace_id, user_id, gateway_id, agent_id, agent_name, session_key, status, last_activity_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(newId, workspaceId, userId, clientMatch.gatewayId, effectiveAgentId, clientMatch.agentName || 'Agent', sessionKey, 'idle', now, now, now)
+  ).run(
+    newId,
+    workspaceId,
+    userId,
+    clientMatch.gatewayId,
+    effectiveAgentId,
+    clientMatch.agentName || 'Agent',
+    sessionKey,
+    'idle',
+    now,
+    now,
+    now
+  )
 
-  db.prepare(`UPDATE tickets SET current_agent_session_id = ? WHERE id = ?`).run(newId, ticket.id)
+  db.prepare(
+    `UPDATE tickets SET current_agent_session_id = ? WHERE id = ?`
+  ).run(newId, ticket.id)
   return sessionKey
 }
 
@@ -292,16 +391,32 @@ async function manageSession(
  * Sends prompt to agent and waits for response.
  */
 async function communicateWithAgent(
-  client: { sendChatMessageAndWait(sessionKey: string, prompt: string, options: { timeoutMs: number }): Promise<{ error?: string; message?: unknown }> },
+  client: {
+    sendChatMessageAndWait(
+      sessionKey: string,
+      prompt: string,
+      options: { timeoutMs: number }
+    ): Promise<{ error?: string; message?: unknown }>
+  },
   sessionKey: string,
   prompt: string,
   timeoutMs: number
-): Promise<{ result: 'finished' | 'failed' | 'pause'; notes: string; progressComment: string }> {
-  const response = await client.sendChatMessageAndWait(sessionKey, prompt, { timeoutMs })
+): Promise<{
+  result: 'finished' | 'failed' | 'pause'
+  notes: string
+  progressComment: string
+}> {
+  const response = await client.sendChatMessageAndWait(sessionKey, prompt, {
+    timeoutMs,
+  })
   const isError = !!response.error
   const messageText = isError ? response.error! : extractText(response.message)
   return isError
-    ? { result: 'failed', notes: messageText, progressComment: `Agent timeout or error: ${messageText}` }
+    ? {
+        result: 'failed',
+        notes: messageText,
+        progressComment: `Agent timeout or error: ${messageText}`,
+      }
     : parseAgentFlowResult(messageText)
 }
 
@@ -313,7 +428,11 @@ async function transitionFlowState(
   workspaceId: string,
   userId: string,
   effectiveAgentId: string,
-  parsed: { result: 'finished' | 'failed' | 'pause'; notes: string; progressComment: string },
+  parsed: {
+    result: 'finished' | 'failed' | 'pause'
+    notes: string
+    progressComment: string
+  },
   _sessionKey: string,
   sessionToken: string
 ): Promise<void> {
@@ -329,7 +448,15 @@ async function transitionFlowState(
 
   db.prepare(
     `INSERT INTO ticket_comments (id, ticket_id, content, created_by, is_agent_completion_signal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(commentId, ticketId, commentText, userId, parsed.result === 'pause' ? 0 : 1, now, now)
+  ).run(
+    commentId,
+    ticketId,
+    commentText,
+    userId,
+    parsed.result === 'pause' ? 0 : 1,
+    now,
+    now
+  )
 
   db.prepare(
     `INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -340,18 +467,31 @@ async function transitionFlowState(
     effectiveAgentId,
     'agent',
     null,
-    JSON.stringify({ source: 'flow-agent', comment_id: commentId, note: parsed.progressComment, summary: parsed.notes, result: parsed.result }),
+    JSON.stringify({
+      source: 'flow-agent',
+      comment_id: commentId,
+      note: parsed.progressComment,
+      summary: parsed.notes,
+      result: parsed.result,
+    }),
     now
   )
 
   // Determine next state
-  const oldTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket
+  const oldTicket = db
+    .prepare('SELECT * FROM tickets WHERE id = ?')
+    .get(ticketId) as Ticket
   const cfg = db
-    .prepare('SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ?')
-    .get(ticketId, oldTicket.status_id) as { flow_order: number; on_failed_goto: string | null } | undefined
+    .prepare(
+      'SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ?'
+    )
+    .get(ticketId, oldTicket.status_id) as
+    | { flow_order: number; on_failed_goto: string | null }
+    | undefined
 
   let nextStatusId: string | null = null
-  let nextFlowingStatus: 'flowing' | 'waiting' | 'failed' | 'completed' = 'waiting'
+  let nextFlowingStatus: 'flowing' | 'waiting' | 'failed' | 'completed' =
+    'waiting'
 
   if (parsed.result === 'failed') {
     nextFlowingStatus = 'failed'
@@ -361,7 +501,9 @@ async function transitionFlowState(
     nextStatusId = oldTicket.status_id
   } else {
     const nextCfg = db
-      .prepare(`SELECT status_id FROM ticket_flow_configs WHERE ticket_id = ? AND flow_order > ? AND is_included = 1 ORDER BY flow_order ASC LIMIT 1`)
+      .prepare(
+        `SELECT status_id FROM ticket_flow_configs WHERE ticket_id = ? AND flow_order > ? AND is_included = 1 ORDER BY flow_order ASC LIMIT 1`
+      )
       .get(ticketId, cfg?.flow_order ?? -1) as { status_id: string } | undefined
     nextStatusId = nextCfg?.status_id || null
     if (!nextStatusId) nextFlowingStatus = 'completed'
@@ -369,9 +511,15 @@ async function transitionFlowState(
 
   // Auto-trigger check
   let shouldAutoTriggerNext = false
-  if (parsed.result === 'finished' && oldTicket.flow_mode === 'automatic' && nextStatusId) {
+  if (
+    parsed.result === 'finished' &&
+    oldTicket.flow_mode === 'automatic' &&
+    nextStatusId
+  ) {
     const nextCfgWithAgent = db
-      .prepare(`SELECT agent_id FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1`)
+      .prepare(
+        `SELECT agent_id FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1`
+      )
       .get(ticketId, nextStatusId) as { agent_id: string | null } | undefined
     if (nextCfgWithAgent?.agent_id) {
       nextFlowingStatus = 'flowing'
@@ -383,11 +531,13 @@ async function transitionFlowState(
 
   // Apply ticket update
   if (nextStatusId && parsed.result !== 'pause') {
-    db.prepare(`UPDATE tickets SET status_id = ?, flowing_status = ?, current_agent_session_id = NULL, last_flow_check_at = ?, updated_at = ? WHERE id = ?`)
-      .run(nextStatusId, nextFlowingStatus, now, now, ticketId)
+    db.prepare(
+      `UPDATE tickets SET status_id = ?, flowing_status = ?, current_agent_session_id = NULL, last_flow_check_at = ?, updated_at = ? WHERE id = ?`
+    ).run(nextStatusId, nextFlowingStatus, now, now, ticketId)
   } else {
-    db.prepare(`UPDATE tickets SET flowing_status = ?, current_agent_session_id = NULL, last_flow_check_at = ?, updated_at = ? WHERE id = ?`)
-      .run(nextFlowingStatus, now, now, ticketId)
+    db.prepare(
+      `UPDATE tickets SET flowing_status = ?, current_agent_session_id = NULL, last_flow_check_at = ?, updated_at = ? WHERE id = ?`
+    ).run(nextFlowingStatus, now, now, ticketId)
   }
 
   db.prepare(
@@ -398,13 +548,24 @@ async function transitionFlowState(
     parsed.result === 'pause' ? 'flow_stopped' : 'flow_transition',
     effectiveAgentId,
     'agent',
-    JSON.stringify({ from_status_id: oldTicket.status_id, result: parsed.result }),
-    JSON.stringify({ to_status_id: nextStatusId, flowing_status: nextFlowingStatus }),
+    JSON.stringify({
+      from_status_id: oldTicket.status_id,
+      result: parsed.result,
+    }),
+    JSON.stringify({
+      to_status_id: nextStatusId,
+      flowing_status: nextFlowingStatus,
+    }),
     now
   )
 
   if (shouldAutoTriggerNext) {
-    await triggerAgentForFlowStart({ ticketId, workspaceId, userId, sessionToken })
+    await triggerAgentForFlowStart({
+      ticketId,
+      workspaceId,
+      userId,
+      sessionToken,
+    })
   }
 }
 
@@ -428,15 +589,20 @@ export async function triggerAgentForFlowStart(args: {
   if (!context) return
 
   logger.debug(
+    { category: logCategories.SYSTEM },
     `[triggerAgentForFlowStart] Flow trigger: ticketId=${ticketId}, agentId=${context.effectiveAgentId}, statusId=${context.ticket.status_id}`
   )
 
-  const clientMatch = await findAgentClient(workspaceId, context.effectiveAgentId)
+  const clientMatch = await findAgentClient(
+    workspaceId,
+    context.effectiveAgentId
+  )
   if (!clientMatch) {
     // No agent connected - don't mark as failed, just log and return
     // The ticket is already at the next status from /next or transitionFlowState
     // If no agent is available, the flow can continue when one connects
     logger.info(
+      { category: logCategories.SYSTEM },
       `[triggerAgentForFlowStart] No agent client found for ${context.effectiveAgentId} - leaving ticket in current status`
     )
     return
@@ -446,42 +612,83 @@ export async function triggerAgentForFlowStart(args: {
   const db = getDatabase()
   const hasVision = modelHasVisionCapability(clientMatch.agentModel)
   const timeoutSetting = db
-    .prepare(`SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?`)
-    .get(workspaceId, 'flow_timeout_seconds') as { setting_value: string | null } | undefined
-  const timeoutMs = (timeoutSetting?.setting_value ? parseInt(timeoutSetting.setting_value) : 1800) * 1000
+    .prepare(
+      `SELECT setting_value FROM workspace_settings WHERE workspace_id = ? AND setting_key = ?`
+    )
+    .get(workspaceId, 'flow_timeout_seconds') as
+    | { setting_value: string | null }
+    | undefined
+  const timeoutMs =
+    (timeoutSetting?.setting_value
+      ? parseInt(timeoutSetting.setting_value)
+      : 1800) * 1000
 
   const flowConfig = db
-    .prepare(`SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1`)
-    .get(ticketId, context.ticket.status_id) as { instructions_override: string | null } | undefined
+    .prepare(
+      `SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1`
+    )
+    .get(ticketId, context.ticket.status_id) as
+    | { instructions_override: string | null }
+    | undefined
 
   const recentComments = db
-    .prepare(`SELECT tc.id, tc.content, tc.created_at, u.email FROM ticket_comments tc LEFT JOIN users u ON u.id = tc.created_by WHERE tc.ticket_id = ? ORDER BY tc.created_at DESC LIMIT 10`)
-    .all(ticketId) as Array<{ id: string; content: string; created_at: string; email: string }>
+    .prepare(
+      `SELECT tc.id, tc.content, tc.created_at, u.email FROM ticket_comments tc LEFT JOIN users u ON u.id = tc.created_by WHERE tc.ticket_id = ? ORDER BY tc.created_at DESC LIMIT 10`
+    )
+    .all(ticketId) as Array<{
+    id: string
+    content: string
+    created_at: string
+    email: string
+  }>
 
   const prompt = buildFlowPrompt({
     ticket: context.ticket,
     currentStatus: context.status,
     agentId: context.effectiveAgentId,
-    statusInstructions: flowConfig?.instructions_override || context.status.instructions_override,
+    statusInstructions:
+      flowConfig?.instructions_override || context.status.instructions_override,
     recentComments: recentComments.reverse(),
     workspaceId,
     hasVisionCapability: hasVision,
     sessionToken,
   })
 
-  const sessionKey = await manageSession(context.ticket, context.effectiveAgentId, clientMatch, userId, workspaceId)
+  const sessionKey = await manageSession(
+    context.ticket,
+    context.effectiveAgentId,
+    clientMatch,
+    userId,
+    workspaceId
+  )
 
   try {
     const parsed = await communicateWithAgent(
-      clientMatch.client as { sendChatMessageAndWait(sessionKey: string, prompt: string, options: { timeoutMs: number }): Promise<{ error?: string; message?: unknown }> },
+      clientMatch.client as {
+        sendChatMessageAndWait(
+          sessionKey: string,
+          prompt: string,
+          options: { timeoutMs: number }
+        ): Promise<{ error?: string; message?: unknown }>
+      },
       sessionKey,
       prompt,
       timeoutMs
     )
-    await transitionFlowState(ticketId, workspaceId, userId, context.effectiveAgentId, parsed, sessionKey, sessionToken)
+    await transitionFlowState(
+      ticketId,
+      workspaceId,
+      userId,
+      context.effectiveAgentId,
+      parsed,
+      sessionKey,
+      sessionToken
+    )
   } catch (error) {
     const now = new Date().toISOString()
-    db.prepare(`UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`).run('failed', now, ticketId)
+    db.prepare(
+      `UPDATE tickets SET flowing_status = ?, updated_at = ? WHERE id = ?`
+    ).run('failed', now, ticketId)
     db.prepare(
       `INSERT INTO ticket_comments (id, ticket_id, content, created_by, is_agent_completion_signal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).run(
@@ -502,7 +709,9 @@ export async function triggerAgentForFlowStart(args: {
       'system',
       'system',
       null,
-      JSON.stringify({ reason: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({
+        reason: error instanceof Error ? error.message : String(error),
+      }),
       now
     )
   }

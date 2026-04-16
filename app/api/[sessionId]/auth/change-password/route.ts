@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifyPassword, hashPassword, validatePassword } from '@/lib/auth/password.js'
-import { getUserFromSession, deleteUserSessions, createSession } from '@/lib/auth/session.js'
+import { deleteUserSessions, createSession } from '@/lib/auth/session.js'
 import { verifySession } from '@/lib/session/verify'
 import logger from "@/lib/logger/index.js"
 
@@ -86,8 +86,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     deleteUserSessions(verification.user.id)
     logger.debug('🔒 All sessions invalidated for security')
 
-    // Create new session
-    const newSession = createSession(verification.user.id)
+    // Create new session, preserving current workspace/identity context
+    const newSession = createSession(verification.user.id, undefined, {
+      workspaceId: verification.workspaceId ?? null,
+      identityId: verification.session.current_identity_id ?? null,
+    })
 
     const response = NextResponse.json({
       success: true,

@@ -5,11 +5,38 @@ import type { Session, User } from '../db/schema.js'
 const SESSION_DURATION =
   parseInt(process.env.SESSION_DURATION || '86400000', 10) // 24 hours
 
-export function createSession(userId: string, origin?: string | null): Session {
+interface CreateSessionOptions {
+  workspaceId?: string | null
+  identityId?: string | null
+}
+
+function resolveDefaultWorkspaceId(userId: string): string | null {
+  const db = getDatabase()
+  const membership = db
+    .prepare(
+      `SELECT wm.workspace_id
+       FROM workspace_members wm
+       INNER JOIN workspaces w ON w.id = wm.workspace_id
+       WHERE wm.user_id = ?
+       ORDER BY CASE WHEN w.owner_id = ? THEN 0 ELSE 1 END, w.created_at ASC, wm.joined_at ASC
+       LIMIT 1`
+    )
+    .get(userId, userId) as { workspace_id: string } | undefined
+
+  return membership?.workspace_id || null
+}
+
+export function createSession(
+  userId: string,
+  origin?: string | null,
+  options?: CreateSessionOptions
+): Session {
   const db = getDatabase()
   const sessionId = generateUserId()
   const token = generateSessionToken()
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
+  const currentWorkspaceId = options?.workspaceId ?? resolveDefaultWorkspaceId(userId)
+  const currentIdentityId = options?.identityId ?? null
 
   db.prepare(
     `INSERT INTO sessions (
@@ -19,8 +46,8 @@ export function createSession(userId: string, origin?: string | null): Session {
     sessionId,
     userId,
     token,
-    null,
-    null,
+    currentWorkspaceId,
+    currentIdentityId,
     expiresAt.toISOString(),
     origin || null
   )
@@ -29,8 +56,8 @@ export function createSession(userId: string, origin?: string | null): Session {
     id: sessionId,
     user_id: userId,
     token,
-    current_workspace_id: null,
-    current_identity_id: null,
+    current_workspace_id: currentWorkspaceId,
+    current_identity_id: currentIdentityId,
     expires_at: expiresAt.toISOString(),
     created_at: new Date().toISOString(),
   }

@@ -4,7 +4,6 @@ import { getDatabase } from '@/lib/db/index.js'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifyPassword, hashPassword, validatePassword } from '@/lib/auth/password.js'
 import { getUserFromSession, deleteUserSessions, createSession } from '@/lib/auth/session.js'
-import type { User } from '@/lib/db/schema.js'
 import logger from "@/lib/logger/index.js"
 
 
@@ -83,6 +82,12 @@ export async function POST(request: NextRequest) {
 
     // Update password in database and mark first password as changed
     const db = getDatabase()
+    const existingSession = db
+      .prepare('SELECT current_workspace_id, current_identity_id FROM sessions WHERE token = ?')
+      .get(sessionToken) as
+      | { current_workspace_id: string | null; current_identity_id: string | null }
+      | undefined
+
     db.prepare(
       "UPDATE users SET password_hash = ?, first_password_changed = 1, updated_at = datetime('now') WHERE id = ?"
     ).run(newPasswordHash, user.id)
@@ -93,8 +98,11 @@ export async function POST(request: NextRequest) {
     deleteUserSessions(user.id)
     logger.debug('🔒 All sessions invalidated for security')
 
-    // Create new session
-    const newSession = createSession(user.id)
+    // Create new session, preserving current workspace/identity context when possible
+    const newSession = createSession(user.id, undefined, {
+      workspaceId: existingSession?.current_workspace_id ?? null,
+      identityId: existingSession?.current_identity_id ?? null,
+    })
 
     const response = NextResponse.json({
       success: true,

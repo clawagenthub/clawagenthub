@@ -86,7 +86,8 @@ export async function triggerWaitingTickets(workspaceId: string) {
     workspace_id: string
   }>
 
-logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE },
+  logger.info(
+    { category: logCategories.WAITING_TO_FLOW_SERVICE },
     'Workspace %s: Found %s waiting tickets, %s slots available',
     workspaceId,
     String(waitingTickets.length),
@@ -94,7 +95,11 @@ logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE },
   )
 
   for (const ticket of waitingTickets) {
-    logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE }, 'Triggering flow for ticket %s', ticket.id)
+    logger.info(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      'Triggering flow for ticket %s',
+      ticket.id
+    )
     const now = new Date().toISOString()
     db.prepare(
       `
@@ -124,8 +129,25 @@ logger.info({ category: logCategories.WAITING_TO_FLOW_SERVICE },
     )
 
     // Create a session for system user to use for API auth in flow prompts
-    const systemSession = createSession(systemUserId, 'system-flow-trigger')
-    
+    const systemSession = createSession(systemUserId, 'system-flow-trigger', {
+      workspaceId,
+    })
+
+    const systemSessionRow = db
+      .prepare('SELECT current_workspace_id FROM sessions WHERE token = ?')
+      .get(systemSession.token) as
+      | { current_workspace_id: string | null }
+      | undefined
+
+    logger.info(
+      { category: logCategories.WAITING_TO_FLOW_SERVICE },
+      '[waiting-to-flow-trigger] System session diagnostics: userId=%s workspaceFromSession=%s targetWorkspace=%s tokenPreview=%s...',
+      systemUserId,
+      systemSessionRow?.current_workspace_id ?? 'null',
+      workspaceId,
+      systemSession.token.substring(0, 8)
+    )
+
     await triggerAgentForFlowStart({
       ticketId: ticket.id,
       workspaceId: ticket.workspace_id,
