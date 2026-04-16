@@ -30,6 +30,7 @@ async function sendToLoki(
   category: string,
   message: string,
   retention: LogOptions['retention'],
+  optsMetadata?: LogOptions['metadata'],
   errorMetadata?: ErrorMetadata | null,
   callerMetadata?: CallerMetadata | null,
   stackTrace?: string | null
@@ -45,13 +46,13 @@ async function sendToLoki(
       env: NODE_ENV,
       service_name: LOKI_SERVICE_NAME,
       service: LOKI_SERVICE_NAME,
-      // Add source location labels for Grafana queries
       ...(callerMetadata?.file && {
         source_file: callerMetadata.file,
         source_function: callerMetadata.function || 'anonymous',
         source_line: String(callerMetadata.line || 0),
       }),
     },
+    metadata: optsMetadata,
     retentionClass: retention ?? 'short',
     errorMetadata,
     callerMetadata,
@@ -109,9 +110,16 @@ class ServerLogger implements LoggerApi {
     // Grafana output (respects isSendedToGrafa, default true)
     // Default isSendedToGrafa = true
     if (opts.isSendedToGrafa !== false) {
-      sendToLoki(level, opts.category, formattedMessage, opts.retention, errorMetadata, callerMetadata, stackTrace).catch(
-        () => {}
-      )
+      sendToLoki(
+        level,
+        opts.category,
+        formattedMessage,
+        opts.retention,
+        opts.metadata,
+        errorMetadata,
+        callerMetadata,
+        stackTrace
+      ).catch(() => {})
     }
   }
 

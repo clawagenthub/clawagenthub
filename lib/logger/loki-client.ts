@@ -6,6 +6,7 @@ export interface LokiLogEntry {
   timestamp: number
   message: string
   labels: Record<string, string>
+  metadata?: Record<string, string | null | undefined>
   retentionClass?: RetentionClass
   errorMetadata?: ErrorMetadata
   callerMetadata?: CallerMetadata
@@ -95,6 +96,11 @@ export class LokiClient {
     for (const log of logs) {
       const labels = {
         ...log.labels,
+        ...Object.fromEntries(
+          Object.entries(log.metadata ?? {}).filter(
+            ([, value]) => typeof value === 'string' && value.length > 0
+          ) as Array<[string, string]>
+        ),
         retention_class: log.retentionClass || this.defaultRetention,
       }
       const labelKey = JSON.stringify(labels)

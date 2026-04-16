@@ -12,6 +12,8 @@ const publicRoutes = [
 ]
 
 const skipRoutes = ['/_next', '/favicon.ico', '/api/auth/login']
+const IDENTITY_HEADER = 'x-identity-id'
+const REQUEST_IDENTITY_HEADER = 'x-request-identity-id'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -112,8 +114,24 @@ export async function middleware(request: NextRequest) {
     { category: logCategories.MIDDLEWARE },
     'Token gate passed (cookie/path token present), allowing request'
   )
-  return NextResponse.next()
+
+  const requestHeaders = new Headers(request.headers)
+  const identityId = request.headers.get(IDENTITY_HEADER)?.trim()
+  if (identityId) {
+    requestHeaders.set(REQUEST_IDENTITY_HEADER, identityId)
+  } else {
+    requestHeaders.delete(REQUEST_IDENTITY_HEADER)
+  }
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
 }
+
+export const proxy = middleware
+export default middleware
 
 export const config = {
   matcher: [

@@ -21,3 +21,10 @@ export type { GatewayServiceActions, GatewayServiceState, GatewayServiceClass, G
 export { useSessionIdle } from './useSessionIdle'
 export { useSessionActivity } from './useSessionActivity'
 export { useSessionStatus, useSingleSessionStatus } from './useSessionStatus'
+export { useIdentitySession } from './useIdentitySession'
+
+/**
+ * Drafts hooks exports
+ */
+export { useDrafts, useDraft, useCreateDraft, useUpdateDraft, useDeleteDraft, useSaveDraft } from './useDrafts'
+export type { DraftWithMetadata } from './useDrafts'

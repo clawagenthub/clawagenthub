@@ -9,6 +9,7 @@ interface IncomingLogPayload {
   category: logCategories
   message: string
   retention?: RetentionClass
+  metadata?: Record<string, string | null | undefined>
 }
 
 function isValidLevel(value: unknown): value is IncomingLogLevel {
@@ -52,6 +53,10 @@ function parsePayload(input: unknown): IncomingLogPayload | null {
     category: data.category,
     message: data.message,
     retention: data.retention,
+    metadata:
+      data.metadata && typeof data.metadata === 'object'
+        ? (data.metadata as Record<string, string | null | undefined>)
+        : undefined,
   }
 }
 
@@ -72,6 +77,7 @@ export async function POST(request: Request) {
     const opts = {
       category: payload.category,
       retention: payload.retention,
+      metadata: payload.metadata,
     }
 
     if (payload.level === 'trace') {

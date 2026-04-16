@@ -12,16 +12,27 @@ export function createSession(userId: string, origin?: string | null): Session {
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
 
   db.prepare(
-    `INSERT INTO sessions (id, user_id, token, expires_at, origin) VALUES (?, ?, ?, ?, ?)`
-  ).run(sessionId, userId, token, expiresAt.toISOString(), origin || null)
+    `INSERT INTO sessions (
+      id, user_id, token, current_workspace_id, current_identity_id, expires_at, origin
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    sessionId,
+    userId,
+    token,
+    null,
+    null,
+    expiresAt.toISOString(),
+    origin || null
+  )
 
   return {
     id: sessionId,
     user_id: userId,
     token,
+    current_workspace_id: null,
+    current_identity_id: null,
     expires_at: expiresAt.toISOString(),
     created_at: new Date().toISOString(),
-    origin: origin || null,
   }
 }
 

@@ -151,6 +151,7 @@ function verifySessionToken(
     user_id: sessionRow.user_id,
     token: sessionRow.token,
     current_workspace_id: sessionRow.current_workspace_id,
+    current_identity_id: sessionRow.current_identity_id ?? null,
     expires_at: sessionRow.expires_at,
     created_at: sessionRow.created_at,
   }

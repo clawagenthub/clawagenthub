@@ -25,6 +25,7 @@ async function sendToInternalApi(
         category: opts.category,
         message,
         retention,
+        metadata: opts.metadata,
       }),
       keepalive: true,
     })
