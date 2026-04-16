@@ -758,7 +758,6 @@ export interface Schedule {
   id: string
   workspace_id: string
   draft_id: string | null
-  identity_id: string | null
   title: string
   description: string | null
   scheduled_at: string
@@ -776,7 +775,6 @@ export interface Schedule {
 export interface ScheduleInsert {
   workspace_id: string
   draft_id?: string | null
-  identity_id?: string | null
   title: string
   description?: string | null
   scheduled_at: string
@@ -791,7 +789,6 @@ export interface ScheduleInsert {
 
 export interface ScheduleUpdate {
   draft_id?: string | null
-  identity_id?: string | null
   title?: string
   description?: string | null
   scheduled_at?: string

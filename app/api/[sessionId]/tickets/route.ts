@@ -85,6 +85,7 @@ export async function GET(
       params2.push(createdBy)
     }
 
+
     query += ' ORDER BY t.created_at DESC'
 
     const tickets = db.prepare(query).all(...params2) as (Ticket & {

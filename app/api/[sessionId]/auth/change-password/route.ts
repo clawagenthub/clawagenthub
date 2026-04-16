@@ -89,7 +89,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Create new session, preserving current workspace/identity context
     const newSession = createSession(verification.user.id, undefined, {
       workspaceId: verification.workspaceId ?? null,
-      identityId: verification.session.current_identity_id ?? null,
     })
 
     const response = NextResponse.json({

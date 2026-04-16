@@ -31,7 +31,7 @@ export function TicketCard({
         e.stopPropagation()
         onDragStart?.(ticket.id)
       }}
-      className="p-3 rounded-lg border cursor-move transition-all hover:shadow-md"
+      className="cursor-move rounded-lg border p-3 transition-all hover:shadow-md"
       onDoubleClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -45,7 +45,11 @@ export function TicketCard({
             ? 'rgba(156, 163, 175, 0.5)'
             : `rgb(var(--border-color))`,
         borderStyle: ticket.creation_status === 'draft' ? 'dashed' : 'solid',
-        opacity: isDragging ? 0.5 : (ticket.creation_status === 'draft' ? 0.8 : 1),
+        opacity: isDragging
+          ? 0.5
+          : ticket.creation_status === 'draft'
+            ? 0.8
+            : 1,
         borderWidth: selectedTicketIds.includes(ticket.id) ? '2px' : '1px',
       }}
     >
@@ -59,11 +63,11 @@ export function TicketCard({
               onSelect?.(ticket.id, e.target.checked)
             }}
             onClick={(e) => e.stopPropagation()}
-            className="mt-1 w-4 h-4 rounded cursor-pointer flex-shrink-0"
+            className="mt-1 h-4 w-4 flex-shrink-0 cursor-pointer rounded"
           />
         )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className="text-xs font-medium"
               style={{ color: `rgb(var(--text-tertiary))` }}
@@ -72,7 +76,7 @@ export function TicketCard({
             </span>
             {ticket.creation_status === 'draft' && (
               <span
-                className="text-xs px-1.5 py-0.5 rounded"
+                className="rounded px-1.5 py-0.5 text-xs"
                 style={{
                   backgroundColor: 'rgba(156, 163, 175, 0.3)',
                   color: 'rgb(var(--text-tertiary))',
@@ -83,34 +87,53 @@ export function TicketCard({
             )}
             {ticket.flow_enabled && ticket.creation_status === 'active' && (
               <span
-                className="text-xs px-1.5 py-0.5 rounded"
+                className="rounded px-1.5 py-0.5 text-xs"
                 style={{
-                  backgroundColor: FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.bg || 'rgba(107, 114, 128, 0.18)',
-                  color: FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.text || 'rgb(75, 85, 99)',
+                  backgroundColor:
+                    FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.bg ||
+                    'rgba(107, 114, 128, 0.18)',
+                  color:
+                    FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']
+                      ?.text || 'rgb(75, 85, 99)',
                 }}
               >
-                {FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.label || 'Stopped'}
+                {FLOW_BADGE_CONFIG[ticket.flowing_status || 'stopped']?.label ||
+                  'Stopped'}
+              </span>
+            )}
+            {ticket.waiting_finished_ticket_id && (
+              <span
+                className="rounded px-1.5 py-0.5 text-xs"
+                style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                  color: 'rgb(217, 119, 6)',
+                }}
+                title={`Waiting to #${ticket.waiting_finished_ticket_number ?? ticket.waiting_finished_ticket_id}`}
+              >
+                Waiting to #
+                {ticket.waiting_finished_ticket_number ??
+                  ticket.waiting_finished_ticket_id}
               </span>
             )}
           </div>
           <h4
-            className="text-sm font-medium mt-1 truncate"
+            className="mt-1 truncate text-sm font-medium"
             style={{ color: `rgb(var(--text-primary))` }}
           >
             {ticket.title}
           </h4>
           {ticket.description && (
             <p
-              className="text-xs mt-1 line-clamp-2"
+              className="mt-1 line-clamp-2 text-xs"
               style={{ color: `rgb(var(--text-secondary))` }}
             >
               {ticket.description}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-2">
+          <div className="mt-2 flex items-center gap-2">
             {ticket.assigned_to_user && (
               <span
-                className="text-xs truncate"
+                className="truncate text-xs"
                 style={{ color: `rgb(var(--text-tertiary))` }}
               >
                 {ticket.assigned_to_user.email}

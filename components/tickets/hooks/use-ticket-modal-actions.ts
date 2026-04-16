@@ -91,8 +91,10 @@ export function useTicketModalActions({
     flowRuntimeStatus,
     startFlow,
     stopFlow,
+    completeFlow,
     isStartingFlow,
     isStoppingFlow,
+    isCompletingFlow,
   } = queries
 
   const isEditing = !!initialData?.title
@@ -182,6 +184,22 @@ export function useTicketModalActions({
     }
   }, [editingTicketId, isFlowActionPending, stopFlow])
 
+  const handleEndFlow = useCallback(async () => {
+    if (!editingTicketId || isFlowActionPending || isCompletingFlow) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to end flow for this ticket? This will mark it as completed/finished.'
+    )
+    if (!confirmed) return
+
+    try {
+      await completeFlow({ ticketId: editingTicketId, finished: true })
+    } catch (error) {
+      if (isGatewayAuthError(error)) alert(getGatewayAuthErrorMessage(error))
+      else alert(error instanceof Error ? error.message : 'Failed to end flow')
+    }
+  }, [editingTicketId, isFlowActionPending, isCompletingFlow, completeFlow])
+
   const handleSubmit = useCallback(
     async (creationStatus: 'draft' | 'active', switchToView?: boolean) => {
       if (!title.trim() || !statusId) return
@@ -265,6 +283,7 @@ export function useTicketModalActions({
     canControlFlowRuntime,
     isFlowingNow,
     isFlowActionPending,
+    isCompletingFlow,
     modalTitle,
     isDraftSubmitting,
     isPublishSubmitting,
@@ -274,5 +293,6 @@ export function useTicketModalActions({
     handleFlowConfigsChange,
     handleStartFlow,
     handleStopFlow,
+    handleEndFlow,
   }
 }

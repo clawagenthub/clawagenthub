@@ -37,6 +37,7 @@ export interface TicketModalInitialData {
   creation_status?: TicketCreationStatus
   isSubTicket?: boolean
   parentTicketId?: string
+  waitingFinishedTicketId?: string
   project_id?: string
 }
 

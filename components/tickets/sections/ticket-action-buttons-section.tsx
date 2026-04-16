@@ -13,6 +13,7 @@ interface TicketActionButtonsSectionProps {
   canControlFlowRuntime: boolean
   isFlowingNow: boolean
   isFlowActionPending: boolean
+  isCompletingFlow: boolean
   onDelete?: () => void
   onSwitchToView?: () => void
   onSaveAndView?: () => void
@@ -20,6 +21,7 @@ interface TicketActionButtonsSectionProps {
   onSubmit: (creationStatus: 'draft' | 'active', switchToView?: boolean) => void
   onStartFlow: () => void
   onStopFlow: () => void
+  onEndFlow: () => void
 }
 
 export function TicketActionButtonsSection({
@@ -33,6 +35,7 @@ export function TicketActionButtonsSection({
   canControlFlowRuntime,
   isFlowingNow,
   isFlowActionPending,
+  isCompletingFlow,
   onDelete,
   onSwitchToView,
   onSaveAndView,
@@ -40,6 +43,7 @@ export function TicketActionButtonsSection({
   onSubmit,
   onStartFlow,
   onStopFlow,
+  onEndFlow,
 }: TicketActionButtonsSectionProps) {
   return (
     <div
@@ -132,6 +136,18 @@ export function TicketActionButtonsSection({
                 : isFlowingNow
                   ? 'Stop Flow'
                   : 'Start Flow'}
+            </button>
+          )}
+
+          {canControlFlowRuntime && (
+            <button
+              type="button"
+              onClick={onEndFlow}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              style={{ backgroundColor: 'rgb(37, 99, 235)' }}
+              disabled={isSubmitting || isFlowActionPending || isCompletingFlow}
+            >
+              {isCompletingFlow ? 'Ending...' : 'End Flow'}
             </button>
           )}
 

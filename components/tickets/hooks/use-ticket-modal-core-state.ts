@@ -25,7 +25,9 @@ export function useTicketModalCoreState(initialData?: TicketModalInitialData) {
   const [parentTicketId, setParentTicketId] = useState(
     initialData?.parentTicketId || ''
   )
-  const [waitingFinishedTicketId, setWaitingFinishedTicketId] = useState('')
+  const [waitingFinishedTicketId, setWaitingFinishedTicketId] = useState(
+    initialData?.waitingFinishedTicketId || ''
+  )
   const [projectId, setProjectId] = useState<string>(
     initialData?.project_id || ''
   )

@@ -5,8 +5,7 @@ import { getUserFromSession } from '@/lib/auth/session'
 import { getDatabase } from '@/lib/db/index'
 import { processFlowPost } from './lib/process-post'
 import type { Ticket } from '@/lib/db/schema'
-import logger from "@/lib/logger/index.js"
-
+import logger from '@/lib/logger/index.js'
 
 interface RouteParams {
   params: Promise<{ ticketId: string }>
@@ -259,7 +258,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (body.action === 'start') {
       // Guard: Prevent starting if already flowing, waiting_to_flow, or completed
-      if (ticket.flowing_status === 'flowing' || ticket.flowing_status === 'waiting_to_flow' || ticket.flowing_status === 'completed') {
+      if (
+        ticket.flowing_status === 'flowing' ||
+        ticket.flowing_status === 'waiting_to_flow' ||
+        ticket.flowing_status === 'completed'
+      ) {
         return NextResponse.json({
           success: false,
           action: 'start',
@@ -288,7 +291,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (body.action === 'stop') {
       // Guard: Prevent stopping if already stopped or not flowing
-      if (ticket.flowing_status === 'stopped' || ticket.flowing_status === 'waiting') {
+      if (
+        ticket.flowing_status === 'stopped' ||
+        ticket.flowing_status === 'waiting'
+      ) {
         return NextResponse.json({
           success: false,
           action: 'stop',

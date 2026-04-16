@@ -183,14 +183,18 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
 
   // Filter tickets based on search and status filter
   const filteredTickets = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    const normalizedNumericQuery = normalizedQuery.startsWith('#')
+      ? normalizedQuery.slice(1)
+      : normalizedQuery
+
     return tickets.filter((ticket) => {
       const matchesSearch =
-        searchQuery === '' ||
-        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (ticket.description
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ??
-          false)
+        normalizedQuery === '' ||
+        ticket.id.toLowerCase().includes(normalizedQuery) ||
+        ticket.ticket_number.toString().includes(normalizedNumericQuery) ||
+        ticket.title.toLowerCase().includes(normalizedQuery) ||
+        (ticket.description?.toLowerCase().includes(normalizedQuery) ?? false)
       const matchesFlowStatus =
         flowStatusFilter === 'all' || ticket.flowing_status === flowStatusFilter
       return matchesSearch && matchesFlowStatus
@@ -206,11 +210,7 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
     }
   }
 
-
-  const handleSelectAllInColumn = (
-    statusId: string,
-    selected: boolean
-  ) => {
+  const handleSelectAllInColumn = (statusId: string, selected: boolean) => {
     const columnTicketIds = filteredTickets
       .filter((t) => t.status_id === statusId && t.creation_status === 'active')
       .map((t) => t.id)
@@ -465,6 +465,10 @@ export function DashboardPageContent({ user: _user }: PageContentProps) {
                   flow_enabled: editingTicket.flow_enabled,
                   flow_mode: editingTicket.flow_mode,
                   creation_status: editingTicket.creation_status,
+                  isSubTicket: editingTicket.is_sub_ticket,
+                  parentTicketId: editingTicket.parent_ticket_id || '',
+                  waitingFinishedTicketId:
+                    editingTicket.waiting_finished_ticket_id || '',
                   project_id: editingTicket.project_id || '',
                 }
               : undefined

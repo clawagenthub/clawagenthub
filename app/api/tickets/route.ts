@@ -57,10 +57,12 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT t.*,
              s.name as status_name, s.color as status_color,
+             wt.ticket_number as waiting_finished_ticket_number,
              cb.email as created_by_email, cb.email as created_by_name,
              ub.email as assigned_to_email, ub.email as assigned_to_name
       FROM tickets t
       LEFT JOIN statuses s ON t.status_id = s.id
+      LEFT JOIN tickets wt ON t.waiting_finished_ticket_id = wt.id
       LEFT JOIN users cb ON t.created_by = cb.id
       LEFT JOIN users ub ON t.assigned_to = ub.id
       WHERE t.workspace_id = ?
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
       status_color: string
       created_by_email: string
       created_by_name: string
+      waiting_finished_ticket_number: number | null
       assigned_to_email: string | null
       assigned_to_name: string | null
     })[]

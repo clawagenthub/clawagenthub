@@ -29,6 +29,9 @@ class SessionStatusSocketManager {
   private isConnected = false
   private connectAttempts = 0
   private subscriberSeq = 0
+  private lastConnectStartedAt = 0
+  private lastConnectedAt = 0
+  private lastWsUrl = ''
 
   subscribe(subscriber: SessionStatusSubscriber): () => void {
     const id = ++this.subscriberSeq
@@ -64,6 +67,12 @@ class SessionStatusSocketManager {
       this.ws?.readyState === WebSocket.OPEN ||
       this.ws?.readyState === WebSocket.CONNECTING
     ) {
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusSocketManager] ensureConnected skipped readyState=%s subscribers=%s',
+        String(this.ws?.readyState ?? '(none)'),
+        String(this.subscribers.size)
+      )
       return
     }
 
@@ -72,24 +81,32 @@ class SessionStatusSocketManager {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = process.env.NEXT_PUBLIC_WS_URL || window.location.host
     const wsUrl = `${protocol}//${host}/api/chat/ws`
+    this.lastConnectStartedAt = Date.now()
+    this.lastWsUrl = wsUrl
 
     logger.debug(
       { category: logCategories.SESSION_STATUS },
-      '[SessionStatusSocketManager] connect attempt=%s url=%s subscribers=%s',
+      '[SessionStatusSocketManager] connect attempt=%s url=%s subscribers=%s page=%s visibility=%s',
       String(this.connectAttempts),
       wsUrl,
-      String(this.subscribers.size)
+      String(this.subscribers.size),
+      `${window.location.pathname}${window.location.search}`,
+      document.visibilityState
     )
 
     this.ws = new WebSocket(wsUrl)
 
     this.ws.onopen = () => {
       this.isConnected = true
+      this.lastConnectedAt = Date.now()
       this.notifySubscribers()
 
       logger.debug(
         { category: logCategories.SESSION_STATUS },
-        '[SessionStatusSocketManager] connected'
+        '[SessionStatusSocketManager] connected readyState=%s connectMs=%s url=%s',
+        String(this.ws?.readyState ?? '(none)'),
+        String(Math.max(0, this.lastConnectedAt - this.lastConnectStartedAt)),
+        this.lastWsUrl
       )
 
       this.ws?.send(
@@ -132,15 +149,27 @@ class SessionStatusSocketManager {
       this.isConnected = false
       this.notifySubscribers()
 
+      const now = Date.now()
+      const connectedForMs =
+        this.lastConnectedAt > 0 ? Math.max(0, now - this.lastConnectedAt) : -1
+
       logger.debug(
         { category: logCategories.SESSION_STATUS },
-        '[SessionStatusSocketManager] disconnected code=%s reason=%s wasClean=%s',
+        '[SessionStatusSocketManager] disconnected code=%s reason=%s wasClean=%s connectedForMs=%s subscribers=%s url=%s',
         String(event.code),
         event.reason || '(none)',
-        String(event.wasClean)
+        String(event.wasClean),
+        String(connectedForMs),
+        String(this.subscribers.size),
+        this.lastWsUrl
       )
 
       if (this.subscribers.size > 0) {
+        logger.debug(
+          { category: logCategories.SESSION_STATUS },
+          '[SessionStatusSocketManager] scheduling reconnect in 3000ms (code=%s)',
+          String(event.code)
+        )
         this.reconnectTimeout = setTimeout(() => this.ensureConnected(), 3000)
       }
     }
@@ -148,8 +177,11 @@ class SessionStatusSocketManager {
     this.ws.onerror = (event) => {
       logger.error(
         { category: logCategories.SESSION_STATUS },
-        '[SessionStatusSocketManager] WebSocket error event=%s',
-        String(event)
+        '[SessionStatusSocketManager] WebSocket error event=%s readyState=%s bufferedAmount=%s url=%s',
+        String(event),
+        String(this.ws?.readyState ?? '(none)'),
+        String(this.ws?.bufferedAmount ?? 0),
+        this.lastWsUrl
       )
     }
   }
@@ -161,6 +193,12 @@ class SessionStatusSocketManager {
     }
 
     if (this.ws) {
+      logger.debug(
+        { category: logCategories.SESSION_STATUS },
+        '[SessionStatusSocketManager] closing socket during teardown readyState=%s url=%s',
+        String(this.ws.readyState),
+        this.lastWsUrl
+      )
       this.ws.close()
       this.ws = null
     }

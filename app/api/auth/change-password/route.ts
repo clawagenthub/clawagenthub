@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
     // Update password in database and mark first password as changed
     const db = getDatabase()
     const existingSession = db
-      .prepare('SELECT current_workspace_id, current_identity_id FROM sessions WHERE token = ?')
+      .prepare('SELECT current_workspace_id FROM sessions WHERE token = ?')
       .get(sessionToken) as
-      | { current_workspace_id: string | null; current_identity_id: string | null }
+      | { current_workspace_id: string | null }
       | undefined
 
     db.prepare(
@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
     // Create new session, preserving current workspace/identity context when possible
     const newSession = createSession(user.id, undefined, {
       workspaceId: existingSession?.current_workspace_id ?? null,
-      identityId: existingSession?.current_identity_id ?? null,
     })
 
     const response = NextResponse.json({

@@ -3,9 +3,14 @@ import { ensureDatabase } from '@/lib/db/middleware.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { getDatabase } from '@/lib/db/index.js'
 import { generateUserId } from '@/lib/auth/token.js'
-import { triggerAgentForFlowStart, triggerWaitingTickets } from '../../[ticketId]/flow/lib/trigger-agent'
+import {
+  triggerAgentForFlowStart,
+  triggerWaitingTickets,
+} from '../../[ticketId]/flow/lib/trigger-agent'
 import type { Ticket, Status } from '@/lib/db/schema.js'
 import logger, { logCategories } from '@/lib/logger/index.js'
+
+/* eslint-disable max-lines-per-function */
 
 interface RouteParams {
   params: Promise<{ ticketId_sessionToken: string }>
@@ -14,7 +19,7 @@ interface RouteParams {
 /**
  * POST /api/tickets/[ticketId]_[sessionToken]/next
  * Agent callback to advance ticket to next flow stage (session token in URL path)
- * 
+ *
  * This route handles the compound URL pattern where session token is embedded
  * in the URL path: /api/tickets/{ticketId}_{sessionToken}/next
  */
@@ -32,7 +37,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
     const ticketIdMatch = ticketId_sessionToken.match(/^(OT-\w+)_(.+)$/)
     if (!ticketIdMatch) {
       return NextResponse.json(
-        { message: 'Invalid URL format - expected /api/tickets/{ticketId}_{sessionToken}/next' },
+        {
+          message:
+            'Invalid URL format - expected /api/tickets/{ticketId}_{sessionToken}/next',
+        },
         { status: 400 }
       )
     }
@@ -109,53 +117,107 @@ export async function POST(request: NextRequest, context: RouteParams) {
         }
       | undefined
 
-    // Check if at 'done' status - transition to completed (terminal state)
+    // Check if at 'done' status - transition to completed runtime state
     if (currentStatus.name.toLowerCase() === 'done') {
-      // Find or create 'completed' status
-      let completedStatus = db.prepare('SELECT * FROM statuses WHERE workspace_id = ? AND LOWER(name) = ?').get(workspaceId, 'completed') as Status | undefined
-      if (!completedStatus) {
-        const completedStatusId = generateUserId()
-        const now = new Date().toISOString()
-        const maxPriority = db.prepare('SELECT MAX(priority) as max_p FROM statuses WHERE workspace_id = ?').get(workspaceId) as { max_p: number | null } | undefined
-        const newPriority = (maxPriority?.max_p ?? 0) + 1
-        db.prepare(`INSERT INTO statuses (id, name, color, description, workspace_id, priority, agent_id, on_failed_goto, is_flow_included, ask_approve_to_continue, instructions_override, is_system_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(completedStatusId, 'Completed', '#10B981', 'Terminal completed status - used when a ticket is fully done', workspaceId, newPriority, null, null, false, false, null, true, now, now)
-        completedStatus = db.prepare('SELECT * FROM statuses WHERE id = ?').get(completedStatusId) as Status
-      }
-
       const now = new Date().toISOString()
 
-      // Update ticket to completed status
-      db.prepare('UPDATE tickets SET status_id = ?, flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?').run(completedStatus.id, 'completed', now, now, now, ticketId)
+      // Keep status_id unchanged; mark runtime as completed
+      db.prepare(
+        'UPDATE tickets SET flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?'
+      ).run('completed', now, now, now, ticketId)
 
       // Create flow history entry
       const flowHistoryId = generateUserId()
-      db.prepare('INSERT INTO ticket_flow_history (id, ticket_id, from_status_id, to_status_id, agent_id, session_id, flow_result, notes, started_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(flowHistoryId, ticketId, ticket.status_id, completedStatus.id, null, ticket.current_agent_session_id, 'finished', null, ticket.last_flow_check_at || now, now, now)
+      db.prepare(
+        'INSERT INTO ticket_flow_history (id, ticket_id, from_status_id, to_status_id, agent_id, session_id, flow_result, notes, started_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        flowHistoryId,
+        ticketId,
+        ticket.status_id,
+        ticket.status_id,
+        null,
+        ticket.current_agent_session_id,
+        'finished',
+        null,
+        ticket.last_flow_check_at || now,
+        now,
+        now
+      )
 
       // Create audit log
       const auditLogId = generateUserId()
-      db.prepare('INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(auditLogId, ticketId, 'flow_transition', user.id, 'user', JSON.stringify({ from_status_id: ticket.status_id, transition: 'finished' }), JSON.stringify({ to_status_id: completedStatus.id, completed_at: now }), now)
+      db.prepare(
+        'INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        auditLogId,
+        ticketId,
+        'flow_transition',
+        user.id,
+        'user',
+        JSON.stringify({
+          from_status_id: ticket.status_id,
+          transition: 'finished',
+        }),
+        JSON.stringify({
+          to_status_id: ticket.status_id,
+          flowing_status: 'completed',
+          completed_at: now,
+        }),
+        now
+      )
 
       // Clear current agent session
-      db.prepare('UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?').run(ticketId)
+      db.prepare(
+        'UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?'
+      ).run(ticketId)
 
       // Trigger waiting tickets
-      try { await triggerWaitingTickets(workspaceId) } catch (err) { logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed:', { error: err }) }
+      try {
+        await triggerWaitingTickets(workspaceId)
+      } catch (err) {
+        logger.error(
+          { category: logCategories.API_TICKETS },
+          'triggerWaitingTickets failed:',
+          { error: err }
+        )
+      }
 
-      logger.info({ category: logCategories.API_TICKETS }, 'Ticket completed via /next (done→completed)', { ticketId })
+      logger.info(
+        { category: logCategories.API_TICKETS },
+        'Ticket completed via /next (done→completed runtime)',
+        { ticketId }
+      )
 
       return NextResponse.json({
-        success: true, ticketId, transition: 'finished',
-        previousStatus: { id: currentStatus.id, name: currentStatus.name, color: currentStatus.color },
-        newStatus: { id: completedStatus.id, name: completedStatus.name, color: completedStatus.color },
-        flowing_status: 'completed', completedAt: now, timestamp: now,
+        success: true,
+        ticketId,
+        transition: 'finished',
+        previousStatus: {
+          id: currentStatus.id,
+          name: currentStatus.name,
+          color: currentStatus.color,
+        },
+        newStatus: {
+          id: currentStatus.id,
+          name: currentStatus.name,
+          color: currentStatus.color,
+        },
+        flowing_status: 'completed',
+        completedAt: now,
+        timestamp: now,
       })
     }
 
     // Check if at 'completed' status - terminal state
     if (currentStatus.name.toLowerCase() === 'completed') {
-      return NextResponse.json({ error: 'INVALID_TRANSITION', message: 'Ticket is already completed - this is a terminal state', currentStatus: currentStatus.name.toLowerCase() }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: 'INVALID_TRANSITION',
+          message: 'Ticket is already completed - this is a terminal state',
+          currentStatus: currentStatus.name.toLowerCase(),
+        },
+        { status: 400 }
+      )
     }
 
     if (!currentFlowConfig) {
@@ -193,13 +255,23 @@ export async function POST(request: NextRequest, context: RouteParams) {
       | undefined
 
     if (!nextFlowConfig) {
-      return NextResponse.json({ error: 'INVALID_TRANSITION', message: 'No next stage exists in the flow' }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: 'INVALID_TRANSITION',
+          message: 'No next stage exists in the flow',
+        },
+        { status: 400 }
+      )
     }
 
     // Determine new flowing status
     // Auto-trigger if: automatic mode OR explicit finished=true signal
-    const shouldAutoTrigger = (ticket.flow_mode === 'automatic' || explicitFinished) && nextFlowConfig.agent_id
-    let nextFlowingStatus: 'flowing' | 'waiting' = shouldAutoTrigger ? 'flowing' : 'waiting'
+    const shouldAutoTrigger =
+      (ticket.flow_mode === 'automatic' || explicitFinished) &&
+      nextFlowConfig.agent_id
+    let nextFlowingStatus: 'flowing' | 'waiting' = shouldAutoTrigger
+      ? 'flowing'
+      : 'waiting'
     let shouldAutoTriggerNext = shouldAutoTrigger
 
     // Update ticket to next status
@@ -273,7 +345,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
           sessionToken,
         })
       } catch (err) {
-        logger.error({ category: logCategories.API_TICKETS }, 'triggerAgentForFlowStart failed in /next route:', { error: err })
+        logger.error(
+          { category: logCategories.API_TICKETS },
+          'triggerAgentForFlowStart failed in /next route:',
+          { error: err }
+        )
       }
     }
 
@@ -281,7 +357,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
     try {
       await triggerWaitingTickets(workspaceId)
     } catch (err) {
-      logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed in /next route:', { error: err })
+      logger.error(
+        { category: logCategories.API_TICKETS },
+        'triggerWaitingTickets failed in /next route:',
+        { error: err }
+      )
     }
 
     logger.info(
@@ -316,10 +396,13 @@ export async function POST(request: NextRequest, context: RouteParams) {
     logger.error(
       { category: logCategories.API_TICKETS },
       'Error advancing ticket to next stage (compound URL)',
-      { error, ticketId, currentStatus: currentStatus?.name, nextStatus: nextFlowConfig?.status_name }
+      { error }
     )
     return NextResponse.json(
-      { message: 'Internal server error', debug: error instanceof Error ? error.message : String(error) },
+      {
+        message: 'Internal server error',
+        debug: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     )
   }

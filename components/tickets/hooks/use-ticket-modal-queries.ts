@@ -6,6 +6,7 @@ import {
   useTicketFlowStatus,
   useStartTicketFlow,
   useStopTicketFlow,
+  useCompleteTicketFlow,
   useWorkspacePrompts,
   useProjects,
   useCreateTicket,
@@ -29,6 +30,8 @@ export function useTicketModalQueries(initialData?: TicketModalInitialData) {
     useStartTicketFlow()
   const { mutateAsync: stopFlow, isPending: isStoppingFlow } =
     useStopTicketFlow()
+  const { mutateAsync: completeFlow, isPending: isCompletingFlow } =
+    useCompleteTicketFlow()
   const { data: workspacePrompts } = useWorkspacePrompts()
   const { data: projects } = useProjects()
   const { mutateAsync: createTicket } = useCreateTicket()
@@ -55,8 +58,10 @@ export function useTicketModalQueries(initialData?: TicketModalInitialData) {
     flowRuntimeStatus,
     startFlow,
     stopFlow,
+    completeFlow,
     isStartingFlow,
     isStoppingFlow,
+    isCompletingFlow,
     createTicket,
     updateTicket,
     statusOptions,

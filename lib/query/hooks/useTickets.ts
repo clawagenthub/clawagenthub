@@ -1,5 +1,11 @@
+/* eslint-disable max-lines */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { TicketFlowConfig, TicketCreationStatus, TicketFlowingStatus, TicketFlowMode } from '@/lib/db/schema'
+import type {
+  TicketFlowConfig,
+  TicketCreationStatus,
+  TicketFlowingStatus,
+  TicketFlowMode,
+} from '@/lib/db/schema'
 
 // Ticket types for API responses
 export interface TicketWithRelations {
@@ -23,6 +29,8 @@ export interface TicketWithRelations {
   is_sub_ticket: boolean
   parent_ticket_id: string | null
   waiting_finished_ticket_id: string | null
+  project_id?: string | null
+  waiting_finished_ticket_number?: number | null
   status: {
     id: string
     name: string
@@ -128,7 +136,11 @@ export function useTickets(filters?: {
  * Fetch only draft tickets
  */
 export function useDraftTickets() {
-  return useTickets({ include_drafts: true }).data?.filter(t => t.creation_status === 'draft') || []
+  return (
+    useTickets({ include_drafts: true }).data?.filter(
+      (t) => t.creation_status === 'draft'
+    ) || []
+  )
 }
 
 /**
@@ -312,7 +324,8 @@ export function useAddTicketComment() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: params.content,
-          is_agent_completion_signal: params.is_agent_completion_signal || false,
+          is_agent_completion_signal:
+            params.is_agent_completion_signal || false,
         }),
       })
       if (!res.ok) {
@@ -323,8 +336,12 @@ export function useAddTicketComment() {
       return data.comment
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket-comments', variables.ticketId] })
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-comments', variables.ticketId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', variables.ticketId],
+      })
     },
   })
 }
@@ -354,9 +371,12 @@ export function useInitializeTicketFlowConfig() {
 
   return useMutation({
     mutationFn: async (ticketId: string) => {
-      const res = await fetch(`/api/tickets/${ticketId}/flow-config/initialize`, {
-        method: 'POST',
-      })
+      const res = await fetch(
+        `/api/tickets/${ticketId}/flow-config/initialize`,
+        {
+          method: 'POST',
+        }
+      )
       if (!res.ok) {
         const error = await res.json()
         throw new Error(error.message || 'Failed to initialize flow config')
@@ -452,8 +472,12 @@ export function useAdvanceTicketFlow() {
       return res.json()
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] })
-      queryClient.invalidateQueries({ queryKey: ['ticket-flow-status', variables.ticketId] })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', variables.ticketId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-flow-status', variables.ticketId],
+      })
       queryClient.invalidateQueries({ queryKey: ['tickets'] })
     },
   })
@@ -479,8 +503,12 @@ export function useStartTicketFlow() {
       return res.json()
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] })
-      queryClient.invalidateQueries({ queryKey: ['ticket-flow-status', variables.ticketId] })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', variables.ticketId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-flow-status', variables.ticketId],
+      })
       queryClient.invalidateQueries({ queryKey: ['tickets'] })
     },
   })
@@ -506,8 +534,43 @@ export function useStopTicketFlow() {
       return res.json()
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] })
-      queryClient.invalidateQueries({ queryKey: ['ticket-flow-status', variables.ticketId] })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', variables.ticketId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-flow-status', variables.ticketId],
+      })
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
+}
+
+/**
+ * End/finish ticket flow via /next endpoint
+ */
+export function useCompleteTicketFlow() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (params: { ticketId: string; finished?: boolean }) => {
+      const res = await fetch(`/api/tickets/${params.ticketId}/next`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ finished: params.finished ?? true }),
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.message || 'Failed to end flow')
+      }
+      return res.json()
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', variables.ticketId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket-flow-status', variables.ticketId],
+      })
       queryClient.invalidateQueries({ queryKey: ['tickets'] })
     },
   })

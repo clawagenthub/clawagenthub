@@ -7,7 +7,6 @@ const SESSION_DURATION =
 
 interface CreateSessionOptions {
   workspaceId?: string | null
-  identityId?: string | null
 }
 
 function resolveDefaultWorkspaceId(userId: string): string | null {
@@ -36,7 +35,6 @@ export function createSession(
   const token = generateSessionToken()
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
   const currentWorkspaceId = options?.workspaceId ?? resolveDefaultWorkspaceId(userId)
-  const currentIdentityId = options?.identityId ?? null
 
   db.prepare(
     `INSERT INTO sessions (
@@ -47,7 +45,7 @@ export function createSession(
     userId,
     token,
     currentWorkspaceId,
-    currentIdentityId,
+    null,
     expiresAt.toISOString(),
     origin || null
   )
@@ -57,7 +55,7 @@ export function createSession(
     user_id: userId,
     token,
     current_workspace_id: currentWorkspaceId,
-    current_identity_id: currentIdentityId,
+    current_identity_id: null,
     expires_at: expiresAt.toISOString(),
     created_at: new Date().toISOString(),
   }

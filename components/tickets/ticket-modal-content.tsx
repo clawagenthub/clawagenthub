@@ -140,6 +140,7 @@ export function TicketModalContent({
             canControlFlowRuntime={actions.canControlFlowRuntime}
             isFlowingNow={actions.isFlowingNow}
             isFlowActionPending={actions.isFlowActionPending}
+            isCompletingFlow={actions.isCompletingFlow}
             onDelete={onDelete}
             onSwitchToView={onSwitchToView}
             onSaveAndView={onSaveAndView}
@@ -152,6 +153,9 @@ export function TicketModalContent({
             }}
             onStopFlow={() => {
               void actions.handleStopFlow()
+            }}
+            onEndFlow={() => {
+              void actions.handleEndFlow()
             }}
           />
         </form>

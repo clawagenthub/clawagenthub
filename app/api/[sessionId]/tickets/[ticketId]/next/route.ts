@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+/* eslint-disable max-lines-per-function */
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureDatabase } from '@/lib/db/middleware.js'
 import { verifySession } from '@/lib/session/verify'
@@ -12,13 +14,6 @@ import logger, { logCategories } from '@/lib/logger/index.js'
 
 interface RouteParams {
   params: Promise<{ sessionId: string; ticketId: string }>
-}
-
-interface FlowConfigs {
-  currentFlowConfig: any
-  nextFlowConfig: any
-  currentStatus: Status
-  newStatus: Status
 }
 
 /**
@@ -88,39 +83,87 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Handle done→completed transition (terminal state)
+    // Handle done→completed runtime transition (terminal flow state)
     if (currentStatus.name.toLowerCase() === 'done') {
-      let completedStatus = db.prepare('SELECT * FROM statuses WHERE workspace_id = ? AND LOWER(name) = ?').get(workspaceId, 'completed') as Status | undefined
-      if (!completedStatus) {
-        const completedStatusId = generateUserId()
-        const now = new Date().toISOString()
-        const maxPriority = db.prepare('SELECT MAX(priority) as max_p FROM statuses WHERE workspace_id = ?').get(workspaceId) as { max_p: number | null } | undefined
-        const newPriority = (maxPriority?.max_p ?? 0) + 1
-        db.prepare(`INSERT INTO statuses (id, name, color, description, workspace_id, priority, agent_id, on_failed_goto, is_flow_included, ask_approve_to_continue, instructions_override, is_system_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(completedStatusId, 'Completed', '#10B981', 'Terminal completed status - used when a ticket is fully done', workspaceId, newPriority, null, null, false, false, null, true, now, now)
-        completedStatus = db.prepare('SELECT * FROM statuses WHERE id = ?').get(completedStatusId) as Status
-      }
-
       const now = new Date().toISOString()
-      db.prepare('UPDATE tickets SET status_id = ?, flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?').run(completedStatus.id, 'completed', now, now, now, ticketId)
+      db.prepare(
+        'UPDATE tickets SET flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?'
+      ).run('completed', now, now, now, ticketId)
 
       const flowHistoryId = generateUserId()
-      db.prepare('INSERT INTO ticket_flow_history (id, ticket_id, from_status_id, to_status_id, agent_id, session_id, flow_result, notes, started_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(flowHistoryId, ticketId, ticket.status_id, completedStatus.id, null, ticket.current_agent_session_id, 'finished', null, ticket.last_flow_check_at || now, now, now)
+      db.prepare(
+        'INSERT INTO ticket_flow_history (id, ticket_id, from_status_id, to_status_id, agent_id, session_id, flow_result, notes, started_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        flowHistoryId,
+        ticketId,
+        ticket.status_id,
+        ticket.status_id,
+        null,
+        ticket.current_agent_session_id,
+        'finished',
+        null,
+        ticket.last_flow_check_at || now,
+        now,
+        now
+      )
 
       const auditLogId = generateUserId()
-      db.prepare('INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(auditLogId, ticketId, 'flow_transition', verification.userId, 'user', JSON.stringify({ from_status_id: ticket.status_id, transition: 'finished' }), JSON.stringify({ to_status_id: completedStatus.id, completed_at: now }), now)
+      db.prepare(
+        'INSERT INTO ticket_audit_logs (id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        auditLogId,
+        ticketId,
+        'flow_transition',
+        verification.userId,
+        'user',
+        JSON.stringify({
+          from_status_id: ticket.status_id,
+          transition: 'finished',
+        }),
+        JSON.stringify({
+          to_status_id: ticket.status_id,
+          flowing_status: 'completed',
+          completed_at: now,
+        }),
+        now
+      )
 
-      db.prepare('UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?').run(ticketId)
-      try { await triggerWaitingTickets(workspaceId) } catch (err) { logger.error({ category: logCategories.API_TICKETS }, 'triggerWaitingTickets failed:', { error: err }) }
+      db.prepare(
+        'UPDATE tickets SET current_agent_session_id = NULL WHERE id = ?'
+      ).run(ticketId)
+      try {
+        await triggerWaitingTickets(workspaceId)
+      } catch (err) {
+        logger.error(
+          { category: logCategories.API_TICKETS },
+          'triggerWaitingTickets failed:',
+          { error: err }
+        )
+      }
 
-      logger.info({ category: logCategories.API_TICKETS }, 'Ticket completed via /next (done→completed)', { ticketId })
+      logger.info(
+        { category: logCategories.API_TICKETS },
+        'Ticket completed via /next (done→completed runtime)',
+        { ticketId }
+      )
 
       return NextResponse.json({
-        success: true, ticketId, transition: 'finished',
-        previousStatus: { id: currentStatus.id, name: currentStatus.name, color: currentStatus.color },
-        newStatus: { id: completedStatus.id, name: completedStatus.name, color: completedStatus.color },
-        flowing_status: 'completed', completedAt: now, timestamp: now,
+        success: true,
+        ticketId,
+        transition: 'finished',
+        previousStatus: {
+          id: currentStatus.id,
+          name: currentStatus.name,
+          color: currentStatus.color,
+        },
+        newStatus: {
+          id: currentStatus.id,
+          name: currentStatus.name,
+          color: currentStatus.color,
+        },
+        flowing_status: 'completed',
+        completedAt: now,
+        timestamp: now,
       })
     }
 
@@ -129,7 +172,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .prepare(
         'SELECT * FROM ticket_flow_configs WHERE ticket_id = ? AND status_id = ? AND is_included = 1'
       )
-      .get(ticket.id, ticket.status_id)
+      .get(ticket.id, ticket.status_id) as any
 
     if (!currentFlowConfig) {
       return NextResponse.json(

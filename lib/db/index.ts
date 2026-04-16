@@ -77,9 +77,6 @@ export function runMigrations(): void {
     '033_add_sub_ticket_columns.sql',
     '034_add_workspace_projects.sql',
     '035_add_project_id_to_tickets.sql',
-    '036_add_identities_posts_drafts_schedules_job_applications.sql',
-    '037_add_identity_api_keys_and_sessions.sql',
-    '038_add_current_identity_id_to_sessions.sql',
   ]
 
   for (const file of migrationFiles) {
