@@ -80,7 +80,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const comments = db.prepare(`
       SELECT tc.*, u.email as author_email
       FROM ticket_comments tc
-      LEFT JOIN users u ON tc.user_id = u.id
+      LEFT JOIN users u ON tc.created_by = u.id
       WHERE tc.ticket_id = ?
       ORDER BY tc.created_at ASC
     `).all(ticketId) as (TicketComment & { author_email: string })[]
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         is_agent_completion_signal: comment.is_agent_completion_signal === 1,
         created_at: comment.created_at,
         author: {
-          id: comment.user_id,
+          id: comment.created_by,
           email: comment.author_email
         }
       })),

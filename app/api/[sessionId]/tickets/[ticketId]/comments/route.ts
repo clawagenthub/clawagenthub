@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const comments = db.prepare(`
       SELECT tc.*, u.email as author_email
       FROM ticket_comments tc
-      LEFT JOIN users u ON tc.user_id = u.id
+      LEFT JOIN users u ON tc.created_by = u.id
       WHERE tc.ticket_id = ?
       ORDER BY tc.created_at ASC
     `).all(ticketId) as (TicketComment & { author_email: string })[]
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       comments: comments.map(comment => ({
         ...comment,
         author: {
-          id: comment.user_id,
+          id: comment.created_by,
           email: comment.author_email
         }
       }))
@@ -134,13 +134,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const now = new Date().toISOString()
 
     db.prepare(`
-      INSERT INTO ticket_comments (id, ticket_id, user_id, content, is_agent_completion_signal, created_at, updated_at)
+      INSERT INTO ticket_comments (id, ticket_id, content, created_by, is_agent_completion_signal, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       commentId,
       ticketId,
-      verification.user.id,
       content.trim(),
+      verification.user.id,
       is_agent_completion_signal ? 1 : 0,
       now,
       now
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const comment = db.prepare(`
       SELECT tc.*, u.email as author_email
       FROM ticket_comments tc
-      LEFT JOIN users u ON tc.user_id = u.id
+      LEFT JOIN users u ON tc.created_by = u.id
       WHERE tc.id = ?
     `).get(commentId) as TicketComment & { author_email: string }
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       comment: {
         ...comment,
         author: {
-          id: comment.user_id,
+          id: comment.created_by,
           email: comment.author_email
         }
       }
