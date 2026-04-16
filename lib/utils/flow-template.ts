@@ -3,7 +3,7 @@
 export const DEFAULT_FLOW_TEMPLATE = `
 <flow_prompt version="1.0">
   <system_role>
-    <agent_id>{$agentId}</agent_id>
+    <agent_id>{\$agentId}</agent_id>
     <statement>You are the assigned agent for this ticket flow step.</statement>
   </system_role>
 
@@ -21,12 +21,12 @@ export const DEFAULT_FLOW_TEMPLATE = `
 
   <identity_and_scope>
     <current_status>
-      <id>{$currentStatusId}</id>
-      <name>{$currentStatusName}</name>
-      <objective>{$currentStatusDescription}</objective>
-      <instructions_override>{$statusInstructions}</instructions_override>
+      <id>{\$currentStatusId}</id>
+      <name>{\$currentStatusName}</name>
+      <objective>{\$currentStatusDescription}</objective>
+      <instructions_override>{\$statusInstructions}</instructions_override>
     </current_status>
-    <temp_artifacts_path>{$tempPath}/{$ticketId}</temp_artifacts_path>
+    <temp_artifacts_path>{\$tempPath}/{\$ticketId}</temp_artifacts_path>
   </identity_and_scope>
 
   <mandatory_rules priority="highest">
@@ -43,40 +43,40 @@ export const DEFAULT_FLOW_TEMPLATE = `
   </mandatory_rules>
 
   <flow_context>
-    <ticket_id>{$ticketId}</ticket_id>
-    <workspace_id>{$workspaceId}</workspace_id>
-    <domain>{$domain}</domain>
-    <session_token>{$sessionToken}</session_token>
-    <selected_project><![CDATA[{$selectedProject}]]></selected_project>
+    <ticket_id>{\$ticketId}</ticket_id>
+    <workspace_id>{\$workspaceId}</workspace_id>
+    <domain>{\$domain}</domain>
+    <session_token>{\$sessionToken}</session_token>
+    <selected_project><![CDATA[{\$selectedProject}]]></selected_project>
     <blocking_ticket>
       <description>If this ticket is waiting for another ticket to finish, the blocking ticket info is provided here. If isCompleted=false, do NOT attempt to do any real work - instead, pause immediately with RESULT: pause and explain you are waiting for the blocking ticket.</description>
-      <blocking_ticket_info><![CDATA[{$blockingTicketInfo}]]></blocking_ticket_info>
+      <blocking_ticket_info><![CDATA[{\$blockingTicketInfo}]]></blocking_ticket_info>
     </blocking_ticket>
   </flow_context>
 
   <task_input>
-    <ticket_payload><![CDATA[{$ticketJson}]]></ticket_payload>
-    <latest_comments><![CDATA[{$commentsJson}]]></latest_comments>
-    <available_skills><![CDATA[{$skills}]]></available_skills>
+    <ticket_payload><![CDATA[{\$ticketJson}]]></ticket_payload>
+    <latest_comments><![CDATA[{\$commentsJson}]]></latest_comments>
+    <available_skills><![CDATA[{\$skills}]]></available_skills>
   </task_input>
 
   <workspace_statuses>
     <usage>Use this list as the source of allowed status IDs for flow configuration in ticket and sub-ticket creation.</usage>
     <default_inclusion_rule>Statuses with flow_default_enabled=true are included in flow by default.</default_inclusion_rule>
-    <statuses_json><![CDATA[{$statuses}]]></statuses_json>
+    <statuses_json><![CDATA[{\$statuses}]]></statuses_json>
   </workspace_statuses>
 
   <api_contract mode="canonical">
     <session_scoped>true</session_scoped>
     <session_binding>
       <rule>The API path param sessionId is the same value as flow_context.session_token.</rule>
-      <rule>For every session-scoped API call, replace {$sessionId} with {$sessionToken} exactly. Never leave {$sessionId} unresolved in URL.</rule>
+      <rule>For every session-scoped API call, replace {\$sessionId} with {\$sessionToken} exactly. Never leave {\$sessionId} unresolved in URL.</rule>
       <rule>If a session-scoped endpoint returns No workspace selected, first verify the URL used the provided flow_context.session_token as the sessionId path segment.</rule>
     </session_binding>
-    <session_path_pattern>/api/{$sessionId}/tickets/{$ticketId}</session_path_pattern>
+    <session_path_pattern>/api/{\$sessionId}/tickets/{\$ticketId}</session_path_pattern>
 
     <flow_read>
-      <endpoint method="GET">/api/{$sessionId}/tickets/{$ticketId}/flow/view</endpoint>
+      <endpoint method="GET">/api/{\$sessionId}/tickets/{\$ticketId}/flow/view</endpoint>
       <purpose>Get latest ticket, flow configuration, comments, and flow history.</purpose>
       <verification>
         <requires_session_id>true</requires_session_id>
@@ -85,18 +85,18 @@ export const DEFAULT_FLOW_TEMPLATE = `
     </flow_read>
 
     <comments>
-      <endpoint method="POST">/api/{$sessionId}/tickets/{$ticketId}/comments</endpoint>
+      <endpoint method="POST">/api/{\$sessionId}/tickets/{\$ticketId}/comments</endpoint>
       <required_before_terminal_action>true</required_before_terminal_action>
       <body_example><![CDATA[
 {
-  "content": "[Agent {$agentId}] Status={$currentStatusName} | Changed: ... | Validated: ... | Remaining: ...",
+  "content": "[Agent {\$agentId}] Status={\$currentStatusName} | Changed: ... | Validated: ... | Remaining: ...",
   "is_agent_completion_signal": false
 }
       ]]></body_example>
     </comments>
 
     <flow_callbacks primary="true" session_scoped_api="true">
-      <callback name="next" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/next">
+      <callback name="next" method="POST" endpoint="/api/{\$sessionId}/tickets/{\$ticketId}/next">
         <verification>
           <requires_session_id>true</requires_session_id>
           <session_id_location>path</session_id_location>
@@ -108,7 +108,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
         </verification>
         <body_example><![CDATA[{ "notes": "Advance next stage. Summary: ..." }]]></body_example>
       </callback>
-      <callback name="failed" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/failed">
+      <callback name="failed" method="POST" endpoint="/api/{\$sessionId}/tickets/{\$ticketId}/failed">
         <verification>
           <requires_session_id>true</requires_session_id>
           <session_id_location>path</session_id_location>
@@ -119,9 +119,9 @@ export const DEFAULT_FLOW_TEMPLATE = `
             <check name="required_input_specified">Verify required input or fix is specified</check>
           </action_specific_checks>
         </verification>
-        <body_example><![CDATA[{ "notes": "Fail status {$currentStatusName}. Root cause: ... | Attempt: ... | Need: ..." }]]></body_example>
+        <body_example><![CDATA[{ "notes": "Fail status {\$currentStatusName}. Root cause: ... | Attempt: ... | Need: ..." }]]></body_example>
       </callback>
-      <callback name="pause" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/pause">
+      <callback name="pause" method="POST" endpoint="/api/{\$sessionId}/tickets/{\$ticketId}/pause">
         <verification>
           <requires_session_id>true</requires_session_id>
           <session_id_location>path</session_id_location>
@@ -132,9 +132,9 @@ export const DEFAULT_FLOW_TEMPLATE = `
             <check name="current_state_captured">Verify current progress state is captured</check>
           </action_specific_checks>
         </verification>
-        <body_example><![CDATA[{ "notes": "Pause status {$currentStatusName}. Need input: ... | Reason: ... | Resume when: ..." }]]></body_example>
+        <body_example><![CDATA[{ "notes": "Pause status {\$currentStatusName}. Need input: ... | Reason: ... | Resume when: ..." }]]></body_example>
       </callback>
-      <callback name="restart" method="POST" endpoint="/api/{$sessionId}/tickets/{$ticketId}/restart">
+      <callback name="restart" method="POST" endpoint="/api/{\$sessionId}/tickets/{\$ticketId}/restart">
         <verification>
           <requires_session_id>true</requires_session_id>
           <session_id_location>path</session_id_location>
@@ -149,11 +149,11 @@ export const DEFAULT_FLOW_TEMPLATE = `
     </flow_callbacks>
 
     <ticket_management>
-      <endpoint method="GET">/api/{$sessionId}/tickets</endpoint>
-      <endpoint method="POST">/api/{$sessionId}/tickets</endpoint>
-      <endpoint method="GET">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
-      <endpoint method="PATCH">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
-      <endpoint method="DELETE">/api/{$sessionId}/tickets/{$ticketId}</endpoint>
+      <endpoint method="GET">/api/{\$sessionId}/tickets</endpoint>
+      <endpoint method="POST">/api/{\$sessionId}/tickets</endpoint>
+      <endpoint method="GET">/api/{\$sessionId}/tickets/{\$ticketId}</endpoint>
+      <endpoint method="PATCH">/api/{\$sessionId}/tickets/{\$ticketId}</endpoint>
+      <endpoint method="DELETE">/api/{\$sessionId}/tickets/{\$ticketId}</endpoint>
     </ticket_management>
 
     <ticket_payload_keys>
@@ -179,7 +179,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     </creation_conditions>
 
     <required_actions>
-      <action>Use POST /api/{$sessionId}/tickets.</action>
+      <action>Use POST /api/{\$sessionId}/tickets.</action>
       <action>Set isSubTicket=true.</action>
       <action>Set parentTicketId to current parent ticket ID.</action>
       <action>Set waitingFinishedTicketId to blocking ticket ID, otherwise null.</action>
@@ -213,7 +213,7 @@ export const DEFAULT_FLOW_TEMPLATE = `
     }
   ],
   "isSubTicket": true,
-  "parentTicketId": "{$ticketId}",
+  "parentTicketId": "{\$ticketId}",
   "waitingFinishedTicketId": "blocking-ticket-id-or-null"
 }
       ]]></create_sub_ticket>
