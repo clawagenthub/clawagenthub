@@ -147,7 +147,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       `
       INSERT INTO ticket_audit_logs (
         id, ticket_id, event_type, actor_id, actor_type, old_value, new_value, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
     ).run(
       auditLogId,
