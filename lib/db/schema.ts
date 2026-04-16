@@ -24,7 +24,6 @@ export interface Session {
   user_id: string
   token: string
   current_workspace_id: string | null
-  current_identity_id: string | null
   expires_at: string
   created_at: string
 }
@@ -802,7 +801,14 @@ export interface ScheduleUpdate {
 }
 
 // Job Application types
-export type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'accepted' | 'withdrawn'
+export type ApplicationStatus =
+  | 'applied'
+  | 'screening'
+  | 'interview'
+  | 'offer'
+  | 'rejected'
+  | 'accepted'
+  | 'withdrawn'
 export type ApplicationPriority = 'low' | 'medium' | 'high'
 
 export interface JobApplication {

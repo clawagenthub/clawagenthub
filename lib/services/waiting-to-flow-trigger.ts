@@ -129,9 +129,21 @@ export async function triggerWaitingTickets(workspaceId: string) {
     )
 
     // Create a session for system user to use for API auth in flow prompts
-    const systemSession = createSession(systemUserId, 'system-flow-trigger', {
-      workspaceId,
-    })
+    let systemSession: ReturnType<typeof createSession>
+    try {
+      systemSession = createSession(systemUserId, 'system-flow-trigger', {
+        workspaceId,
+      })
+    } catch (error) {
+      logger.error(
+        { category: logCategories.WAITING_TO_FLOW_SERVICE },
+        '[waiting-to-flow-trigger] Failed to create system session for ticket %s in workspace %s: %s',
+        ticket.id,
+        workspaceId,
+        String(error)
+      )
+      continue
+    }
 
     const systemSessionRow = db
       .prepare('SELECT current_workspace_id FROM sessions WHERE token = ?')
@@ -148,11 +160,21 @@ export async function triggerWaitingTickets(workspaceId: string) {
       systemSession.token.substring(0, 8)
     )
 
-    await triggerAgentForFlowStart({
-      ticketId: ticket.id,
-      workspaceId: ticket.workspace_id,
-      userId: systemUserId,
-      sessionToken: systemSession.token,
-    })
+    try {
+      await triggerAgentForFlowStart({
+        ticketId: ticket.id,
+        workspaceId: ticket.workspace_id,
+        userId: systemUserId,
+        sessionToken: systemSession.token,
+      })
+    } catch (error) {
+      logger.error(
+        { category: logCategories.WAITING_TO_FLOW_SERVICE },
+        '[waiting-to-flow-trigger] triggerAgentForFlowStart failed for ticket %s in workspace %s: %s',
+        ticket.id,
+        workspaceId,
+        String(error)
+      )
+    }
   }
 }

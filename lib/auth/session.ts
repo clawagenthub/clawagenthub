@@ -2,8 +2,10 @@ import { getDatabase } from '../db/index.js'
 import { generateSessionToken, generateUserId } from './token.js'
 import type { Session, User } from '../db/schema.js'
 
-const SESSION_DURATION =
-  parseInt(process.env.SESSION_DURATION || '86400000', 10) // 24 hours
+const SESSION_DURATION = parseInt(
+  process.env.SESSION_DURATION || '86400000',
+  10
+) // 24 hours
 
 interface CreateSessionOptions {
   workspaceId?: string | null
@@ -34,18 +36,18 @@ export function createSession(
   const sessionId = generateUserId()
   const token = generateSessionToken()
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
-  const currentWorkspaceId = options?.workspaceId ?? resolveDefaultWorkspaceId(userId)
+  const currentWorkspaceId =
+    options?.workspaceId ?? resolveDefaultWorkspaceId(userId)
 
   db.prepare(
     `INSERT INTO sessions (
-      id, user_id, token, current_workspace_id, current_identity_id, expires_at, origin
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      id, user_id, token, current_workspace_id, expires_at, origin
+    ) VALUES (?, ?, ?, ?, ?, ?)`
   ).run(
     sessionId,
     userId,
     token,
     currentWorkspaceId,
-    null,
     expiresAt.toISOString(),
     origin || null
   )
@@ -55,7 +57,6 @@ export function createSession(
     user_id: userId,
     token,
     current_workspace_id: currentWorkspaceId,
-    current_identity_id: null,
     expires_at: expiresAt.toISOString(),
     created_at: new Date().toISOString(),
   }
