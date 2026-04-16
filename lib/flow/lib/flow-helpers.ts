@@ -217,6 +217,7 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     tempPath: tempPath,
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
+    sessionId: sessionToken,
     selectedProject: selectedProject ? JSON.stringify(selectedProject) : 'null',
   }
 

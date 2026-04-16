@@ -206,6 +206,7 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     tempPath: '/tmp',
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
+    sessionId: sessionToken,
   }
 
   const prompt = replaceTemplateVariables(template, variables)

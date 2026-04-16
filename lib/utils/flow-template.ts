@@ -68,6 +68,11 @@ export const DEFAULT_FLOW_TEMPLATE = `
 
   <api_contract mode="canonical">
     <session_scoped>true</session_scoped>
+    <session_binding>
+      <rule>The API path param sessionId is the same value as flow_context.session_token.</rule>
+      <rule>For every session-scoped API call, replace {$sessionId} with {$sessionToken} exactly. Never leave {$sessionId} unresolved in URL.</rule>
+      <rule>If a session-scoped endpoint returns No workspace selected, first verify the URL used the provided flow_context.session_token as the sessionId path segment.</rule>
+    </session_binding>
     <session_path_pattern>/api/{$sessionId}/tickets/{$ticketId}</session_path_pattern>
 
     <flow_read>

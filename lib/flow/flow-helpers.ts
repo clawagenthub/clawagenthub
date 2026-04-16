@@ -175,7 +175,11 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
   const commentsJson = JSON.stringify(commentsWithRole, null, 2)
 
   // Fetch selected project if ticket has project_id
-  let selectedProject: { name: string; description: string | null; value: string | null } | null = null
+  let selectedProject: {
+    name: string
+    description: string | null
+    value: string | null
+  } | null = null
   if (ticket.project_id) {
     const project = getProjectById(db, ticket.project_id)
     if (project) {
@@ -208,13 +212,15 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
          LEFT JOIN statuses s ON t.status_id = s.id
          WHERE t.id = ?`
       )
-      .get(ticket.waiting_finished_ticket_id) as {
-        id: string
-        ticket_number: number
-        title: string
-        flowing_status: string
-        status_name: string | null
-      } | undefined
+      .get(ticket.waiting_finished_ticket_id) as
+      | {
+          id: string
+          ticket_number: number
+          title: string
+          flowing_status: string
+          status_name: string | null
+        }
+      | undefined
 
     if (blockingTicket) {
       const isCompleted =
@@ -254,6 +260,7 @@ export function buildFlowPrompt(params: BuildFlowPromptParams): string {
     tempPath: tempPath,
     domain: process.env.BASE_URL || 'http://localhost:7777',
     sessionToken: sessionToken,
+    sessionId: sessionToken,
     blockingTicketInfo: blockingTicketInfo,
     selectedProject: selectedProject ? JSON.stringify(selectedProject) : 'null',
   }
