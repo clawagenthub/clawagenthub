@@ -500,7 +500,12 @@ export function useStartTicketFlow() {
         const error = await res.json()
         throw new Error(error.message || 'Failed to start flow')
       }
-      return res.json()
+      const data = await res.json()
+      // Check if the API returned a failure (e.g., ticket already flowing/completed)
+      if (data.success === false) {
+        throw new Error(data.message || `Cannot start flow: ticket is ${data.flowing_status}`)
+      }
+      return data
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -531,7 +536,12 @@ export function useStopTicketFlow() {
         const error = await res.json()
         throw new Error(error.message || 'Failed to stop flow')
       }
-      return res.json()
+      const data = await res.json()
+      // Check if the API returned a failure (e.g., ticket already stopped)
+      if (data.success === false) {
+        throw new Error(data.message || `Cannot stop flow: ticket is ${data.flowing_status}`)
+      }
+      return data
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({

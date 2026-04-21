@@ -257,11 +257,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.action === 'start') {
-      // Guard: Prevent starting if already flowing, waiting_to_flow, or completed
+      // Guard: Prevent starting if already flowing or waiting_to_flow
+      // Allow restarting from 'completed' status (consistent with bulk-start behavior)
       if (
         ticket.flowing_status === 'flowing' ||
-        ticket.flowing_status === 'waiting_to_flow' ||
-        ticket.flowing_status === 'completed'
+        ticket.flowing_status === 'waiting_to_flow'
       ) {
         return NextResponse.json({
           success: false,
