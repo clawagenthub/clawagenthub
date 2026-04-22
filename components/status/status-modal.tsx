@@ -18,6 +18,7 @@ interface StatusModalProps {
     is_flow_included?: boolean
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
+    end_flow_completed_toggle?: boolean
     skill_ids?: string[]
   }) => void
   status?: Status | null
@@ -49,6 +50,7 @@ export function StatusModal({
         initialIsFlowIncluded={status?.is_flow_included ?? false}
         initialOnFailedGoto={status?.on_failed_goto ?? null}
         initialAskApproveToContinue={status?.ask_approve_to_continue ?? false}
+        initialEndFlowCompletedToggle={status?.end_flow_completed_toggle ?? false}
         editingStatusId={status?.id}
         onSubmit={onSubmit}
         onCancel={onClose}

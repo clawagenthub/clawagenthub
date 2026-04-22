@@ -209,7 +209,69 @@ export async function POST(request: NextRequest, context: RouteParams) {
     }
 
     // Check if at 'completed' status - terminal state
+    // Check if source status has end_flow_completed_toggle enabled
     if (currentStatus.name.toLowerCase() === 'completed') {
+      const sourceStatus = db
+        .prepare('SELECT * FROM statuses WHERE id = ?')
+        .get(ticket.status_id) as Status | undefined
+      
+      // If source status has end_flow_completed_toggle, add to "editing to statuses" tracking
+      if (sourceStatus?.end_flow_completed_toggle) {
+        const now = new Date().toISOString()
+        // Create flow history entry with end_flow_completed flag
+        const flowHistoryId = generateUserId()
+        db.prepare(
+          'INSERT INTO ticket_flow_history (id, ticket_id, from_status_id, to_status_id, agent_id, session_id, flow_result, notes, started_at, completed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          flowHistoryId,
+          ticketId,
+          ticket.status_id,
+          ticket.status_id,
+          null,
+          ticket.current_agent_session_id,
+          'finished',
+          'end_flow_completed',
+          ticket.last_flow_check_at || now,
+          now,
+          now
+        )
+        
+        db.prepare(
+          'UPDATE tickets SET flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ? WHERE id = ?'
+        ).run('completed', now, now, now, ticketId)
+        
+        // Trigger waiting tickets
+        try {
+          await triggerWaitingTickets(workspaceId)
+        } catch (err) {
+          logger.error(
+            { category: logCategories.API_TICKETS },
+            'triggerWaitingTickets failed:',
+            { error: err }
+          )
+        }
+        
+        return NextResponse.json({
+          success: true,
+          ticketId,
+          transition: 'finished',
+          end_flow_completed: true,
+          previousStatus: {
+            id: currentStatus.id,
+            name: currentStatus.name,
+            color: currentStatus.color,
+          },
+          newStatus: {
+            id: currentStatus.id,
+            name: currentStatus.name,
+            color: currentStatus.color,
+          },
+          flowing_status: 'completed',
+          completedAt: now,
+          timestamp: now,
+        })
+      }
+      
       return NextResponse.json(
         {
           error: 'INVALID_TRANSITION',
@@ -233,7 +295,7 @@ export async function POST(request: NextRequest, context: RouteParams) {
     const nextFlowConfig = db
       .prepare(
         `
-        SELECT tfc.*, s.name as status_name, s.color as status_color
+        SELECT tfc.*, s.name as status_name, s.color as status_color, s.end_flow_completed_toggle
         FROM ticket_flow_configs tfc
         LEFT JOIN statuses s ON tfc.status_id = s.id
         WHERE tfc.ticket_id = ? AND tfc.flow_order > ? AND tfc.is_included = 1
@@ -247,6 +309,7 @@ export async function POST(request: NextRequest, context: RouteParams) {
           status_id: string
           status_name: string
           status_color: string
+          end_flow_completed_toggle: boolean
           flow_order: number
           agent_id: string | null
           on_failed_goto: string | null
@@ -266,22 +329,33 @@ export async function POST(request: NextRequest, context: RouteParams) {
 
     // Determine new flowing status
     // Auto-trigger if: automatic mode OR explicit finished=true signal
+    const shouldMarkCompleted = Boolean(nextFlowConfig.end_flow_completed_toggle)
     const shouldAutoTrigger =
+      !shouldMarkCompleted &&
       (ticket.flow_mode === 'automatic' || explicitFinished) &&
       nextFlowConfig.agent_id
-    let nextFlowingStatus: 'flowing' | 'waiting' = shouldAutoTrigger
-      ? 'flowing'
-      : 'waiting'
+    let nextFlowingStatus: 'flowing' | 'waiting' | 'completed' = shouldMarkCompleted
+      ? 'completed'
+      : shouldAutoTrigger
+        ? 'flowing'
+        : 'waiting'
     let shouldAutoTriggerNext = shouldAutoTrigger
 
     // Update ticket to next status
     db.prepare(
       `
       UPDATE tickets
-      SET status_id = ?, flowing_status = ?, last_flow_check_at = ?, updated_at = ?
+      SET status_id = ?, flowing_status = ?, completed_at = ?, last_flow_check_at = ?, updated_at = ?
       WHERE id = ?
     `
-    ).run(nextFlowConfig.status_id, nextFlowingStatus, now, now, ticketId)
+    ).run(
+      nextFlowConfig.status_id,
+      nextFlowingStatus,
+      shouldMarkCompleted ? now : null,
+      now,
+      now,
+      ticketId
+    )
 
     // Create flow history entry
     const flowHistoryId = generateUserId()
@@ -321,7 +395,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
       user.id,
       'user',
       JSON.stringify({ from_status_id: ticket.status_id, transition: 'next' }),
-      JSON.stringify({ to_status_id: nextFlowConfig.status_id }),
+      JSON.stringify({
+        to_status_id: nextFlowConfig.status_id,
+        flowing_status: nextFlowingStatus,
+        completed_at: shouldMarkCompleted ? now : null,
+      }),
       now
     )
 

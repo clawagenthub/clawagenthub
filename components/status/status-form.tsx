@@ -14,6 +14,7 @@ export function StatusForm({
   initialIsFlowIncluded = false,
   initialOnFailedGoto = null,
   initialAskApproveToContinue = false,
+  initialEndFlowCompletedToggle = false,
   editingStatusId,
   initialSkillIds: _initialSkillIds = [],
   onSubmit,
@@ -34,6 +35,7 @@ export function StatusForm({
   const [isFlowIncluded, setIsFlowIncluded] = useState(initialIsFlowIncluded)
   const [onFailedGoto, setOnFailedGoto] = useState<string | null>(initialOnFailedGoto)
   const [askApproveToContinue, setAskApproveToContinue] = useState(initialAskApproveToContinue)
+  const [endFlowCompletedToggle, setEndFlowCompletedToggle] = useState(initialEndFlowCompletedToggle)
   const [isFlowConfigExpanded, setIsFlowConfigExpanded] = useState(false)
   
   // Skills state
@@ -110,6 +112,7 @@ export function StatusForm({
       is_flow_included: isFlowIncluded,
       on_failed_goto: onFailedGoto,
       ask_approve_to_continue: askApproveToContinue,
+      end_flow_completed_toggle: endFlowCompletedToggle,
       skill_ids: selectedSkills.map(s => s.id),
     })
   }
@@ -489,6 +492,39 @@ export function StatusForm({
                     className="absolute top-[2px] left-[2px] bg-white w-5 h-5 rounded-full transition-transform"
                     style={{
                       transform: askApproveToContinue ? 'translateX(20px)' : 'translateX(0)',
+                    }}
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            {/* End flow completed toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium" style={{ color: `rgb(var(--text-primary))` }}>
+                  End flow completed toggle
+                </label>
+                <p className="text-xs" style={{ color: `rgb(var(--text-secondary))` }}>
+                  Add to "editing to statuses" end flow tracking when status is Completed
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={endFlowCompletedToggle}
+                  onChange={(e) => setEndFlowCompletedToggle(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div
+                  className="w-11 h-6 rounded-full transition-colors"
+                  style={{
+                    backgroundColor: endFlowCompletedToggle ? `rgb(var(--accent-primary, 59 130 246))` : `rgb(var(--border-color))`,
+                  }}
+                >
+                  <div
+                    className="absolute top-[2px] left-[2px] bg-white w-5 h-5 rounded-full transition-transform"
+                    style={{
+                      transform: endFlowCompletedToggle ? 'translateX(20px)' : 'translateX(0)',
                     }}
                   ></div>
                 </div>

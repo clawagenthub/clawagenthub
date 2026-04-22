@@ -40,7 +40,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
-    const { name, color, description, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue, skill_ids } = body
+    const {
+      name,
+      color,
+      description,
+      priority,
+      agent_id,
+      is_flow_included,
+      on_failed_goto,
+      ask_approve_to_continue,
+      end_flow_completed_toggle,
+      skill_ids,
+    } = body
 
     // Validate inputs
     if (name !== undefined) {
@@ -187,6 +198,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (ask_approve_to_continue !== undefined) {
       updates.push('ask_approve_to_continue = ?')
       values.push(ask_approve_to_continue ? 1 : 0)
+    }
+    if (end_flow_completed_toggle !== undefined) {
+      updates.push('end_flow_completed_toggle = ?')
+      values.push(end_flow_completed_toggle ? 1 : 0)
     }
 
     if (updates.length === 0) {

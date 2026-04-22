@@ -67,7 +67,7 @@ export function StatusCard({
       </div>
 
       {/* Flow Configuration Badges */}
-      {(status.is_flow_included || status.on_failed_goto || status.ask_approve_to_continue) && (
+      {(status.is_flow_included || status.on_failed_goto || status.ask_approve_to_continue || status.end_flow_completed_toggle) && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {status.is_flow_included && (
             <span
@@ -100,6 +100,17 @@ export function StatusCard({
               }}
             >
               Approval
+            </span>
+          )}
+          {status.end_flow_completed_toggle && (
+            <span
+              className="text-xs px-2 py-0.5 rounded"
+              style={{
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                color: 'rgb(34, 197, 94)',
+              }}
+            >
+              Auto Complete
             </span>
           )}
         </div>

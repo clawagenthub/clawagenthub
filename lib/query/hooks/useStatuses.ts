@@ -32,6 +32,7 @@ export function useCreateStatus() {
       is_flow_included?: boolean
       on_failed_goto?: string | null
       ask_approve_to_continue?: boolean
+      end_flow_completed_toggle?: boolean
     }) => {
       const res = await fetch('/api/statuses', {
         method: 'POST',
@@ -68,6 +69,7 @@ export function useUpdateStatus() {
       is_flow_included?: boolean
       on_failed_goto?: string | null
       ask_approve_to_continue?: boolean
+      end_flow_completed_toggle?: boolean
     }) => {
       const res = await fetch(`/api/statuses/${params.id}`, {
         method: 'PUT',
@@ -81,6 +83,7 @@ export function useUpdateStatus() {
           is_flow_included: params.is_flow_included,
           on_failed_goto: params.on_failed_goto,
           ask_approve_to_continue: params.ask_approve_to_continue,
+          end_flow_completed_toggle: params.end_flow_completed_toggle,
         }),
       })
       if (!res.ok) {

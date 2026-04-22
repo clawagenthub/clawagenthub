@@ -9,6 +9,7 @@ export interface StatusFormProps {
   initialIsFlowIncluded?: boolean
   initialOnFailedGoto?: string | null
   initialAskApproveToContinue?: boolean
+  initialEndFlowCompletedToggle?: boolean
   editingStatusId?: string
   initialSkillIds?: string[]
   onSubmit: (data: {
@@ -20,6 +21,7 @@ export interface StatusFormProps {
     is_flow_included?: boolean
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
+    end_flow_completed_toggle?: boolean
     skill_ids?: string[]
   }) => void
   isEditing?: boolean

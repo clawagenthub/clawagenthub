@@ -110,6 +110,7 @@ export interface Status {
   ask_approve_to_continue: boolean
   instructions_override: string | null
   is_system_status: boolean
+  end_flow_completed_toggle: boolean
   created_at: string
   updated_at: string
 }
@@ -126,6 +127,7 @@ export interface StatusInsert {
   ask_approve_to_continue?: boolean
   instructions_override?: string | null
   is_system_status?: boolean
+  end_flow_completed_toggle?: boolean
 }
 
 export interface StatusUpdate {
@@ -139,6 +141,7 @@ export interface StatusUpdate {
   ask_approve_to_continue?: boolean
   instructions_override?: string | null
   is_system_status?: boolean
+  end_flow_completed_toggle?: boolean
 }
 
 // Ticket creation status type

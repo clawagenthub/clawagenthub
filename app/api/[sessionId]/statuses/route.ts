@@ -100,7 +100,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const body = await request.json()
-    const { name, color, description, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue } = body
+    const {
+      name,
+      color,
+      description,
+      priority,
+      agent_id,
+      is_flow_included,
+      on_failed_goto,
+      ask_approve_to_continue,
+      end_flow_completed_toggle,
+    } = body
 
     // Validate inputs
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -145,10 +155,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const statusIsFlowIncluded = is_flow_included ? 1 : 0
     const statusOnFailedGoto = (on_failed_goto !== undefined && on_failed_goto !== null && on_failed_goto.trim()) ? on_failed_goto.trim() : null
     const statusAskApproveToContinue = ask_approve_to_continue ? 1 : 0
+    const statusEndFlowCompletedToggle = end_flow_completed_toggle ? 1 : 0
 
     db.prepare(
-      `INSERT INTO statuses (id, name, color, description, workspace_id, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO statuses (id, name, color, description, workspace_id, priority, agent_id, is_flow_included, on_failed_goto, ask_approve_to_continue, end_flow_completed_toggle, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       statusId,
       name.trim(),
@@ -160,6 +171,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       statusIsFlowIncluded,
       statusOnFailedGoto,
       statusAskApproveToContinue,
+      statusEndFlowCompletedToggle,
       now,
       now
     )

@@ -49,6 +49,7 @@ export function StatusesPageContent({ user: _user }: PageContentProps) {
     is_flow_included?: boolean
     on_failed_goto?: string | null
     ask_approve_to_continue?: boolean
+    end_flow_completed_toggle?: boolean
     skill_ids?: string[]
   }) => {
     logger.debug('[DEBUG] handleSubmit called with data:', data)
