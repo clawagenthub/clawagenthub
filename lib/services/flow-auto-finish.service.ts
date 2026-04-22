@@ -328,7 +328,7 @@ export class FlowAutoFinishService {
         `
       SELECT id FROM tickets 
       WHERE waiting_finished_ticket_id = ?
-        AND flowing_status = 'waiting'
+        AND flowing_status IN ('waiting', 'waiting_to_flow', 'failed')
     `
       )
       .all(finishedTicketId) as Array<{ id: string }>
@@ -338,7 +338,7 @@ export class FlowAutoFinishService {
 
   /**
    * Update waiting tickets when a dependency finishes
-   * Moves tickets from 'waiting' to 'waiting_to_flow' state
+   * Moves tickets from 'waiting', 'waiting_to_flow', or 'failed' to 'waiting_to_flow' state
    *
    * @param finishedTicketId - The ticket that just finished
    * @returns Number of tickets updated
@@ -352,7 +352,7 @@ export class FlowAutoFinishService {
       UPDATE tickets 
       SET flowing_status = 'waiting_to_flow', updated_at = datetime('now')
       WHERE waiting_finished_ticket_id = ?
-        AND flowing_status = 'waiting'
+        AND flowing_status IN ('waiting', 'waiting_to_flow', 'failed')
     `
       )
       .run(finishedTicketId)
@@ -360,6 +360,44 @@ export class FlowAutoFinishService {
     logger.debug(
       `[FlowAutoFinish] Updated ${result.changes} waiting tickets after ${finishedTicketId} finished`
     )
+
+    // Audit trail for each updated ticket
+    if (result.changes > 0) {
+      try {
+        const updatedTickets = db
+          .prepare(
+            `
+          SELECT id FROM tickets 
+          WHERE waiting_finished_ticket_id = ?
+            AND flowing_status = 'waiting_to_flow'
+            AND updated_at > datetime('now', '-10 seconds')
+        `
+          )
+          .all(finishedTicketId) as Array<{ id: string }>
+
+        for (const ticket of updatedTickets) {
+          db.prepare(
+            `
+            INSERT INTO ticket_audit_logs (id, ticket_id, event_type, old_value, new_value, created_by)
+            VALUES (?, ?, 'waiting_ticket_released', NULL, ?, 'system')
+          `
+          ).run(
+            `wait_release_${Date.now()}_${ticket.id}`,
+            ticket.id,
+            JSON.stringify({
+              releasedBy: finishedTicketId,
+              releasedAt: new Date().toISOString(),
+            })
+          )
+        }
+      } catch (error) {
+        logger.error(
+          `[FlowAutoFinish] Failed to log waiting ticket releases:`,
+          error
+        )
+      }
+    }
+
     return result.changes
   }
 }

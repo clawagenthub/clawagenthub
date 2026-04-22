@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/db/index.js'
 import { getUserFromSession } from '@/lib/auth/session.js'
 import { generateUserId } from '@/lib/auth/token.js'
 import { triggerAgentForFlowStart, triggerWaitingTickets } from './trigger-agent'
+import { flowAutoFinishService } from '@/lib/services/flow-auto-finish.service'
 import { validateFlowAction, validateFlowEnabled } from './flow-validators.js'
 import type { FlowPostBody, FlowConfigWithStatus } from './flow-types.js'
 import type { Status } from '@/lib/db/schema.js'
@@ -169,6 +170,10 @@ export async function processFlowPost(
     JSON.stringify({ to_status_id: nextStatusId }),
     now
   )
+
+  if (result === 'finished' && nextFlowingStatus === 'completed') {
+    await flowAutoFinishService.updateWaitingTickets(ticketId)
+  }
 
   if (shouldAutoTriggerNext) {
     await triggerAgentForFlowStart({
